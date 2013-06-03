@@ -43,7 +43,7 @@ You can add a new item:
 curl "http://localhost:3000/api" -d "name=Jimbo&surname=Johnson"
 ```
 
-(for complex object, just do a POST with a JSON body)
+(for complex objects, just do a POST with a JSON body)
 
 You can query a specific item by appeding the identifier of the record (the _id attribute):
 
