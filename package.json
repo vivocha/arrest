@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "REST framework for Node.js, Express and MongoDB",
   "homepage": "https://github.com/vivocha/arrest",
   "keywords": [
@@ -17,6 +17,12 @@
     "email": "fpinna@vivocha.com"
   },
   "contributors": [
+  ],
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://github.com/vivocha/arrest/raw/master/LICENSE"
+    }
   ],
   "repository": {
     "type": "git",
