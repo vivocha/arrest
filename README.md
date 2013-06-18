@@ -26,7 +26,7 @@ var arrest = require('arrest')
 
 app.use(express.bodyParser());
 
-arrest.use(app, '/api', arrest.RestMongoAPI('mongodb://localhost:27017', 'data'));
+arrest.use(app, '/api', new arrest.RestMongoAPI('mongodb://localhost:27017', 'data'));
 
 app.listen(3000);
 ```
