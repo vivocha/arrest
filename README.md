@@ -3,7 +3,7 @@ arrest
 
 REST framework for Node.js, Express and MongoDB
 
-Arrest lets you write RESTful web services in minutes. It works with Express,
+Arrest lets you write RESTful web services in minutes. It works with Express 4.x,
 implements simple CRUD semantics on MongoDB and the resulting web services
 are compatible with the $resource service of AngularJS.
 
