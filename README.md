@@ -147,9 +147,13 @@ function MyAPI() {
   this.routes.push({ method: 'get', mount: '/greet/:name', handler: this._hello });
 }
 
-util.inherits(MyAPI, RestMongoAPI);
+util.inherits(MyAPI, arrest.RestMongoAPI);
 
 MyAPI.prototype._hello = function(req, res) {
-  res.jsonp({ hello: req.param.name });
+  res.jsonp({ hello: req.params.name });
 }
 ```
+
+And, as a last step, remember to *use* the new API:
+
+```arrest.use(app, "/api", new MyAPI());```
