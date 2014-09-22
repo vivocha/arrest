@@ -22,9 +22,10 @@ on a MongoDB instance running on *localhost*:
 ```js
 var arrest = require('arrest')
   , express = require('express')
+  , bodyParser = require('body-parser')
   , app = express()
 
-app.use(express.bodyParser());
+app.use(bodyParser.json());
 
 arrest.use(app, '/api', new arrest.RestMongoAPI('mongodb://localhost:27017', 'data'));
 
