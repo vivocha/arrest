@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "REST framework for Node.js, Express and MongoDB",
   "homepage": "https://github.com/vivocha/arrest",
   "keywords": [
@@ -19,7 +19,12 @@
   "contributors": [
     {
       "name": "William Ghelfi",
+      "email": "trumbitta@gmail.com",
       "url": "https://github.com/trumbitta"
+    },
+    {
+      "name": "Andrea Lovicu",
+      "email": "alovicu@vivocha.com"
     }
   ],
   "licenses": [
