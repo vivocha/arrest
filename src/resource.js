@@ -6,16 +6,6 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/*
- { method: 'get',    mount: '',     handler: this._query },
- { method: 'get',    mount: '/:id', handler: this._get },
- { method: 'put',    mount: '',     handler: this._create },
- { method: 'post',   mount: '',     handler: this._create },
- { method: 'post',   mount: '/:id', handler: this._update },
- { method: 'delete', mount: '/:id', handler: this._remove }
-*/
-
-
 jpdefine('Route', {
   type: 'object',
   value: {
@@ -37,9 +27,10 @@ jpdefine('Route', {
       type: 'string',
       validator: function(s) {
         // TODO implement the security zone check
-        throw new Error('not_implemented');
+        return true;
+        //throw new Error('not_implemented');
       }
-    }
+    },
     query: {
       type: 'object'
     },
@@ -90,8 +81,8 @@ jpdefine('ResourceOptions', {
 });
 
 export class Resource {
-  constructor(_options) {
-    this.options = jpcreate('ResourceOptions', _options);
+  constructor(_options, _class) {
+    this.options = jpcreate(_class || 'ResourceOptions', _options);
   }
   handleError(e) {
     // TODO define a specific error class and send back secure and meaningful error messages
@@ -119,12 +110,12 @@ export class Resource {
       }
     }
   }
-  router() {
-    if (!this.router) {
-      this.router = express.Router(this.options.router);
-      for (var i = 0, r ; i < this.routes.length ; i++) {
-        r = this.routes[i];
-        var args = [];
+  get router() {
+    if (!this._router) {
+      this._router = express.Router(this.options.router);
+      for (var i = 0, r ; i < this.options.routes.length ; i++) {
+        r = this.options.routes[i];
+        var args = [ r.mount ];
         if (r.zone) {
           args.push(this['auth' + capitalize(r.zone)].bind(this));
         }
@@ -136,12 +127,12 @@ export class Resource {
           args.push(this.queryContraintsMiddleWare(r.body));
         }
         args.push(this[r.handler].bind(this));
-        this.router[r.method.toLowerCase()].apply(this.router, args);
+        this._router[r.method.toLowerCase()].apply(this._router, args);
       }
     }
-    return this.router;
+    return this._router;
   }
   mount(app) {
-    return app.use('/' + this.options.namePlural || this.options.name, this.router());
+    return app.use('/' + this.options.namePlural || this.options.name, this.router);
   }
 }
