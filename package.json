@@ -48,7 +48,10 @@
     "babel-loader": "^6.2.1",
     "babel-preset-es2015": "^6.3.13"
   },
-  "main": "index",
+  "main": "lib/index.js",
+  "scripts": {
+    "prepublish": "babel --presets es2015 --source-maps -d lib src"
+  },
   "engines": {
     "node": ">= 0.6.0"
   }

@@ -36,7 +36,7 @@ export class DefaultResource extends Resource {
 }
 DefaultResource.defaultRoutes = [
   { method: 'GET', mount: '', handler: 'query' },
-  { method: 'GET', mount: '/:id', handler: 'read', zone: 'admin' },
+  { method: 'GET', mount: '/:id', handler: 'read', zone: 'admin', query: { type: 'object', loose: true, value: { x: { type: 'number', required: true, min: 5 } } } },
   { method: 'POST', mount: '', handler: 'create' },
   { method: 'PUT', mount: '', handler: 'updateAll' },
   { method: 'PUT', mount: '/:id', handler: 'updateOne' },
