@@ -2,6 +2,36 @@ import { default as _ } from 'underscore';
 import { register as jpdefine } from 'jsonpolice';
 import { Resource } from './resource'
 
+jpdefine('DefaultFields', {
+  type: 'object',
+  transform: function(v) {
+    console.log('transform in', v);
+    if (typeof v !== 'undefined') {
+      if (typeof v === 'string') {
+        v = v.split(',');
+      }
+      if (typeof v === 'object') {
+        if (v instanceof Array) {
+          v = _.reduce(v, function(out, val) {
+            if (val[0] === '-') {
+              out[val.substr(1)] = false;
+            } else {
+              out[val] = true;
+            }
+            return out;
+          }, {});
+        }
+        // Normalize to actual boolean values
+        v = _.reduce(v, function(out, val, key) {
+          out[key] = !!val;
+          return out;
+        }, {});
+      }
+    }
+    console.log('transform out', v);
+    return v;
+  }
+});
 jpdefine('DefaultQueryArgs', {
   type: 'object',
   loose: true,
@@ -17,48 +47,14 @@ jpdefine('DefaultQueryArgs', {
       min: 0,
       default: 0
     },
-    fields: {
-      type: 'object',
-      transform: function(v) {
-        console.log('transform in', v);
-        if (typeof v !== 'undefined') {
-          if (typeof v === 'string') {
-            v = v.split(',');
-          }
-          if (typeof v === 'object') {
-            if (v instanceof Array) {
-              v = _.reduce(v, function(out, val) {
-                if (val[0] === '-') {
-                  out[val.substr(1)] = false;
-                } else {
-                  out[val] = true;
-                }
-                return out;
-              }, {});
-            }
-            // Normalize to actual boolean values
-            v = _.reduce(v, function(out, val, key) {
-              out[key] = !!val;
-              return out;
-            }, {});
-          }
-        }
-        console.log('transform out', v);
-        return v;
-      }
-    }
+    fields: 'DefaultFields'
   }
 });
 jpdefine('DefaultReadArgs', {
   type: 'object',
   loose: true,
   value: {
-    fields: {
-      type: 'array',
-      value: {
-        type: 'string'
-      }
-    }
+    fields: 'DefaultFields'
   }
 });
 jpdefine('DefaultBody', {

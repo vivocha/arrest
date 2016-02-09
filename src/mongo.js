@@ -42,18 +42,25 @@ export class MongoResource extends RESTResource {
       return db.collection(this.options.collection, opts);
     });
   }
-  itemQuery(id) {
+  getItemQuery(id) {
     return {
       [ this.options.id ]: (this.options.idIsObjectId ? new ObjectId(id) : id)
     };
   }
+
+  getQueryManyQuery(req) {
+    return {};
+  }
+  getQueryManyOpts(req) {
+    var opts = {};
+    if (req.query.fields) {
+      opts.fields = req.query.fields;
+    }
+    return opts;
+  }
   query(req, res) {
     this.collection().then(collection => {
-      var opts = {};
-      if (req.query.fields) {
-        opts.fields = req.query.fields;
-      }
-      var cursor = collection.find({}, opts);
+      var cursor = collection.find(this.getQueryManyQuery(req), this.getQueryManyOpts(req));
       if (req.query.skip) {
         cursor.skip(req.query.skip);
       }
@@ -79,13 +86,20 @@ export class MongoResource extends RESTResource {
       this.handleError(err, req, res);
     });
   }
+
+  getReadQuery(req) {
+    return this.getItemQuery(req.params.id)
+  }
+  getReadOpts(req) {
+    var opts = {};
+    if (req.query.fields) {
+      opts.fields = req.query.fields;
+    }
+    return opts;
+  }
   read(req, res) {
     this.collection().then(collection => {
-      var opts = {};
-      if (req.query.fields) {
-        opts.fields = req.query.fields;
-      }
-      return collection.find(this.itemQuery(req.params.id), opts).limit(1).next().then(data => {
+      return collection.find(this.getReadQuery(req), this.getReadOpts(req)).limit(1).next().then(data => {
         if (data) {
           res.jsonp(data);
         } else {
@@ -96,10 +110,17 @@ export class MongoResource extends RESTResource {
       this.handleError(err, req, res);
     });
   }
+
+  getCreateDoc(req) {
+    return req.body;
+  }
+  getCreateOpts(req) {
+    return {};
+  }
   create(req, res) {
     console.log('create', req.body);
     this.collection().then(collection => {
-      return collection.insertOne(req.body).then(result => {
+      return collection.insertOne(this.getCreateDoc(req), this.getCreateOpts(req)).then(result => {
         if (result.insertedCount != 1) {
           console.error('insert failed', result);
           this.fireError(500, 'failed');
@@ -115,13 +136,32 @@ export class MongoResource extends RESTResource {
       this.handleError(err, req, res);
     });
   }
+
+  getUpdateManyQuery(req) {
+    return {};
+  }
+  getUpdateManyOpts(req) {
+    return {};
+  }
   updateMany(req, res) {
     this.fireError(501, 'not_implemented');
   }
+
+  getUpdateOneQuery(req) {
+    return this.getItemQuery(req.params.id)
+  }
+  getUpdateOneDoc(req) {
+    if (req.body[this.options.id]) {
+      delete req.body[this.options.id];
+    }
+    return req.body;
+  }
+  getUpdateOneOpts(req) {
+    return { returnOriginal: false };
+  }
   updateOne(req, res) {
     this.collection().then(collection => {
-      delete req.body[this.options.id];
-      return collection.findOneAndUpdate(this.itemQuery(req.params.id), req.body, { returnOriginal: false }).then(result => {
+      return collection.findOneAndUpdate(this.getUpdateOneQuery(req), this.getUpdateOneDoc(req), this.getUpdateOneOpts(req)).then(result => {
         if (!result.ok || !result.value) {
           console.error('update failed', result);
           this.fireError(404, 'not_found');
@@ -133,12 +173,26 @@ export class MongoResource extends RESTResource {
       this.handleError(err, req, res);
     });
   }
+
+  getDeleteManyQuery(req) {
+    return {};
+  }
+  getDeleteManyOpts(req) {
+    return {};
+  }
   deleteMany(req, res) {
     this.fireError(501, 'not_implemented');
   }
+
+  getDeleteOneQuery(req) {
+    return this.getItemQuery(req.params.id)
+  }
+  getDeleteOneOpts(req) {
+    return {};
+  }
   deleteOne(req, res) {
     this.collection().then(collection => {
-      return collection.deleteOne(this.itemQuery(req.params.id)).then(result => {
+      return collection.deleteOne(this.getDeleteOneQuery(req), this.getDeleteOneOpts(req)).then(result => {
         if (result.deletedCount != 1) {
           console.error('delete failed', result);
           this.fireError(404, 'not_found');
