@@ -6,9 +6,6 @@ export class RESTError extends Error {
     this.info = info;
     this.originalError = err;
   }
-  send(res) {
-    RESTError.send(res, this.code || 500, this.message, this.info);
-  }
   static send(res, code, message, info) {
     res.status(code).json({
       error: code,

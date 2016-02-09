@@ -1,6 +1,8 @@
+import { default as _ } from 'underscore';
 import { default as express } from 'express';
 import { default as bodyParser } from 'body-parser';
-import { register as jpdefine, create as jpcreate } from 'jsonpolice';
+import { deepExtend as extend } from 'eredita';
+import { register as jpdefine, create as jpcreate, config as jpconfig } from 'jsonpolice';
 import { RESTError } from './error';
 
 function capitalize(s) {
@@ -33,10 +35,12 @@ jpdefine('Route', {
       }
     },
     query: {
-      type: 'object'
+      type: 'object',
+      transform: jpconfig
     },
     body: {
-      type: 'object'
+      type: 'object',
+      transform: jpconfig
     }
   }
 });
@@ -77,6 +81,10 @@ jpdefine('ResourceOptions', {
       required: true,
       value: 'Route',
       minLength: 1
+    },
+    mergeRoutes: {
+      type: 'boolean',
+      default: true
     }
   }
 });
@@ -89,14 +97,14 @@ export class Resource {
     throw new RESTError(code, message, info, err);
   }
   handleError(err, req, res, next) {
-    if (err instanceof RESTError) {
+    if (err.name === 'RESTError') {
       console.error('REST ERROR', err);
-      err.send(res);
+      RESTError.send(res, err.code || 500, err.message, err.info);
     } else if (err.name === 'DataError') {
       console.error('DATA ERROR', err);
       RESTError.send(res, 400, err.message, err.path);
     } else {
-      console.error('GENERIC ERROR', err);
+      console.error('GENERIC ERROR', err, err.stack);
       RESTError.send(res, 500, 'internal');
     }
   }
@@ -107,8 +115,8 @@ export class Resource {
     }
   }
   queryContraintsMiddleWare(config) {
-    console.log('query constraints', config);
     return (req, res, next) => {
+      req.originalQuery = _.clone(req.query);
       req.query = jpcreate(config, req.query);
       next();
     }
