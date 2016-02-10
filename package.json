@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "REST framework for Node.js, Express and MongoDB",
   "homepage": "https://github.com/vivocha/arrest",
   "keywords": [
@@ -55,6 +55,6 @@
     "prepublish": "babel --presets es2015 --source-maps -d lib src"
   },
   "engines": {
-    "node": ">= 0.6.0"
+    "node": ">= 0.12.0"
   }
 }
