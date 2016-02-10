@@ -71,20 +71,13 @@ jpdefine('DefaultBodyArray', {
 
 export class RESTResource extends Resource {
   constructor(_options, _class) {
-    if (_options.routes) {
-      if (_options.mergeRoutes) {
-        _options.routes = RESTResource.mergeRoutes(RESTResource.defaultRoutes, _options.routes);
-      }
-    } else {
-      _options.routes = RESTResource.defaultRoutes;
-    }
     super(_options, _class);
   }
   get routes() {
     var out;
     if (this.options.routes) {
       if (this.options.mergeRoutes) {
-        out = RESTResource.mergeRoutes(RESTResource.defaultRoutes, _options.routes);
+        out = RESTResource.mergeRoutes(RESTResource.defaultRoutes, this.options.routes);
       } else {
         out = this.options.routes;
       }
