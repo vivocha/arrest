@@ -44,6 +44,11 @@ jpdefine('Route', {
     }
   }
 });
+jpdefine('RouteArray', {
+  type: 'array',
+  default: [],
+  value: 'Route'
+});
 jpdefine('ResourceOptions', {
   type: 'object',
   value: {
@@ -76,12 +81,7 @@ jpdefine('ResourceOptions', {
         }
       }
     },
-    routes: {
-      type: 'array',
-      required: true,
-      value: 'Route',
-      minLength: 1
-    },
+    routes: 'RouteArray',
     mergeRoutes: {
       type: 'boolean',
       default: true
@@ -121,11 +121,15 @@ export class Resource {
       next();
     }
   }
+  get routes() {
+    return this.options.routes;
+  }
   get router() {
     if (!this._router) {
+      var routes = this.routes;
       this._router = express.Router(this.options.router);
-      for (var i = 0, r ; i < this.options.routes.length ; i++) {
-        r = this.options.routes[i];
+      for (var i = 0, r ; i < routes.length ; i++) {
+        r = routes[i];
         var args = [ r.mount ];
         if (r.zone) {
           args.push(this['auth' + capitalize(r.zone)].bind(this));

@@ -1,4 +1,5 @@
 import { default as _ } from 'underscore';
+import { deepExtend as extend } from 'eredita';
 import { register as jpdefine } from 'jsonpolice';
 import { Resource } from './resource'
 
@@ -78,6 +79,19 @@ export class RESTResource extends Resource {
       _options.routes = RESTResource.defaultRoutes;
     }
     super(_options, _class);
+  }
+  get routes() {
+    var out;
+    if (this.options.routes) {
+      if (this.options.mergeRoutes) {
+        out = RESTResource.mergeRoutes(RESTResource.defaultRoutes, _options.routes);
+      } else {
+        out = this.options.routes;
+      }
+    } else {
+      out = RESTResource.defaultRoutes;
+    }
+    return jpcreate('RouteArray', out);
   }
   query(req, res) {
     this.fireError(501, 'not_implemented');
