@@ -112,13 +112,12 @@ export class MongoResource extends RESTResource {
   }
 
   getCreateDoc(req) {
-    return req.body;
+    return JSON.parse(JSON.stringify(req.body));
   }
   getCreateOpts(req) {
     return {};
   }
   create(req, res) {
-    console.log('create', req.body);
     this.collection().then(collection => {
       return collection.insertOne(this.getCreateDoc(req), this.getCreateOpts(req)).then(result => {
         if (result.insertedCount != 1) {
@@ -151,10 +150,11 @@ export class MongoResource extends RESTResource {
     return this.getItemQuery(req.params.id)
   }
   getUpdateOneDoc(req) {
-    if (req.body[this.options.id]) {
-      delete req.body[this.options.id];
+    var out = JSON.parse(JSON.stringify(req.body));
+    if (out[this.options.id]) {
+      delete out[this.options.id];
     }
-    return req.body;
+    return out;
   }
   getUpdateOneOpts(req) {
     return { returnOriginal: false };

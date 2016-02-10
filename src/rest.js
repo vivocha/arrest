@@ -65,26 +65,19 @@ jpdefine('DefaultBody', {
 jpdefine('DefaultBodyArray', {
   type: 'array',
   required: true,
-  minLength: 1,
   value: 'DefaultBody'
 });
 
 export class RESTResource extends Resource {
   constructor(_options, _class) {
-    super(_options, _class);
-  }
-  get routes() {
-    var out;
-    if (this.options.routes) {
-      if (this.options.mergeRoutes) {
-        out = RESTResource.mergeRoutes(RESTResource.defaultRoutes, this.options.routes);
-      } else {
-        out = this.options.routes;
+    if (_options.routes) {
+      if (_options.mergeRoutes !== false) {
+        _options.routes = RESTResource.mergeRoutes(RESTResource.defaultRoutes, _options.routes);
       }
     } else {
-      out = RESTResource.defaultRoutes;
+      _options.routes = RESTResource.defaultRoutes;
     }
-    return jpcreate('RouteArray', out);
+    super(_options, _class);
   }
   query(req, res) {
     this.fireError(501, 'not_implemented');

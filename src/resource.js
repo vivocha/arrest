@@ -121,12 +121,9 @@ export class Resource {
       next();
     }
   }
-  get routes() {
-    return this.options.routes;
-  }
   get router() {
     if (!this._router) {
-      var routes = this.routes;
+      var routes = this.options.routes;
       this._router = express.Router(this.options.router);
       for (var i = 0, r ; i < routes.length ; i++) {
         r = routes[i];

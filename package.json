@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "2.0.4",
+  "version": "2.0.7",
   "description": "REST framework for Node.js, Express and MongoDB",
   "homepage": "https://github.com/vivocha/arrest",
   "keywords": [
