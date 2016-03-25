@@ -1,0 +1,21 @@
+{
+  "summary": "Retrieve a <%- name %> by id.",
+  "description": "",
+  "operationId": "<%- name %>.read",
+  "parameters": [
+    {
+      "$ref": "#/parameters/id"
+    },
+    {
+      "$ref": "#/parameters/fields"
+    }
+  ],
+  "responses": {
+    "200": {
+      "description": "List of matching <%- namePlural %>",
+      "schema": {
+        "$ref": "#/definitions/<%- name %>"
+      }
+    }
+  }
+}

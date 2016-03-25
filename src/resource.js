@@ -1,151 +1,145 @@
-import { default as _ } from 'underscore';
-import { default as express } from 'express';
-import { default as bodyParser } from 'body-parser';
-import { deepExtend as extend } from 'eredita';
-import { register as jpdefine, create as jpcreate, config as jpconfig } from 'jsonpolice';
-import { RESTError } from './error';
+import fs from 'fs';
+import _ from 'lodash';
+import ejs from 'ejs';
+import * as schema from './schema';
 
-function capitalize(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+var _operationTemplates = {
+  query: _getTemplate('query'),
+  read: _getTemplate('read'),
+  //create: _getTemplate('create'),
+  //update: _getTemplate('update'),
+  //remove: _getTemplate('remove'),
+  //updateMany: _getTemplate('updateMany'),
+  //removeMany: _getTemplate('removeMany')
+};
+
+var _defaultRoutes = [
+  { method: 'GET',    path: '',     handler: 'query' },
+  { method: 'GET',    path: '/:id', handler: 'read' },
+  { method: 'POST',   path: '',     handler: 'create' },
+  { method: 'PUT',    path: '/:id', handler: 'update' },
+  { method: 'DELETE', path: '/:id', handler: 'remove' },
+  { method: 'PUT',    path: '',     handler: 'updateMany' },
+  { method: 'DELETE', path: '',     handler: 'removeMany' }
+];
+
+function _getTemplate(name) {
+  var data = fs.readFileSync('../data/defaults/' + name + '.json', 'ascii');
+  return ejs.compile(data, {});
+}
+function _mergeRoutes() {
+  var args = Array.prototype.slice.call(arguments);
+  var routes = {}, _routes, i, tmp;
+  while (_routes = args.shift()) {
+    for (i = 0, tmp = {} ; i < _routes.length ; i++) {
+      tmp[_routes[i].handler] = _routes[i];
+    }
+    routes = extend(routes, tmp);
+  }
+  var out = [];
+  for (i in routes) {
+    out.push(routes[i]);
+  }
+  return out;
 }
 
-jpdefine('Route', {
-  type: 'object',
-  value: {
-    method: {
-      type: 'select',
-      required: true,
-      default: 'POST',
-      value: [ 'GET', 'POST', 'PUT', 'DELETE', 'PATCH' ]
-    },
-    mount: {
-      type: 'string',
-      required: true
-    },
-    handler: {
-      type: 'string',
-      required: true
-    },
-    zone: {
-      type: 'string',
-      validator: function(s) {
-        // TODO implement the security zone check
-        return true;
-        //throw new Error('not_implemented');
-      }
-    },
-    query: {
-      type: 'object',
-      transform: jpconfig
-    },
-    body: {
-      type: 'object',
-      transform: jpconfig
-    }
-  }
-});
-jpdefine('RouteArray', {
-  type: 'array',
-  default: [],
-  value: 'Route'
-});
-jpdefine('ResourceOptions', {
-  type: 'object',
-  value: {
-    name: {
-      type: 'string',
-      required: true
-    },
-    namePlural: {
-      type: 'string'
-    },
-    router: {
-      type: 'object',
-      required: true,
-      default: {},
-      value: {
-        strict: {
-          type: 'boolean',
-          required: true,
-          default: false
-        },
-        caseSensitive: {
-          type: 'boolean',
-          required: true,
-          default: false
-        },
-        mergeParams: {
-          type: 'boolean',
-          required: true,
-          default: false
-        }
-      }
-    },
-    routes: 'RouteArray',
-    mergeRoutes: {
-      type: 'boolean',
-      default: true
-    }
-  }
-});
 
 export class Resource {
-  constructor(_options, _class) {
-    this.options = jpcreate(_class || 'ResourceOptions', _options);
-  }
-  fireError(code, message, info, err) {
-    throw new RESTError(code, message, info, err);
-  }
-  handleError(err, req, res, next) {
-    if (err.name === 'RESTError') {
-      console.error('REST ERROR', err);
-      RESTError.send(res, err.code || 500, err.message, err.info);
-    } else if (err.name === 'DataError') {
-      console.error('DATA ERROR', err);
-      RESTError.send(res, 400, err.message, err.path);
-    } else {
-      console.error('GENERIC ERROR', err, err.stack);
-      RESTError.send(res, 500, 'internal');
+  constructor(api, resource) {
+    _.defaults(this, resource);
+    if (!this.routes) {
+      this.routes = _.cloneDeep(_defaultRoutes);
     }
-  }
-  bodyContraintsMiddleWare(config) {
-    return (req, res, next) => {
-      req.body = jpcreate(config, req.body);
-      next();
+    if (this.additionalRoutes) {
+      this.routes = _mergeRoutes(this.routes, this.additionalRoutes);
+      delete this.additionalRoutes;
     }
-  }
-  queryContraintsMiddleWare(config) {
-    return (req, res, next) => {
-      req.originalQuery = _.clone(req.query);
-      req.query = jpcreate(config, req.query);
-      next();
-    }
-  }
-  get router() {
-    if (!this._router) {
-      var routes = this.options.routes;
-      this._router = express.Router(this.options.router);
-      for (var i = 0, r ; i < routes.length ; i++) {
-        r = routes[i];
-        var args = [ r.mount ];
-        if (r.zone) {
-          args.push(this['auth' + capitalize(r.zone)].bind(this));
-        }
-        if (r.body) {
-          args.push(bodyParser.json());
-          args.push(this.bodyContraintsMiddleWare(r.body));
-        }
-        if (r.query) {
-          args.push(this.queryContraintsMiddleWare(r.query));
-        }
-        args.push(this[r.handler].bind(this));
-        this._router[r.method.toLowerCase()].apply(this._router, args);
+    this.routes = _.filter(this.routes, route => { return typeof this[route.handler] === 'function'; });
+    var basePath = '/' + Resource.uncapitalize(this.namePlural);
+    _.each(this.routes, route => {
+      if (!route.operation && _operationTemplates[route.handler]) {
+        var data = _operationTemplates[route.handler](this);
+        route.operation = JSON.parse(data);
       }
-      this._router.use(this.handleError.bind(this));
+      if (route.operation) {
+        route.operation.tags = _.uniq((route.operation.tags || []).concat([ this.name, route.handler ]));
+      }
+      route.path = basePath + route.path;
+      route.handler = this[route.handler];
+    });
+    //schema.schemas.resource.validate(this);
+
+    var tag = {
+      name: this.name,
+      description: this.description
+    };
+    if (this.externalDocs) tag.externalDocs = this.externalDocs;
+    api.addTag(tag);
+
+    if (this.definitions) {
+      for (var i in this.definitions) {
+        api.definitions[i] = this.definitions[i];
+      }
     }
-    return this._router;
+    if (this.parameters) {
+      for (var i in this.parameters) {
+        api.parameters[i] = this.parameters[i];
+      }
+    }
+    if (this.schema) {
+      api.definitions[this.name] = this.schema;
+    }
+
+    _.each(this.routes, function(route) {
+      api.addOperation(route);
+    });
   }
-  mount(app) {
-    return app.use('/' + this.options.namePlural || this.options.name, this.router);
+  static uncapitalize(s) {
+    return s.charAt(0).toLowerCase() + s.slice(1);
+  }
+  static capitalize(s) {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  static getFullURL(req) {
+    return (req.proto || 'http') + '://' + (req.headers.host || req.hostname) + (req.baseUrl || '/') + req.path;
+  }
+  static toQueryString(obj) {
+    return _.map(obj, function(v, k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(v);
+    }).join('&');
+  }
+}
+
+var sample = {
+  name: 'Test',
+  namePlural: 'Tests',
+  description: 'sdfdsfdsfsd',
+  externalDocs: {
+    url: 'dfsdfdsf',
+    description: 'fsdfsdfsdsdgff'
+  },
+  definitions: {
+    // This end up in the swagger's definition
+  },
+  parameters: {
+    // This end up in the swagger's definition
+  },
+  routes: [
+    { method: 'GET', mount: '', handler: 'query', query: 'DefaultQueryArgs',  header: 'fsdf', body: 'ddd', path: 'fsdfsdf' }
+  ],
+  additionalRoutes: [
+
+  ]
+};
+
+var defaultRoutes = {
+  "query": {
+    "method": "GET",
+    "mount": "/",
+    "query": {
+      "limit": { "$ref": "#/parameters/limit" },
+      "skip": { "$ref": "#/parameters/skip" },
+      "fields": { "$ref": "#/parameters/fields" }
+    }
   }
 }

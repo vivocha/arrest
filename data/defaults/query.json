@@ -1,0 +1,27 @@
+{
+  "summary": "Retrieve a list of <%- namePlural %>.",
+  "description": "",
+  "operationId": "<%- name %>.query",
+  "parameters": [
+    {
+      "$ref": "#/parameters/limit"
+    },
+    {
+      "$ref": "#/parameters/skip"
+    },
+    {
+      "$ref": "#/parameters/fields"
+    }
+  ],
+  "responses": {
+    "200": {
+      "description": "List of matching <%- namePlural %>",
+      "schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/<%- name %>"
+        }
+      }
+    }
+  }
+}

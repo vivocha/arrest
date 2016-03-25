@@ -1,0 +1,30 @@
+{
+  "title": "A JSON Schema for an API endpoint, i.e. a path-method combination.",
+  "id": "https://raw.githubusercontent.com/vivocha/arrest/master/data/operation.json#",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "required": [
+    "path",
+    "method",
+    "handler",
+    "operation"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "path": {
+      "description": "A relative path to the endpoint of the operation. The field name MUST begin with a slash. Path templating is allowed.",
+      "type": "string",
+      "pattern": "^/"
+    },
+    "method": {
+      "description": "The method this operation supports.",
+      "enum": [ "GET", "PUT", "POST", "DELETE", "OPTIONS", "HEAD", "PATCH" ]
+    },
+    "handler": {
+      "description": "The function/method that handles the operation. The method must be an [Express](http://expressjs.com) method callback `f(req, res, next)`."
+    },
+    "operation": {
+      "$ref": "http://swagger.io/v2/schema.json#/definitions/operation"
+    }
+  }
+}
