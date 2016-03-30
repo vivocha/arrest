@@ -1,0 +1,36 @@
+{
+  "title": "A JSON Schema for an API resource stored in a MongoDB collection.",
+  "id": "https://raw.githubusercontent.com/vivocha/arrest/master/data/schemas/mongo.json#",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "allOf": [
+    { "$ref": "https://raw.githubusercontent.com/vivocha/arrest/master/data/schemas/resource.json#" }
+  ],
+  "required": [ "db", "collection" ],
+  "properties": {
+    "db": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "string",
+          "format": "uri"
+        }
+      ]
+    },
+    "collection": {
+      "type": "string",
+      "minLength": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "default": "_id"
+    },
+    "idIsObjectId": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

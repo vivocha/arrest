@@ -28,7 +28,8 @@ export var schemas = {
   info: 'http://swagger.io/v2/schema.json#/definitions/info',
   tag: 'http://swagger.io/v2/schema.json#/definitions/tag',
   operation: require('../data/schemas/operation.json'),
-  resource: require('../data/schemas/resource.json')
+  resource: require('../data/schemas/resource.json'),
+  mongo: require('../data/schemas/mongo.json'),
 };
 export function resolve(dataOrUri) {
   return jr.parse(dataOrUri, _store, retriever);

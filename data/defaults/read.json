@@ -14,8 +14,14 @@
     "200": {
       "description": "List of matching <%- namePlural %>",
       "schema": {
-        "$ref": "#/definitions/<%- name %>"
+        "allOf": [
+          { "$ref": "#/definitions/<%- name %>" },
+          { "$ref": "#/definitions/hasMetadata" },
+          { "$ref": "#/definitions/hasObjectId" }
+        ]
       }
-    }
+    },
+    "404": { "$ref": "#/responses/notFound" },
+    "default": { "$ref": "#/responses/defaultError" }
   }
 }

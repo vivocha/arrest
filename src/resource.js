@@ -6,9 +6,9 @@ import * as schema from './schema';
 var _operationTemplates = {
   query: _getTemplate('query'),
   read: _getTemplate('read'),
-  //create: _getTemplate('create'),
-  //update: _getTemplate('update'),
-  //remove: _getTemplate('remove'),
+  create: _getTemplate('create'),
+  update: _getTemplate('update'),
+  remove: _getTemplate('remove'),
   //updateMany: _getTemplate('updateMany'),
   //removeMany: _getTemplate('removeMany')
 };
@@ -43,7 +43,6 @@ function _mergeRoutes() {
   return out;
 }
 
-
 export class Resource {
   constructor(api, resource) {
     _.defaults(this, resource);
@@ -65,9 +64,8 @@ export class Resource {
         route.operation.tags = _.uniq((route.operation.tags || []).concat([ this.name, route.handler ]));
       }
       route.path = basePath + route.path;
-      route.handler = this[route.handler];
+      route.handler = this[route.handler].bind(this);
     });
-    //schema.schemas.resource.validate(this);
 
     var tag = {
       name: this.name,
@@ -107,39 +105,5 @@ export class Resource {
     return _.map(obj, function(v, k) {
       return encodeURIComponent(k) + '=' + encodeURIComponent(v);
     }).join('&');
-  }
-}
-
-var sample = {
-  name: 'Test',
-  namePlural: 'Tests',
-  description: 'sdfdsfdsfsd',
-  externalDocs: {
-    url: 'dfsdfdsf',
-    description: 'fsdfsdfsdsdgff'
-  },
-  definitions: {
-    // This end up in the swagger's definition
-  },
-  parameters: {
-    // This end up in the swagger's definition
-  },
-  routes: [
-    { method: 'GET', mount: '', handler: 'query', query: 'DefaultQueryArgs',  header: 'fsdf', body: 'ddd', path: 'fsdfsdf' }
-  ],
-  additionalRoutes: [
-
-  ]
-};
-
-var defaultRoutes = {
-  "query": {
-    "method": "GET",
-    "mount": "/",
-    "query": {
-      "limit": { "$ref": "#/parameters/limit" },
-      "skip": { "$ref": "#/parameters/skip" },
-      "fields": { "$ref": "#/parameters/fields" }
-    }
   }
 }

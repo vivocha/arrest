@@ -43,7 +43,7 @@
     "jsonpolice": "^2.0.0",
     "jsonref": "^2.0.0",
     "lodash": "^4.6.1",
-    "mongodb": "^2.1.11",
+    "mongodb": "^2.1.13",
     "semver": "^5.1.0"
   },
   "devDependencies": {

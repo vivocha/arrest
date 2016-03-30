@@ -4,13 +4,72 @@
   "consumes": [ "application/json" ],
   "produces": [ "application/json" ],
   "paths": {},
-  "definitions": {},
+  "definitions": {
+    "location": {
+      "description": "URI of the newly created resource.",
+      "type": "string",
+      "format": "uri"
+    },
+    "metadata": {
+      "description": "Metadata associated with the resource.",
+      "type": "object"
+    },
+    "link": {
+      "description": "Data pagination links, as described in RFC5988. Currently only rel=next is supported.",
+      "type": "string"
+    },
+    "matching": {
+      "description": "Total number of resources matching the query.",
+      "type": "string"
+    },
+    "skipped": {
+      "description": "Number of resources skipped to return the current batch of resources.",
+      "type": "string"
+    },
+    "objectId": {
+      "type": "string"
+    },
+    "hasMetadata": {
+      "type": "object",
+      "properties": {
+        "_metadata": {
+          "$ref": "#/definitions/metadata"
+        }
+      },
+      "required": [ "metadata" ]
+    },
+    "hasObjectId": {
+      "type": "object",
+      "properties": {
+        "_id": {
+          "$ref": "#/definitions/objectId"
+        }
+      },
+      "required": [ "_id" ]
+    },
+    "errorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "message": {
+          "type": "string"
+        },
+        "info": {
+          "type": "string"
+        }
+      },
+      "required": [ "error", "message" ]
+    }
+  },
   "parameters": {
     "id": {
       "name": "id",
       "in": "path",
       "description": "Object identifier",
-      "type": "number"
+      "type": "string"
     },
     "limit": {
       "name": "limit",
@@ -43,22 +102,11 @@
   "responses": {
     "defaultError": {
       "description": "Default/generic error response",
-      "schema": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "integer",
-            "minimum": 100
-          },
-          "message": {
-            "type": "string"
-          },
-          "info": {
-            "type": "string"
-          }
-        },
-        "required": [ "error", "message" ]
-      }
+      "schema": { "$ref": "#/definitions/errorResponse" }
+    },
+    "notFound": {
+      "description": "The requested/specified resource was not found",
+      "schema": { "$ref": "#/definitions/errorResponse" }
     }
   },
   "securityDefinitions": {},

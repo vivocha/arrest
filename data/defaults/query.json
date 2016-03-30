@@ -19,9 +19,19 @@
       "schema": {
         "type": "array",
         "items": {
-          "$ref": "#/definitions/<%- name %>"
+          "allOf": [
+            { "$ref": "#/definitions/<%- name %>" },
+            { "$ref": "#/definitions/hasMetadata" },
+            { "$ref": "#/definitions/hasObjectId" }
+          ]
         }
+      },
+      "headers": {
+        "Link": { "$ref": "#/definitions/link" },
+        "Results-Matching": { "$ref": "#/definitions/matching" },
+        "Results-Skipped": { "$ref": "#/definitions/skipped" }
       }
-    }
+    },
+    "default": { "$ref": "#/responses/defaultError" }
   }
 }

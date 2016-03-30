@@ -1,6 +1,6 @@
 {
   "title": "A JSON Schema for an API endpoint, i.e. a path-method combination.",
-  "id": "https://raw.githubusercontent.com/vivocha/arrest/master/data/operation.json#",
+  "id": "https://raw.githubusercontent.com/vivocha/arrest/master/data/schemas/operation.json#",
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "required": [

@@ -30,7 +30,7 @@ function _createValidators(p, key, parameters, middlewares) {
             fireValidationError(key + '.' + parameter.name, schema.scope, 'required');
           }
         } else {
-          schema.validate(obj[key][parameter.name], key + '.' + parameter.name);
+          obj[key][parameter.name] = schema.validate(obj[key][parameter.name], key + '.' + parameter.name);
         }
       });
     });

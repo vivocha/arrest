@@ -1,0 +1,39 @@
+{
+  "summary": "Create a new <%- name %>.",
+  "description": "",
+  "operationId": "<%- name %>.create",
+  "parameters": [
+    {
+      "name": "body",
+      "in": "body",
+      "required": true,
+      "schema": {
+        "allOf": [
+          { "$ref": "#/definitions/<%- name %>" }
+        ],
+        "not": {
+          "allOf": [
+            { "$ref": "#/definitions/hasMetadata" },
+            { "$ref": "#/definitions/hasObjectId" }
+          ]
+        }
+      }
+    }
+  ],
+  "responses": {
+    "201": {
+      "description": "<%- name %> successfully created.",
+      "schema": {
+        "allOf": [
+          { "$ref": "#/definitions/<%- name %>" },
+          { "$ref": "#/definitions/hasMetadata" },
+          { "$ref": "#/definitions/hasObjectId" }
+        ]
+      },
+      "headers": {
+        "Location": { "$ref": "#/definitions/location" }
+      }
+    },
+    "default": { "$ref": "#/responses/defaultError" }
+  }
+}
