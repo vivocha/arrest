@@ -24,7 +24,7 @@ var _defaultRoutes = [
 ];
 
 function _getTemplate(name) {
-  var data = fs.readFileSync('../data/defaults/' + name + '.json', 'ascii');
+  var data = fs.readFileSync(__dirname + '/../data/defaults/' + name + '.json', 'ascii');
   return ejs.compile(data, {});
 }
 function _mergeRoutes() {
