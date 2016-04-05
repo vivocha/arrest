@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "2.1.0-beta.4",
+  "version": "2.1.0-beta.5",
   "description": "REST framework for Node.js, Express and MongoDB",
   "homepage": "https://github.com/vivocha/arrest",
   "keywords": [
@@ -40,8 +40,8 @@
     "body-parser": "^1.15.0",
     "ejs": "^2.4.1",
     "express": "^4.13.4",
-    "jsonpolice": "^3.0.0",
-    "jsonref": "^3.0.2",
+    "jsonpolice": "^3.0.1",
+    "jsonref": "^3.0.3",
     "lodash": "^4.6.1",
     "mongodb": "^2.1.13",
     "semver": "^5.1.0"
