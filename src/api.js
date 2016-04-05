@@ -25,10 +25,8 @@ function _createValidators(p, key, parameters, middlewares, opts) {
       return createSchema(parameter, opts);
     }).then(function(schema) {
       validators.push(function(obj) {
-        if (typeof obj[key][parameter.name] === 'undefined') {
-          if (required === true) {
-            fireValidationError(key + '.' + parameter.name, schema.scope, 'required');
-          }
+        if (typeof obj[key][parameter.name] === 'undefined' && required === true) {
+          fireValidationError(key + '.' + parameter.name, schema.scope, 'required');
         } else {
           obj[key][parameter.name] = schema.validate(obj[key][parameter.name], key + '.' + parameter.name);
         }
