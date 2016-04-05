@@ -5,7 +5,7 @@ import * as jp from 'jsonpolice';
 
 var _store = {};
 
-function retriever(url) {
+export function defaultRetriever(url) {
   return new Promise(function(resolve, reject) {
     request({
       url: url,
@@ -22,7 +22,6 @@ function retriever(url) {
     });
   });
 }
-
 export var schemas = {
   core: require('../data/schemas/swagger.json'),
   info: 'http://swagger.io/v2/schema.json#/definitions/info',
@@ -31,14 +30,19 @@ export var schemas = {
   resource: require('../data/schemas/resource.json'),
   mongo: require('../data/schemas/mongo.json'),
 };
-export function resolve(dataOrUri) {
-  return jr.parse(dataOrUri, _store, retriever);
+export function resolve(dataOrUri, opts) {
+  return jr.parse(dataOrUri, _.defaults(opts, {
+    store: _store,
+    retriever: defaultRetriever
+  }));
 }
-export function create(dataOrUri) {
-  return jp.create(dataOrUri, _store, retriever);
+export function create(dataOrUri, opts) {
+  return jp.create(dataOrUri, _.defaults(opts, {
+    store: _store,
+    retriever: defaultRetriever
+  }));
 }
 export var ready = new Promise(function(resolve) {
-  var _store = {};
   var p = Promise.resolve(true);
   _.each(schemas, function(data, i) {
     p = p.then(function() {

@@ -16,13 +16,13 @@ var toSwaggerPath = (function() {
     return path.replace(_regexp, "/{$1}");
   }
 })();
-function _createValidators(p, key, parameters, middlewares) {
+function _createValidators(p, key, parameters, middlewares, opts) {
   var validators = [];
   _.each(parameters, function(parameter) {
     var required = parameter.required;
     delete parameter.required;
     p = p.then(function() {
-      return createSchema(parameter);
+      return createSchema(parameter, opts);
     }).then(function(schema) {
       validators.push(function(obj) {
         if (typeof obj[key][parameter.name] === 'undefined') {
@@ -66,7 +66,7 @@ export class API {
     if (!this.paths[path]) this.paths[path] = {};
     this.paths[path][method] = op.operation;
   }
-  router() {
+  router(opts) {
     var r = express.Router();
     var originalSwagger = JSON.parse(JSON.stringify(this));
     r.get('/swagger.json', (req, res) => {
@@ -75,7 +75,7 @@ export class API {
       out.basePath = req.baseUrl || '/v' + semver.major(this.info.version);
       res.json(out);
     });
-    return resolveRefs(this).then(() => {
+    return resolveRefs(this, opts).then(() => {
       var p = Promise.resolve(true);
       _.each(this.paths, path => {
         _.each(path, (op, method) => {
@@ -87,17 +87,17 @@ export class API {
           }
           var params = _.groupBy(op.parameters, 'in');
           if (params.header) {
-            p = _createValidators(p, 'headers', params.security, args);
+            p = _createValidators(p, 'headers', params.security, args, opts);
           }
           if (params.path) {
-            p = _createValidators(p, 'params', params.path, args);
+            p = _createValidators(p, 'params', params.path, args, opts);
           }
           if (params.query) {
-            p = _createValidators(p, 'query', params.query, args);
+            p = _createValidators(p, 'query', params.query, args, opts);
           }
           if (params.body) {
             p = p.then(function() {
-              return createSchema(params.body[0].schema);
+              return createSchema(params.body[0].schema, opts);
             }).then(function(schema) {
               args.push(bodyParser.json());
               args.push(function(req, res, next) {
@@ -129,6 +129,9 @@ export class API {
       base.use('/v' + semver.major(this.info.version), router);
       return base;
     });
+  }
+  static newError(code, message, info, err) {
+    return new RESTError(code, message, info, err);
   }
   static fireError(code, message, info, err) {
     throw new RESTError(code, message, info, err);
