@@ -61,7 +61,7 @@ export class Resource {
         route.operation = JSON.parse(data);
       }
       if (route.operation) {
-        route.operation.tags = _.uniq((route.operation.tags || []).concat([ this.name, route.handler ]));
+        route.operation.tags = _.uniq((route.operation.tags || []).concat([ this.name ]));
       }
       route.path = basePath + route.path;
       route.handler = this[route.handler].bind(this);
