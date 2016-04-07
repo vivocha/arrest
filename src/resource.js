@@ -1,7 +1,7 @@
 import fs from 'fs';
 import _ from 'lodash';
 import ejs from 'ejs';
-import * as schema from './schema';
+import { deepExtend } from 'eredita';
 
 var _operationTemplates = {
   query: _getTemplate('query'),
@@ -34,7 +34,7 @@ function _mergeRoutes() {
     for (i = 0, tmp = {} ; i < _routes.length ; i++) {
       tmp[_routes[i].handler] = _routes[i];
     }
-    routes = extend(routes, tmp);
+    routes = deepExtend(routes, tmp);
   }
   var out = [];
   for (i in routes) {

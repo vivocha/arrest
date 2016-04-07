@@ -33,11 +33,13 @@
         },
         "Results-Matching": {
           "description": "Total number of resources matching the query",
-          "type": "string"
+          "type": "integer",
+          "minimum": 0
         },
         "Results-Skipped": {
           "description": "Number of resources skipped to return the current batch of resources",
-          "type": "string"
+          "type": "integer",
+          "minimum": 0
         }
       }
     },

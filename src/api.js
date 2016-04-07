@@ -88,6 +88,9 @@ export class API {
             p = _createValidators(p, 'headers', params.security, args, opts);
           }
           if (params.path) {
+            _.each(params.path, function(i) {
+              i.required = true;
+            });
             p = _createValidators(p, 'params', params.path, args, opts);
           }
           if (params.query) {
