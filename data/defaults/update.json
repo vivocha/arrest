@@ -1,9 +1,13 @@
 {
-  "summary": "Update a <%- name %>.",
+  "summary": "Update a <%- name %>",
   "description": "",
   "operationId": "<%- name %>.update",
   "parameters": [
     {
+      "$ref": "#/parameters/id"
+    },
+    {
+      "description": "The updated <%- name %>, minus the unique identifier and the metatadata",
       "name": "body",
       "in": "body",
       "required": true,
@@ -22,7 +26,7 @@
   ],
   "responses": {
     "200": {
-      "description": "<%- name %> successfully updated.",
+      "description": "<%- name %> successfully updated",
       "schema": {
         "allOf": [
           { "$ref": "#/definitions/<%- name %>" },

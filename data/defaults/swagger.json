@@ -5,28 +5,12 @@
   "produces": [ "application/json" ],
   "paths": {},
   "definitions": {
-    "location": {
-      "description": "URI of the newly created resource.",
-      "type": "string",
-      "format": "uri"
-    },
     "metadata": {
-      "description": "Metadata associated with the resource.",
+      "description": "Metadata associated with the resource",
       "type": "object"
     },
-    "link": {
-      "description": "Data pagination links, as described in RFC5988. Currently only rel=next is supported.",
-      "type": "string"
-    },
-    "matching": {
-      "description": "Total number of resources matching the query.",
-      "type": "string"
-    },
-    "skipped": {
-      "description": "Number of resources skipped to return the current batch of resources.",
-      "type": "string"
-    },
     "objectId": {
+      "description": "Name of the property storing the unique identifier of the resource",
       "type": "string"
     },
     "hasMetadata": {
@@ -66,9 +50,9 @@
   },
   "parameters": {
     "id": {
+      "description": "Unique identifier of the resource",
       "name": "id",
       "in": "path",
-      "description": "Object identifier",
       "type": "string"
     },
     "limit": {

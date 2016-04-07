@@ -1,5 +1,5 @@
 {
-  "summary": "Retrieve a <%- name %> by id.",
+  "summary": "Retrieve a <%- name %> by id",
   "description": "",
   "operationId": "<%- name %>.read",
   "parameters": [

@@ -1,5 +1,5 @@
 {
-  "summary": "Retrieve a list of <%- namePlural %>.",
+  "summary": "Retrieve a list of <%- namePlural %>",
   "description": "",
   "operationId": "<%- name %>.query",
   "parameters": [
@@ -27,9 +27,18 @@
         }
       },
       "headers": {
-        "Link": { "$ref": "#/definitions/link" },
-        "Results-Matching": { "$ref": "#/definitions/matching" },
-        "Results-Skipped": { "$ref": "#/definitions/skipped" }
+        "Link": {
+          "description": "Data pagination links, as described in RFC5988. Currently only rel=next is supported",
+          "type": "string"
+        },
+        "Results-Matching": {
+          "description": "Total number of resources matching the query",
+          "type": "string"
+        },
+        "Results-Skipped": {
+          "description": "Number of resources skipped to return the current batch of resources",
+          "type": "string"
+        }
       }
     },
     "default": { "$ref": "#/responses/defaultError" }
