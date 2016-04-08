@@ -8,9 +8,7 @@ var _operationTemplates = {
   read: _getTemplate('read'),
   create: _getTemplate('create'),
   update: _getTemplate('update'),
-  remove: _getTemplate('remove'),
-  //updateMany: _getTemplate('updateMany'),
-  //removeMany: _getTemplate('removeMany')
+  remove: _getTemplate('remove')
 };
 
 var _defaultRoutes = [

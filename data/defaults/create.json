@@ -8,29 +8,13 @@
       "name": "body",
       "in": "body",
       "required": true,
-      "schema": {
-        "allOf": [
-          { "$ref": "#/definitions/<%- name %>" }
-        ],
-        "not": {
-          "allOf": [
-            { "$ref": "#/definitions/hasMetadata" },
-            { "$ref": "#/definitions/hasObjectId" }
-          ]
-        }
-      }
+      "schema": { "$ref": "#/definitions/<%- name %>" }
     }
   ],
   "responses": {
     "201": {
       "description": "<%- name %> successfully created",
-      "schema": {
-        "allOf": [
-          { "$ref": "#/definitions/<%- name %>" },
-          { "$ref": "#/definitions/hasMetadata" },
-          { "$ref": "#/definitions/hasObjectId" }
-        ]
-      },
+      "schema": { "$ref": "#/definitions/<%- name %>" },
       "headers": {
         "Location": {
           "description": "URI of the newly created resource",

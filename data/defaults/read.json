@@ -13,13 +13,7 @@
   "responses": {
     "200": {
       "description": "List of matching <%- namePlural %>",
-      "schema": {
-        "allOf": [
-          { "$ref": "#/definitions/<%- name %>" },
-          { "$ref": "#/definitions/hasMetadata" },
-          { "$ref": "#/definitions/hasObjectId" }
-        ]
-      }
+      "schema": { "$ref": "#/definitions/<%- name %>" }
     },
     "404": { "$ref": "#/responses/notFound" },
     "default": { "$ref": "#/responses/defaultError" }

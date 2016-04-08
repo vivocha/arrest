@@ -40,6 +40,12 @@ export class MongoResource extends Resource {
     var opts = {};
     if (req.query.fields) {
       opts.fields = req.query.fields;
+      delete opts.fields._metadata;
+    } else {
+      opts.fields = { _metadata: 0 }
+    }
+    if (this.id !== '_id') {
+      opts.fields._id = 0;
     }
     return opts;
   }
@@ -79,6 +85,12 @@ export class MongoResource extends Resource {
     var opts = {};
     if (req.query.fields) {
       opts.fields = req.query.fields;
+      delete opts.fields._metadata;
+    } else {
+      opts.fields = { _metadata: 0 }
+    }
+    if (this.id !== '_id') {
+      opts.fields._id = 0;
     }
     return opts;
   }
@@ -97,7 +109,10 @@ export class MongoResource extends Resource {
   }
 
   createPrepareDoc(req) {
-    return _.cloneDeep(req.body);
+    var out = _.cloneDeep(req.body);
+    delete out[this.id];
+    delete out._metadata;
+    return out;
   }
   createPrepareOpts(req) {
     return {};
@@ -125,7 +140,10 @@ export class MongoResource extends Resource {
     return this.getItemQuery(req.params.id)
   }
   updatePrepareDoc(req) {
-    return _.cloneDeep(req.body);
+    var out = _.cloneDeep(req.body);
+    delete out[this.id];
+    delete out._metadata;
+    return out;
   }
   updatePrepareOpts(req) {
     return { returnOriginal: false };

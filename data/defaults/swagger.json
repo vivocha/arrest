@@ -13,24 +13,6 @@
       "description": "Name of the property storing the unique identifier of the resource",
       "type": "string"
     },
-    "hasMetadata": {
-      "type": "object",
-      "properties": {
-        "_metadata": {
-          "$ref": "#/definitions/metadata"
-        }
-      },
-      "required": [ "metadata" ]
-    },
-    "hasObjectId": {
-      "type": "object",
-      "properties": {
-        "_id": {
-          "$ref": "#/definitions/objectId"
-        }
-      },
-      "required": [ "_id" ]
-    },
     "errorResponse": {
       "type": "object",
       "properties": {

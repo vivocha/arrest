@@ -18,13 +18,7 @@
       "description": "List of matching <%- namePlural %>",
       "schema": {
         "type": "array",
-        "items": {
-          "allOf": [
-            { "$ref": "#/definitions/<%- name %>" },
-            { "$ref": "#/definitions/hasMetadata" },
-            { "$ref": "#/definitions/hasObjectId" }
-          ]
-        }
+        "items": { "$ref": "#/definitions/<%- name %>" }
       },
       "headers": {
         "Link": {
