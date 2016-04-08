@@ -11,6 +11,9 @@
     },
     {
       "$ref": "#/parameters/fields"
+    },
+    {
+      "$ref": "#/parameters/query"
     }
   ],
   "responses": {
@@ -18,7 +21,7 @@
       "description": "List of matching <%- namePlural %>",
       "schema": {
         "type": "array",
-        "items": { "$ref": "#/definitions/<%- name %>" }
+        "items": <%- JSON.stringify(schema) %>
       },
       "headers": {
         "Link": {

@@ -8,13 +8,13 @@
       "name": "body",
       "in": "body",
       "required": true,
-      "schema": { "$ref": "#/definitions/<%- name %>" }
+      "schema": <%- JSON.stringify(schema) %>
     }
   ],
   "responses": {
     "201": {
       "description": "<%- name %> successfully created",
-      "schema": { "$ref": "#/definitions/<%- name %>" },
+      "schema": <%- JSON.stringify(schema) %>,
       "headers": {
         "Location": {
           "description": "URI of the newly created resource",

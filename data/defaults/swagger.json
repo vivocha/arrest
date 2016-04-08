@@ -63,6 +63,12 @@
         "type": "string"
       },
       "uniqueItems": true
+    },
+    "query": {
+      "name": "q",
+      "in": "query",
+      "description": "Return only items matching the specified [RQL](https://github.com/persvr/rql) query. This parameter can also be used to specify the ordering criteria of the results",
+      "type": "string"
     }
   },
   "responses": {

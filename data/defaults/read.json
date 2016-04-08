@@ -13,7 +13,7 @@
   "responses": {
     "200": {
       "description": "List of matching <%- namePlural %>",
-      "schema": { "$ref": "#/definitions/<%- name %>" }
+      "schema": <%- JSON.stringify(schema) %>
     },
     "404": { "$ref": "#/responses/notFound" },
     "default": { "$ref": "#/responses/defaultError" }

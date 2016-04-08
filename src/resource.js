@@ -1,7 +1,7 @@
 import fs from 'fs';
 import _ from 'lodash';
 import ejs from 'ejs';
-import { deepExtend } from 'eredita';
+import { deepExtend, Eredita } from 'eredita';
 
 var _operationTemplates = {
   query: _getTemplate('query'),
@@ -54,9 +54,12 @@ export class Resource {
     this.routes = _.filter(this.routes, route => { return typeof this[route.handler] === 'function'; });
     var basePath = '/' + Resource.uncapitalize(this.namePlural);
     _.each(this.routes, route => {
-      if (!route.operation && _operationTemplates[route.handler]) {
-        var data = _operationTemplates[route.handler](this);
-        route.operation = JSON.parse(data);
+      if (route.operation && route.merge && _operationTemplates[route.handler]) {
+        var data = JSON.parse(_operationTemplates[route.handler](this));
+        var op = new Eredita(route.operation, new Eredita(data));
+        route.operation = op.mergePath();
+      } else if (!route.operation && _operationTemplates[route.handler]) {
+        route.operation = JSON.parse(_operationTemplates[route.handler](this));
       }
       if (route.operation) {
         route.operation.tags = _.uniq((route.operation.tags || []).concat([ this.name ]));
@@ -82,12 +85,11 @@ export class Resource {
         api.parameters[i] = this.parameters[i];
       }
     }
-    if (this.schema) {
-      api.definitions[this.name] = this.schema;
-    }
 
     _.each(this.routes, function(route) {
-      api.addOperation(route);
+      if (route.operation) {
+        api.addOperation(route);
+      }
     });
   }
   static uncapitalize(s) {

@@ -25,6 +25,11 @@
     },
     "operation": {
       "$ref": "http://swagger.io/v2/schema.json#/definitions/operation"
+    },
+    "merge": {
+      "description": "If set to true, the default operation is merged with the one specified in `operation`. Otherwise `operation` overrides the default"
+      "type": "boolean",
+      "default": false
     }
   }
 }

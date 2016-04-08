@@ -1,6 +1,7 @@
 import url from 'url';
 import _ from 'lodash';
 import { MongoClient, ObjectId } from 'mongodb';
+import { parseQuery as rqlParser } from 'rql/parser';
 import { Resource } from './resource';
 import { API } from './api';
 
@@ -34,7 +35,12 @@ export class MongoResource extends Resource {
   }
 
   queryPrepareQuery(req) {
-    return {};
+    var q = {};
+    if (req.query.q) {
+      var _q = rqlParser(req.query.q);
+      console.log('parsed query', _q);
+    }
+    return q;
   }
   queryPrepareOpts(req) {
     var opts = {};
