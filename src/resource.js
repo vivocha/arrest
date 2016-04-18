@@ -69,8 +69,9 @@ export class Resource {
     });
 
     var tag = {
-      name: this.name,
-      description: this.description
+      "name": this.name,
+      "description": this.description,
+      "x-schema": this.schema
     };
     if (this.externalDocs) tag.externalDocs = this.externalDocs;
     api.addTag(tag);

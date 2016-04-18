@@ -1,9 +1,12 @@
 import url from 'url';
 import _ from 'lodash';
+import { default as log4js } from 'log4js';
 import { MongoClient, ObjectId } from 'mongodb';
 import { parseQuery as rqlParser } from 'rql/parser';
 import { Resource } from './resource';
 import { API } from './api';
+
+var logger = log4js.getLogger("arrest.mongo");
 
 function rqlToMongo(query, opts, data) {
   switch(data.name) {
@@ -157,7 +160,6 @@ export class MongoResource extends Resource {
       opts.sort = req.query.sort;
     }
     if (opts.sort) {
-      console.log("sort in", opts.sort);
       opts.sort = _.reduce(opts.sort, function(o, i) {
         if (i[0] === '-') {
           o[i.substr(1)] = -1;
@@ -168,7 +170,6 @@ export class MongoResource extends Resource {
         }
         return o;
       }, {});
-      console.log("sort out", opts.sort);
     }
 
     return opts;
@@ -177,8 +178,8 @@ export class MongoResource extends Resource {
     this.getCollection().then(collection => {
       var q = this.queryPrepareQuery(req);
       var opts = this.queryPrepareOpts(req);
-      console.log('query', q);
-      console.log('opts', opts, opts.limit, opts.skip);
+      logger.debug('query', q);
+      logger.debug('opts', opts, opts.limit, opts.skip);
 
       var cursor = collection.find(q);
       cursor.maxScan(MongoResource.MAX_SCAN);

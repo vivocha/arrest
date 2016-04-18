@@ -1,10 +1,13 @@
 import _ from 'lodash';
+import { default as log4js } from 'log4js';
 import { default as express } from 'express';
 import { default as bodyParser } from 'body-parser';
 import { default as semver } from 'semver';
 import { fireValidationError } from 'jsonpolice';
 import { schemas, create as createSchema, resolve as resolveRefs } from './schema';
 import { RESTError } from './error';
+
+var logger = log4js.getLogger("arrest");
 
 var __path = Symbol();
 var __handler = Symbol();
@@ -144,13 +147,13 @@ export class API {
   }
   static handleError(err, req, res, next) {
     if (err.name === 'RESTError') {
-      console.error('REST ERROR', err);
+      logger.error('REST ERROR', err);
       RESTError.send(res, err.code || 500, err.message, err.info);
     } else if (err.name === 'ValidationError') {
-      console.error('DATA ERROR', err);
+      logger.error('DATA ERROR', err);
       RESTError.send(res, 400, err.message, err.path);
     } else {
-      console.error('GENERIC ERROR', err, err.stack);
+      logger.error('GENERIC ERROR', err, err.stack);
       RESTError.send(res, 500, 'internal');
     }
   }
