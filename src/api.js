@@ -28,7 +28,12 @@ function _createValidators(p, key, parameters, middlewares, opts) {
         if (typeof obj[key][parameter.name] === 'undefined' && required === true) {
           fireValidationError(key + '.' + parameter.name, schema.scope, 'required');
         } else {
-          obj[key][parameter.name] = schema.validate(obj[key][parameter.name], key + '.' + parameter.name);
+          var out = schema.validate(obj[key][parameter.name], key + '.' + parameter.name);
+          if (typeof out !== 'undefined') {
+            obj[key][parameter.name] = out;
+          } else {
+            delete obj[key][parameter.name];
+          }
         }
       });
     });

@@ -64,6 +64,16 @@
       },
       "uniqueItems": true
     },
+    "sort": {
+      "name": "sort",
+      "in": "query",
+      "description": "Sorting criteria, using RQL syntax (a,-b,+c)",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
     "query": {
       "name": "q",
       "in": "query",
