@@ -1,0 +1,39 @@
+{
+  "title": "A JSON Schema for an API resource, i.e. a collection of related path-method combinations.",
+  "id": "https://raw.githubusercontent.com/vivocha/arrest/master/data/schemas/resource.json#",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "allOf": [
+    { "$ref": "http://swagger.io/v2/schema.json#/definitions/tag" }
+  ],
+  "definitions": {
+    "routesArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "https://raw.githubusercontent.com/vivocha/arrest/master/data/schemas/operation.json#"
+      }
+    }
+  },
+  "required": [ "namePlural", "schema", "routes" ],
+  "properties": {
+    "namePlural": {
+      "type": "string"
+    },
+    "schema": {
+      "$ref": "http://swagger.io/v2/schema.json#/definitions/schema"
+    },
+    "definitions": {
+      "$ref": "http://swagger.io/v2/schema.json#/definitions/definitions"
+    },
+    "parameters": {
+      "$ref": "http://swagger.io/v2/schema.json#/definitions/parameterDefinitions"
+    },
+    "routes": {
+      "$ref": "#/definitions/routesArray"
+    },
+    "additionalRoutes": {
+      "$ref": "#/definitions/routesArray"
+    }
+  }
+}

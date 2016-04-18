@@ -1,0 +1,25 @@
+{
+  "summary": "Update a <%- name %>",
+  "description": "",
+  "operationId": "<%- name %>.update",
+  "parameters": [
+    {
+      "$ref": "#/parameters/id"
+    },
+    {
+      "description": "The updated <%- name %>, minus the unique identifier and the metatadata",
+      "name": "body",
+      "in": "body",
+      "required": true,
+      "schema": <%- JSON.stringify(schema) %>
+    }
+  ],
+  "responses": {
+    "200": {
+      "description": "<%- name %> successfully updated",
+      "schema": <%- JSON.stringify(schema) %>
+    },
+    "404": { "$ref": "#/responses/notFound" },
+    "default": { "$ref": "#/responses/defaultError" }
+  }
+}

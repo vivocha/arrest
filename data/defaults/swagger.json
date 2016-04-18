@@ -1,0 +1,98 @@
+{
+  "swagger": "2.0",
+  "schemes": [ "https", "http" ],
+  "consumes": [ "application/json" ],
+  "produces": [ "application/json" ],
+  "paths": {},
+  "definitions": {
+    "metadata": {
+      "description": "Metadata associated with the resource",
+      "type": "object"
+    },
+    "objectId": {
+      "description": "Name of the property storing the unique identifier of the resource",
+      "type": "string"
+    },
+    "errorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "message": {
+          "type": "string"
+        },
+        "info": {
+          "type": "string"
+        }
+      },
+      "required": [ "error", "message" ]
+    }
+  },
+  "parameters": {
+    "id": {
+      "description": "Unique identifier of the resource",
+      "name": "id",
+      "in": "path",
+      "type": "string"
+    },
+    "limit": {
+      "name": "limit",
+      "in": "query",
+      "description": "Maximum number of items to return",
+      "type": "integer",
+      "default": 20,
+      "minimum": 1,
+      "maximum": 100
+    },
+    "skip": {
+      "name": "skip",
+      "in": "query",
+      "description": "Skip the specified number of items",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0
+    },
+    "fields": {
+      "name": "fields",
+      "in": "query",
+      "description": "Return only the specified properties",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "sort": {
+      "name": "sort",
+      "in": "query",
+      "description": "Sorting criteria, using RQL syntax (a,-b,+c)",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "query": {
+      "name": "q",
+      "in": "query",
+      "description": "Return only items matching the specified [RQL](https://github.com/persvr/rql) query. This parameter can also be used to specify the ordering criteria of the results",
+      "type": "string"
+    }
+  },
+  "responses": {
+    "defaultError": {
+      "description": "Default/generic error response",
+      "schema": { "$ref": "#/definitions/errorResponse" }
+    },
+    "notFound": {
+      "description": "The requested/specified resource was not found",
+      "schema": { "$ref": "#/definitions/errorResponse" }
+    }
+  },
+  "securityDefinitions": {},
+  "security": [],
+  "tags": [],
+  "externalDocs": {}
+}
