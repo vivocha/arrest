@@ -66,6 +66,9 @@ function rqlToMongo(query, opts, data) {
     case 'ne':
       query[data.args[0]] = { $ne: data.args[1] };
       break;
+    case 'matches':
+      query[data.args[0]] = new RegExp(data.args[1]);
+      break;
 
     case 'sort':
       query = null;
@@ -97,6 +100,8 @@ function rqlToMongo(query, opts, data) {
 export class MongoResource extends Resource {
   constructor(api, resource) {
     super(api, resource);
+    this.maxScan = MongoResource.MAX_SCAN;
+    this.maxCountMs = MongoResource.MAX_COUNT_MS;
     if (typeof this.db === 'string') {
       this.db = MongoClient.connect(this.db);
     } else {
@@ -182,11 +187,11 @@ export class MongoResource extends Resource {
       logger.debug('opts', opts, opts.limit, opts.skip);
 
       var cursor = collection.find(q);
-      cursor.maxScan(MongoResource.MAX_SCAN);
+      cursor.maxScan(this.maxScan);
 
       // false = ignore limit and skip when counting
       return cursor.count(false, {
-        maxTimeMS: MongoResource.MAX_COUNT_MS
+        maxTimeMS: this.maxCountMs
       }).then(matching => {
         res.set('Results-Matching', matching);
         return matching;
