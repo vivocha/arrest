@@ -35,7 +35,8 @@
       "description": "Unique identifier of the resource",
       "name": "id",
       "in": "path",
-      "type": "string"
+      "type": "string",
+      "required": true
     },
     "limit": {
       "name": "limit",
@@ -90,9 +91,5 @@
       "description": "The requested/specified resource was not found",
       "schema": { "$ref": "#/definitions/errorResponse" }
     }
-  },
-  "securityDefinitions": {},
-  "security": [],
-  "tags": [],
-  "externalDocs": {}
+  }
 }

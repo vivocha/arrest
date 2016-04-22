@@ -1,7 +1,10 @@
 import fs from 'fs';
 import _ from 'lodash';
+import { default as log4js } from 'log4js';
 import ejs from 'ejs';
 import { deepExtend, Eredita } from 'eredita';
+
+var logger = log4js.getLogger("arrest");
 
 var _operationTemplates = {
   query: _getTemplate('query'),
@@ -10,6 +13,8 @@ var _operationTemplates = {
   update: _getTemplate('update'),
   remove: _getTemplate('remove')
 };
+
+var scopesTemplate = _getTemplate('scopes');
 
 var _defaultRoutes = [
   { method: 'GET',    path: '',     handler: 'query' },
@@ -44,6 +49,16 @@ function _mergeRoutes() {
 export class Resource {
   constructor(api, resource) {
     _.defaults(this, resource);
+    if (!this.namePlural) {
+      this.namePlural = this.name + 's';
+    }
+    if (!this.scopes) {
+      this.scopes = JSON.parse(scopesTemplate(this));
+    }
+    _.each(_.filter(api.securityDefinitions, { type: 'oauth2' }), i => {
+      i.scopes = _.defaults(i.scopes || { }, this.scopes);
+    });
+
     if (!this.routes) {
       this.routes = _.cloneDeep(_defaultRoutes);
     }
@@ -62,7 +77,22 @@ export class Resource {
         route.operation = JSON.parse(_operationTemplates[route.handler](this));
       }
       if (route.operation) {
-        route.operation.tags = _.uniq((route.operation.tags || []).concat([ this.name ]));
+        var op = route.operation;
+        op.tags = _.uniq((op.tags || []).concat([ this.name ]));
+        if (!op['x-scopes'] && op.operationId) {
+          op['x-scopes'] = [ op.operationId ];
+        }
+        if (op['x-scopes']) {
+          op.security = [];
+          _.each(api.securityDefinitions, function(i, k) {
+            if (i.type === 'oauth2') {
+              op.security.push({
+                [k]: op['x-scopes']
+              });
+            }
+          });
+          delete op['x-scopes'];
+        }
       }
       route.path = basePath + route.path;
       route.handler = this[route.handler].bind(this);
@@ -86,7 +116,6 @@ export class Resource {
         api.parameters[i] = this.parameters[i];
       }
     }
-
     _.each(this.routes, function(route) {
       if (route.operation) {
         api.addOperation(route);

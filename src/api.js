@@ -53,15 +53,27 @@ function _createValidators(p, key, parameters, middlewares, opts) {
 }
 
 export class API {
-  constructor(info) {
+  constructor(info, opts) {
     schemas.info.validate(info);
     if (!semver.valid(info.version)) {
       throw new Error('invalid_version');
     }
     _.defaults(this, _default);
     this.info = info;
+    var _opts = opts || {};
+    _.each(_opts.auth, (a, n) => {
+      if (!this.securityDefinitions) this.securityDefinitions = {};
+      if (typeof a === 'object') {
+        this.securityDefinitions[n] = a;
+      } else if (a === true) {
+        try {
+          this.securityDefinitions[n] = require('../data/defaults/security/' + n + '.json');
+        } catch(e) {}
+      }
+    });
   }
   addTag(tag) {
+    if (!this.tags) this.tags = [];
     this.tags.push(tag);
   }
   addOperation(op) {
@@ -76,9 +88,18 @@ export class API {
     var r = express.Router();
     var originalSwagger = JSON.parse(JSON.stringify(this));
     r.get('/swagger.json', (req, res) => {
-      var out = _.clone(originalSwagger);
+      var out = _.cloneDeep(originalSwagger);
       out.host = req.headers.host || req.hostname;
       out.basePath = req.baseUrl || '/v' + semver.major(this.info.version);
+      var baseOAuthPath = 'https://' + out.host + out.basePath + '/';
+      _.each(originalSwagger.securityDefinitions, function(i, k) {
+        if (i.authorizationUrl) {
+          out.securityDefinitions[k].authorizationUrl = baseOAuthPath + i.authorizationUrl;
+        }
+        if (i.tokenUrl) {
+          out.securityDefinitions[k].tokenUrl = baseOAuthPath + i.tokenUrl;
+        }
+      });
       res.json(out);
     });
     return resolveRefs(this, opts).then(() => {

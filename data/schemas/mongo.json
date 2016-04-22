@@ -6,7 +6,7 @@
   "allOf": [
     { "$ref": "https://raw.githubusercontent.com/vivocha/arrest/master/data/schemas/resource.json#" }
   ],
-  "required": [ "db", "collection" ],
+  "required": [ "db" ],
   "properties": {
     "db": {
       "anyOf": [

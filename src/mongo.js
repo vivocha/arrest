@@ -100,6 +100,9 @@ function rqlToMongo(query, opts, data) {
 export class MongoResource extends Resource {
   constructor(api, resource) {
     super(api, resource);
+    if (!this.collection) {
+      this.collection = this.namePlural.toLocaleLowerCase();
+    }
     this.maxScan = MongoResource.MAX_SCAN;
     this.maxCountMs = MongoResource.MAX_COUNT_MS;
     if (typeof this.db === 'string') {

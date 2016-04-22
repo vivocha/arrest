@@ -15,7 +15,7 @@
       }
     }
   },
-  "required": [ "namePlural", "schema", "routes" ],
+  "required": [ "schema", "routes" ],
   "properties": {
     "namePlural": {
       "type": "string"
@@ -28,6 +28,9 @@
     },
     "parameters": {
       "$ref": "http://swagger.io/v2/schema.json#/definitions/parameterDefinitions"
+    },
+    "scopes": {
+      "$ref": "http://swagger.io/v2/schema.json#/definitions/oauth2Scopes"
     },
     "routes": {
       "$ref": "#/definitions/routesArray"
