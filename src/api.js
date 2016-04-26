@@ -110,8 +110,8 @@ export class API {
         _.each(path, (op, method) => {
           var args = [ op[__path] ];
           if (op.security) {
-            p = p.then(function() {
-              args.push(API.securityValidator(params.security));
+            p = p.then(() => {
+              args.push(this.securityValidator(params.security));
             });
           }
           var params = _.groupBy(op.parameters, 'in');
@@ -162,6 +162,12 @@ export class API {
       return base;
     });
   }
+  securityValidator(security) {
+    return function(req, res, next) {
+      logger.warn('using default security validator');
+      next();
+    }
+  }
   static newError(code, message, info, err) {
     return new RESTError(code, message, info, err);
   }
@@ -178,12 +184,6 @@ export class API {
     } else {
       logger.error('GENERIC ERROR', err, err.stack);
       RESTError.send(res, 500, 'internal');
-    }
-  }
-  static securityValidator(security) {
-    return function(req, res, next) {
-      // TODO implement the security validator
-      next();
     }
   }
 }
