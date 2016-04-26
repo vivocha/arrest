@@ -3,6 +3,7 @@ import { default as log4js } from 'log4js';
 import { default as express } from 'express';
 import { default as bodyParser } from 'body-parser';
 import { default as semver } from 'semver';
+import { normalize, normalizeUri } from 'jsonref';
 import { fireValidationError } from 'jsonpolice';
 import { schemas, create as createSchema, resolve as resolveRefs } from './schema';
 import { RESTError } from './error';
@@ -91,13 +92,14 @@ export class API {
       var out = _.cloneDeep(originalSwagger);
       out.host = req.headers.host || req.hostname;
       out.basePath = req.baseUrl || '/v' + semver.major(this.info.version);
-      var baseOAuthPath = 'https://' + out.host + out.basePath + '/';
+      out.id = 'https://' + out.host + out.basePath + '/swagger.json#';
+      normalize(out);
       _.each(originalSwagger.securityDefinitions, function(i, k) {
         if (i.authorizationUrl) {
-          out.securityDefinitions[k].authorizationUrl = baseOAuthPath + i.authorizationUrl;
+          out.securityDefinitions[k].authorizationUrl = normalizeUri(i.authorizationUrl, out.id, true);
         }
         if (i.tokenUrl) {
-          out.securityDefinitions[k].tokenUrl = baseOAuthPath + i.tokenUrl;
+          out.securityDefinitions[k].tokenUrl = normalizeUri(i.tokenUrl, out.id, true);
         }
       });
       res.json(out);
