@@ -1,7 +1,0 @@
-{
-  "type": "oauth2",
-  "description": "OAuth 2 Authorization Code Flow",
-  "flow": "accessCode",
-  "authorizationUrl": "authorize",
-  "tokenUrl": "token"
-}

@@ -1,6 +1,0 @@
-{
-  "type": "oauth2",
-  "description": "OAuth 2 Implicit Flow",
-  "flow": "implicit",
-  "authorizationUrl": "authorize"
-}

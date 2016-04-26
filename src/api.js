@@ -64,13 +64,7 @@ export class API {
     var _opts = opts || {};
     _.each(_opts.auth, (a, n) => {
       if (!this.securityDefinitions) this.securityDefinitions = {};
-      if (typeof a === 'object') {
-        this.securityDefinitions[n] = a;
-      } else if (a === true) {
-        try {
-          this.securityDefinitions[n] = require('../data/defaults/security/' + n + '.json');
-        } catch(e) {}
-      }
+      this.securityDefinitions[n] = a;
     });
   }
   addTag(tag) {
@@ -111,7 +105,7 @@ export class API {
           var args = [ op[__path] ];
           if (op.security) {
             p = p.then(() => {
-              args.push(this.securityValidator(params.security));
+              args.push(this.securityValidator(op.security));
             });
           }
           var params = _.groupBy(op.parameters, 'in');
