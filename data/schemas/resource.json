@@ -23,6 +23,9 @@
     "schema": {
       "$ref": "http://swagger.io/v2/schema.json#/definitions/schema"
     },
+    "schemaWrite": {
+      "$ref": "http://swagger.io/v2/schema.json#/definitions/schema"
+    },
     "definitions": {
       "$ref": "http://swagger.io/v2/schema.json#/definitions/definitions"
     },

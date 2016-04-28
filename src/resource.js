@@ -103,6 +103,9 @@ export class Resource {
       "description": this.description,
       "x-schema": this.schema
     };
+    if (this.schemaWrite) {
+      tag["x-schema-write"] = this.schemaWrite;
+    }
     if (this.externalDocs) tag.externalDocs = this.externalDocs;
     api.addTag(tag);
 

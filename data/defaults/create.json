@@ -8,7 +8,7 @@
       "name": "body",
       "in": "body",
       "required": true,
-      "schema": <%- JSON.stringify(schema) %>
+      "schema": <%- JSON.stringify(schemaWrite || schema) %>
     }
   ],
   "responses": {
