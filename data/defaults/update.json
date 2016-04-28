@@ -17,7 +17,7 @@
   "responses": {
     "200": {
       "description": "<%- name %> successfully updated",
-      "schema": <%- JgetItemSchema('update') %>
+      "schema": <%- getItemSchema('update') %>
     },
     "404": { "$ref": "#/responses/notFound" },
     "default": { "$ref": "#/responses/defaultError" }
