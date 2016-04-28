@@ -28,6 +28,12 @@ var _defaultRoutes = [
 
 function _getTemplate(name) {
   var data = fs.readFileSync(__dirname + '/../data/defaults/' + name + '.json', 'ascii');
+  data.getSchema = function() {
+    return JSON.stringify(data.schema);
+  }
+  data.getWriteSchema = function() {
+    return JSON.stringify(data.schemaWrite || data.schema);
+  }
   return ejs.compile(data, {});
 }
 function _mergeRoutes() {

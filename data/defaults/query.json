@@ -24,7 +24,7 @@
       "description": "List of matching <%- namePlural %>",
       "schema": {
         "type": "array",
-        "items": <%- JSON.stringify(schema) %>
+        "items": <%- getSchema() %>
       },
       "headers": {
         "Link": {
