@@ -272,8 +272,14 @@ export class MongoResource extends Resource {
           console.error('bad result', result);
           API.fireError(500, 'internal');
         } else {
-          res.set('Location', Resource.getFullURL(req) + '/' + result.insertedId);
-          res.status(201).jsonp(result.ops[0])
+          var obj = result.ops[0];
+          var id = result.ops[0][this.id];
+          if (this.id !== '_id') {
+            delete obj._id;
+          }
+          delete obj._metadata;
+          res.set('Location', Resource.getFullURL(req) + '/' + id);
+          res.status(201).jsonp(obj);
         }
       });
     }).catch(err => {
