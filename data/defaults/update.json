@@ -11,13 +11,13 @@
       "name": "body",
       "in": "body",
       "required": true,
-      "schema": <%- JSON.stringify(typeof schemaWrite === 'undefined' ? schema : schemaWrite) %>
+      "schema": <%- getItemSchema('update', true) %>
     }
   ],
   "responses": {
     "200": {
       "description": "<%- name %> successfully updated",
-      "schema": <%- JSON.stringify(schema) %>
+      "schema": <%- JgetItemSchema('update') %>
     },
     "404": { "$ref": "#/responses/notFound" },
     "default": { "$ref": "#/responses/defaultError" }

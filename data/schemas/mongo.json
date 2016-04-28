@@ -9,6 +9,7 @@
   "required": [ "db" ],
   "properties": {
     "db": {
+      "description": "A MongoDB URI or a MongoClient instance",
       "anyOf": [
         {
           "type": "object"
@@ -20,15 +21,12 @@
       ]
     },
     "collection": {
+      "description": "The MongoDB collection to use. If omitted, _namePlural_ converted to lowercase is used",
       "type": "string",
       "minLength": 1
     },
-    "id": {
-      "type": "string",
-      "minLength": 1,
-      "default": "_id"
-    },
     "idIsObjectId": {
+      "description": "Flag indicating whether the _id_ is to be treated as a MongoDB ObjectID",
       "type": "boolean",
       "default": true
     }

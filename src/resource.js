@@ -101,10 +101,13 @@ export class Resource {
     var tag = {
       "name": this.name,
       "description": this.description,
-      "x-schema": this.schema
+      "x-schemas": this.schemas
     };
-    if (this.schemaWrite) {
-      tag["x-schema-write"] = this.schemaWrite;
+    if (!this.id) {
+      tag["x-id"] = this.id;
+    }
+    if (!this.nameProperty) {
+      tag["x-name"] = this.nameProperty;
     }
     if (this.externalDocs) tag.externalDocs = this.externalDocs;
     api.addTag(tag);
@@ -124,6 +127,13 @@ export class Resource {
         api.addOperation(route);
       }
     });
+  }
+  getItemSchema(operation, isRequest) {
+    var s;
+    if (this.schemas[operation]) {
+      s = this.schemas[operation][isRequest ? "request" : "response"];
+    }
+    return JSON.stringify(s || this.schemas.default || {});
   }
   static uncapitalize(s) {
     return s.charAt(0).toLowerCase() + s.slice(1);

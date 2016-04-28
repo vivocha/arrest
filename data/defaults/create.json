@@ -8,13 +8,13 @@
       "name": "body",
       "in": "body",
       "required": true,
-      "schema": <%- JSON.stringify(typeof schemaWrite === 'undefined' ? schema : schemaWrite) %>
+      "schema": <%- getItemSchema('create', true) %>
     }
   ],
   "responses": {
     "201": {
       "description": "<%- name %> successfully created",
-      "schema": <%- JSON.stringify(schema) %>,
+      "schema": <%- getItemSchema('create') %>,
       "headers": {
         "Location": {
           "description": "URI of the newly created resource",
