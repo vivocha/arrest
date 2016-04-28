@@ -130,7 +130,7 @@ export class Resource {
   }
   getItemSchema(operation, isRequest) {
     var s;
-    if (this.schemas[operation]) {
+    if (this.schemas && this.schemas[operation]) {
       s = this.schemas[operation][isRequest ? "request" : "response"];
     }
     return JSON.stringify(s || this.schemas.default || {});
