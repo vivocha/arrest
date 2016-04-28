@@ -52,6 +52,9 @@ export class Resource {
     if (!this.namePlural) {
       this.namePlural = this.name + 's';
     }
+    if (!this.schemas) {
+      this.schemas = { default: { } }
+    }
     if (!this.scopes) {
       this.scopes = JSON.parse(scopesTemplate(this));
     }
@@ -130,7 +133,7 @@ export class Resource {
   }
   getItemSchema(operation, isRequest) {
     var s;
-    if (this.schemas && this.schemas[operation]) {
+    if (this.schemas[operation]) {
       s = this.schemas[operation][isRequest ? "request" : "response"];
     }
     return JSON.stringify(s || this.schemas.default || {});
