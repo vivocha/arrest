@@ -106,10 +106,10 @@ export class Resource {
       "description": this.description,
       "x-schemas": this.schemas
     };
-    if (!this.id) {
+    if (this.id) {
       tag["x-id"] = this.id;
     }
-    if (!this.nameProperty) {
+    if (this.nameProperty) {
       tag["x-name"] = this.nameProperty;
     }
     if (this.externalDocs) tag.externalDocs = this.externalDocs;
