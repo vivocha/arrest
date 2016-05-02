@@ -103,14 +103,13 @@ export class Resource {
 
     var tag = {
       "name": this.name,
-      "description": this.description,
-      "x-schemas": this.schemas
+      "description": this.description
     };
     if (this.id) {
       tag["x-id"] = this.id;
     }
-    if (this.nameProperty) {
-      tag["x-name"] = this.nameProperty;
+    if (this.title) {
+      tag["x-title"] = this.title;
     }
     if (this.externalDocs) tag.externalDocs = this.externalDocs;
     api.addTag(tag);
@@ -136,7 +135,10 @@ export class Resource {
     if (this.schemas[operation]) {
       s = this.schemas[operation][isRequest ? "request" : "response"];
     }
-    return JSON.stringify(s || this.schemas.default || {});
+    if (!s && this.schemas.default) {
+      s = this.schemas.default[isRequest ? "request" : "response"];
+    }
+    return JSON.stringify(s || {});
   }
   static uncapitalize(s) {
     return s.charAt(0).toLowerCase() + s.slice(1);

@@ -26,7 +26,7 @@
       "minLength": 1,
       "default": "_id"
     },
-    "nameProperty": {
+    "title": {
       "description": "Name of the property storing a brief description of the resource to be displayed, for instance, in a list. If omitted, the _id_ can be used instead",
       "type": "string"
     },
