@@ -132,11 +132,11 @@ export class Resource {
   }
   getItemSchema(operation, isRequest) {
     var s;
-    if (this.schemas[operation]) {
-      s = this.schemas[operation][isRequest ? "request" : "response"];
+    if (typeof this.schemas[operation] === 'object') {
+      s = this.schemas[operation][isRequest ? "request" : "response"] || this.schemas[operation].all;
     }
-    if (!s && this.schemas.default) {
-      s = this.schemas.default[isRequest ? "request" : "response"];
+    if (!s && typeof this.schemas.default === 'object') {
+      s = this.schemas.default[isRequest ? "request" : "response"] || this.schemas.default.all;
     }
     return JSON.stringify(s || {});
   }
