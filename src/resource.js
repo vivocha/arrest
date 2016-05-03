@@ -94,8 +94,8 @@ export class Resource {
               });
             }
           });
-          delete op['x-scopes'];
         }
+        delete op['x-scopes'];
       }
       route.path = basePath + route.path;
       route.handler = this[route.handler].bind(this);
