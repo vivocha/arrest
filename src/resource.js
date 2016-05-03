@@ -85,7 +85,7 @@ export class Resource {
         if (!op['x-scopes'] && op.operationId) {
           op['x-scopes'] = [ op.operationId ];
         }
-        if (op['x-scopes']) {
+        if (op['x-scopes'] && op['x-scopes'].length) {
           op.security = [];
           _.each(api.securityDefinitions, function(i, k) {
             if (i.type === 'oauth2') {
