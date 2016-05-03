@@ -87,7 +87,6 @@ export class API {
       out.host = req.headers.host || req.hostname;
       out.basePath = req.baseUrl || '/v' + semver.major(this.info.version);
       out.id = 'https://' + out.host + out.basePath + '/swagger.json#';
-      normalize(out);
       _.each(originalSwagger.securityDefinitions, function(i, k) {
         if (i.authorizationUrl) {
           out.securityDefinitions[k].authorizationUrl = normalizeUri(i.authorizationUrl, out.id, true);
