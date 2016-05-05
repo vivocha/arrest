@@ -1,6 +1,5 @@
 {
   "summary": "Create a new <%- name %>",
-  "description": "",
   "operationId": "<%- name %>.create",
   "parameters": [
     {

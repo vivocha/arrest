@@ -1,6 +1,5 @@
 {
   "summary": "Retrieve a list of <%- namePlural %>",
-  "description": "",
   "operationId": "<%- name %>.query",
   "parameters": [
     {

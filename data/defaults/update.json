@@ -1,6 +1,5 @@
 {
   "summary": "Update a <%- name %>",
-  "description": "",
   "operationId": "<%- name %>.update",
   "parameters": [
     {

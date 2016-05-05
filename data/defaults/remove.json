@@ -1,6 +1,5 @@
 {
   "summary": "Delete a <%- name %> by id",
-  "description": "",
   "operationId": "<%- name %>.remove",
   "parameters": [
     {
