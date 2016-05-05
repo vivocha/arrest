@@ -187,7 +187,7 @@ export class MongoResource extends Resource {
       var q = this.queryPrepareQuery(req);
       var opts = this.queryPrepareOpts(req);
       logger.debug('query', q);
-      logger.debug('opts', opts, opts.limit, opts.skip);
+      logger.debug('opts', opts);
 
       var cursor = collection.find(q);
       cursor.maxScan(this.maxScan);
@@ -241,7 +241,11 @@ export class MongoResource extends Resource {
   }
   read(req, res) {
     this.getCollection().then(collection => {
-      return collection.find(this.readPrepareQuery(req), this.readPrepareOpts(req)).limit(1).next().then(data => {
+      var q = this.readPrepareQuery(req);
+      var opts = this.readPrepareOpts(req);
+      logger.debug('query', q);
+      logger.debug('opts', opts);
+      return collection.find(q, opts).limit(1).next().then(data => {
         if (data) {
           res.jsonp(data);
         } else {
@@ -264,7 +268,11 @@ export class MongoResource extends Resource {
   }
   create(req, res) {
     this.getCollection().then(collection => {
-      return collection.insertOne(this.createPrepareDoc(req), this.createPrepareOpts(req)).then(result => {
+      var doc = this.createPrepareDoc(req);
+      var opts = this.createPrepareOpts(req);
+      logger.debug('doc', doc);
+      logger.debug('opts', opts);
+      return collection.insertOne(doc, opts).then(result => {
         if (result.insertedCount != 1) {
           console.error('insert failed', result);
           API.fireError(500, 'failed');
@@ -301,7 +309,13 @@ export class MongoResource extends Resource {
   }
   update(req, res) {
     this.getCollection().then(collection => {
-      return collection.findOneAndUpdate(this.updatePrepareQuery(req), this.updatePrepareDoc(req), this.updatePrepareOpts(req)).then(result => {
+      var q = this.updatePrepareQuery(req);
+      var doc = this.updatePrepareDoc(req);
+      var opts = this.updatePrepareOpts(req);
+      logger.debug('query', q);
+      logger.debug('doc', doc);
+      logger.debug('opts', opts);
+      return collection.findOneAndUpdate(q, doc, opts).then(result => {
         if (!result.ok || !result.value) {
           console.error('update failed', result);
           API.fireError(404, 'not_found');
@@ -327,7 +341,11 @@ export class MongoResource extends Resource {
   }
   remove(req, res) {
     this.getCollection().then(collection => {
-      return collection.deleteOne(this.removePrepareQuery(req), this.removePrepareOpts(req)).then(result => {
+      var q = this.removePrepareQuery(req);
+      var opts = this.removePrepareOpts(req);
+      logger.debug('query', q);
+      logger.debug('opts', opts);
+      return collection.deleteOne(q, opts).then(result => {
         if (result.deletedCount != 1) {
           console.error('delete failed', result);
           API.fireError(404, 'not_found');
