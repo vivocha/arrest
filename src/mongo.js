@@ -294,7 +294,7 @@ export class MongoResource extends Resource {
     var out = _.cloneDeep(req.body);
     delete out[this.id];
     delete out._metadata;
-    return out;
+    return { $set: out };
   }
   updatePrepareOpts(req) {
     return { returnOriginal: false };
@@ -306,7 +306,12 @@ export class MongoResource extends Resource {
           console.error('update failed', result);
           API.fireError(404, 'not_found');
         } else {
-          res.jsonp(result.value);
+          var obj = result.value;
+          if (this.id !== '_id') {
+            delete obj._id;
+          }
+          delete obj._metadata;
+          res.jsonp(obj);
         }
       });
     }).catch(err => {
