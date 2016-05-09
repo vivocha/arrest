@@ -259,7 +259,9 @@ export class MongoResource extends Resource {
 
   createPrepareDoc(req) {
     var out = _.cloneDeep(req.body);
-    delete out[this.id];
+    if (this.id === '_id' && this.idIsObjectId) {
+      delete out._id;
+    }
     delete out._metadata;
     return out;
   }
