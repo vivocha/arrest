@@ -111,6 +111,13 @@ export class Resource {
     if (this.title) {
       tag["x-title"] = this.title;
     }
+    if (this.namePlural) {
+      tag["x-name-plural"] = this.namePlural;
+    }
+    if (this.summaryFields) {
+      tag["x-summary-fields"] = this.summaryFields;
+    }
+
     if (this.externalDocs) tag.externalDocs = this.externalDocs;
     api.addTag(tag);
 
