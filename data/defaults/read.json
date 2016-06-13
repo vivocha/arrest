@@ -11,7 +11,7 @@
   ],
   "responses": {
     "200": {
-      "description": "List of matching <%- namePlural %>",
+      "description": "The requested <%- name %>",
       "schema": <%- getItemSchema('read') %>
     },
     "404": { "$ref": "#/responses/notFound" },
