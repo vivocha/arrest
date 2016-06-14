@@ -302,9 +302,9 @@ export class MongoResource extends Resource {
   }
   updatePrepareDoc(req) {
     var out = _.cloneDeep(req.body);
-    delete out[this.id];
+    out[this.id] = req.params.id;
     delete out._metadata;
-    return { $set: out };
+    return out;
   }
   updatePrepareOpts(req) {
     return { returnOriginal: false };
