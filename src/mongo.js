@@ -182,6 +182,9 @@ export class MongoResource extends Resource {
 
     return opts;
   }
+  queryRedactResult(req, data) {
+    return data;
+  }
   query(req, res) {
     this.getCollection().then(collection => {
       var q = this.queryPrepareQuery(req);
@@ -215,7 +218,7 @@ export class MongoResource extends Resource {
             q.skip = opts.skip + opts.limit;
             res.set('Link', '<' + Resource.getFullURL(req) + '?' + Resource.toQueryString(q) + '>; rel="next"');
           }
-          res.jsonp(data);
+          res.jsonp(this.queryRedactResult(req, data));
         });
       });
     }).catch(err => {
@@ -239,6 +242,9 @@ export class MongoResource extends Resource {
     }
     return opts;
   }
+  readRedactResult(req, data) {
+    return data;
+  }
   read(req, res) {
     this.getCollection().then(collection => {
       var q = this.readPrepareQuery(req);
@@ -247,7 +253,7 @@ export class MongoResource extends Resource {
       logger.debug('opts', opts);
       return collection.find(q, opts).limit(1).next().then(data => {
         if (data) {
-          res.jsonp(data);
+          res.jsonp(this.readRedactResult(req, data));
         } else {
           API.fireError(404, 'not_found');
         }
@@ -268,6 +274,13 @@ export class MongoResource extends Resource {
   createPrepareOpts(req) {
     return {};
   }
+  createRedactResult(req, data) {
+    if (this.id !== '_id') {
+      delete data._id;
+    }
+    delete data._metadata;
+    return data;
+  }
   create(req, res) {
     this.getCollection().then(collection => {
       var doc = this.createPrepareDoc(req);
@@ -283,13 +296,8 @@ export class MongoResource extends Resource {
           API.fireError(500, 'internal');
         } else {
           var obj = result.ops[0];
-          var id = result.ops[0][this.id];
-          if (this.id !== '_id') {
-            delete obj._id;
-          }
-          delete obj._metadata;
-          res.set('Location', Resource.getFullURL(req) + '/' + id);
-          res.status(201).jsonp(obj);
+          res.set('Location', Resource.getFullURL(req) + '/' + obj[this.id]);
+          res.status(201).jsonp(this.createRedactResult(req, obj));
         }
       });
     }).catch(err => {
@@ -309,6 +317,13 @@ export class MongoResource extends Resource {
   updatePrepareOpts(req) {
     return { returnOriginal: false };
   }
+  updateRedactResult(req, data) {
+    if (this.id !== '_id') {
+      delete data._id;
+    }
+    delete data._metadata;
+    return data;
+  }
   update(req, res) {
     this.getCollection().then(collection => {
       var q = this.updatePrepareQuery(req);
@@ -322,12 +337,7 @@ export class MongoResource extends Resource {
           console.error('update failed', result);
           API.fireError(404, 'not_found');
         } else {
-          var obj = result.value;
-          if (this.id !== '_id') {
-            delete obj._id;
-          }
-          delete obj._metadata;
-          res.jsonp(obj);
+          res.jsonp(this.updateRedactResult(req, result.value));
         }
       });
     }).catch(err => {
