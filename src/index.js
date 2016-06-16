@@ -1,14 +1,8 @@
-import { RESTError } from './error.js';
-export { RESTError } from './error.js';
+module.exports.RESTError = require('./error').RESTError;
+module.exports.API = require('./api').API;
+module.exports.Resource = require('./resource').Resource;
+module.exports.MongoResource = require('./mongo').MongoResource;
 
-import { API } from './api.js';
-export { API } from './api.js';
-
-import { Resource } from './resource.js';
-export { Resource } from './resource.js';
-
-import { MongoResource } from './mongo.js';
-export { MongoResource } from './mongo.js';
-
-import { ready, defaultRetriever } from './schema.js';
-export { ready, defaultRetriever } from './schema.js';
+var schema = require('./schema');
+module.exports.ready = schema.ready;
+module.exports.defaultRetriever = schema.defaultRetriever;

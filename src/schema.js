@@ -1,11 +1,11 @@
-import _ from 'lodash';
-import request from 'request';
-import * as jr from 'jsonref';
-import * as jp from 'jsonpolice';
+var _ = require('lodash')
+  , request = require('request')
+  , jr = require('jsonref')
+  , jp = require('jsonpolice')
 
 var _store = {};
 
-export function defaultRetriever(url) {
+function defaultRetriever(url) {
   return new Promise(function(resolve, reject) {
     request({
       url: url,
@@ -22,7 +22,7 @@ export function defaultRetriever(url) {
     });
   });
 }
-export var schemas = {
+var schemas = {
   core: require('../data/schemas/swagger.json'),
   info: 'http://swagger.io/v2/schema.json#/definitions/info',
   tag: 'http://swagger.io/v2/schema.json#/definitions/tag',
@@ -30,19 +30,19 @@ export var schemas = {
   resource: require('../data/schemas/resource.json'),
   mongo: require('../data/schemas/mongo.json'),
 };
-export function resolve(dataOrUri, opts) {
+function resolve(dataOrUri, opts) {
   return jr.parse(dataOrUri, _.defaults(opts, {
     store: _store,
     retriever: defaultRetriever
   }));
 }
-export function create(dataOrUri, opts) {
+function create(dataOrUri, opts) {
   return jp.create(dataOrUri, _.defaults(opts, {
     store: _store,
     retriever: defaultRetriever
   }));
 }
-export var ready = new Promise(function(resolve) {
+var ready = new Promise(function(resolve) {
   var p = Promise.resolve(true);
   _.each(schemas, function(data, i) {
     p = p.then(function() {
@@ -54,3 +54,9 @@ export var ready = new Promise(function(resolve) {
   });
   resolve(p);
 });
+
+module.exports.defaultRetriever = defaultRetriever;
+module.exports.schemas = schemas;
+module.exports.resolve = resolve;
+module.exports.create = create;
+module.exports.ready = ready;

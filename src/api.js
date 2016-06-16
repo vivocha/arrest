@@ -1,14 +1,14 @@
-import _ from 'lodash';
-import { default as log4js } from 'log4js';
-import { default as express } from 'express';
-import { default as bodyParser } from 'body-parser';
-import { default as semver } from 'semver';
-import { normalize, normalizeUri } from 'jsonref';
-import { fireValidationError } from 'jsonpolice';
-import { schemas, create as createSchema, resolve as resolveRefs } from './schema';
-import { RESTError } from './error';
-
-var logger = log4js.getLogger("arrest");
+var _ = require('lodash')
+  , log4js = require('log4js')
+  , express = require('express')
+  , bodyParser = require('body-parser')
+  , semver = require('semver')
+  , jr = require('jsonref')
+  , jp = require('jsonpolice')
+  , schema = require('./schema')
+  , schemas = schema.schemas
+  , RESTError = require('./error').RESTError
+  , logger = log4js.getLogger("arrest");
 
 var __path = Symbol();
 var __handler = Symbol();
@@ -26,11 +26,11 @@ function _createValidators(p, key, parameters, middlewares, opts) {
     var required = parameter.required;
     delete parameter.required;
     p = p.then(function() {
-      return createSchema(parameter, opts);
+      return schema.create(parameter, opts);
     }).then(function(schema) {
       validators.push(function(obj) {
         if (typeof obj[key][parameter.name] === 'undefined' && required === true) {
-          fireValidationError(key + '.' + parameter.name, schema.scope, 'required');
+          jp.fireValidationError(key + '.' + parameter.name, schema.scope, 'required');
         } else {
           var out = schema.validate(obj[key][parameter.name], key + '.' + parameter.name);
           if (typeof out !== 'undefined') {
@@ -53,7 +53,7 @@ function _createValidators(p, key, parameters, middlewares, opts) {
   });
 }
 
-export class API {
+class API {
   constructor(info, opts) {
     schemas.info.validate(info);
     if (!semver.valid(info.version)) {
@@ -89,15 +89,15 @@ export class API {
       out.id = 'https://' + out.host + out.basePath + '/swagger.json#';
       _.each(originalSwagger.securityDefinitions, function(i, k) {
         if (i.authorizationUrl) {
-          out.securityDefinitions[k].authorizationUrl = normalizeUri(i.authorizationUrl, out.id, true);
+          out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, out.id, true);
         }
         if (i.tokenUrl) {
-          out.securityDefinitions[k].tokenUrl = normalizeUri(i.tokenUrl, out.id, true);
+          out.securityDefinitions[k].tokenUrl = jr.normalizeUri(i.tokenUrl, out.id, true);
         }
       });
       res.json(out);
     });
-    return resolveRefs(this, opts).then(() => {
+    return schema.resolve(this, opts).then(() => {
       var p = Promise.resolve(true);
       _.each(this.paths, path => {
         _.each(path, (op, method) => {
@@ -122,13 +122,13 @@ export class API {
           }
           if (params.body) {
             p = p.then(function() {
-              return createSchema(params.body[0].schema, opts);
+              return schema.create(params.body[0].schema, opts);
             }).then(function(schema) {
               args.push(bodyParser.json());
               args.push(function(req, res, next) {
                 if (typeof req.body === 'undefined') {
                   if (params.body[0].required === true) {
-                    fireValidationError('body', schema.scope, 'required');
+                    jp.fireValidationError('body', schema.scope, 'required');
                   }
                 } else {
                   schema.validate(req.body, 'body');
@@ -180,3 +180,5 @@ export class API {
     }
   }
 }
+
+module.exports.API = API;

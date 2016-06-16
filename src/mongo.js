@@ -1,12 +1,11 @@
-import url from 'url';
-import _ from 'lodash';
-import { default as log4js } from 'log4js';
-import { MongoClient, ObjectId } from 'mongodb';
-import { parseQuery as rqlParser } from 'rql/parser';
-import { Resource } from './resource';
-import { API } from './api';
-
-var logger = log4js.getLogger("arrest.mongo");
+var url = require('url')
+  , _ = require('lodash')
+  , log4js = require('log4js')
+  , mongodb = require('mongodb')
+  , rqlParser = require('rql/parser').parseQuery
+  , Resource = require('./resource').Resource
+  , API = require('./api').API
+  , logger = log4js.getLogger("arrest.mongo")
 
 function rqlToMongo(query, opts, data) {
   switch(data.name) {
@@ -97,7 +96,7 @@ function rqlToMongo(query, opts, data) {
   return query;
 }
 
-export class MongoResource extends Resource {
+class MongoResource extends Resource {
   constructor(api, resource) {
     super(api, resource);
     if (!this.collection) {
@@ -106,7 +105,7 @@ export class MongoResource extends Resource {
     this.maxScan = MongoResource.MAX_SCAN;
     this.maxCountMs = MongoResource.MAX_COUNT_MS;
     if (typeof this.db === 'string') {
-      this.db = MongoClient.connect(this.db);
+      this.db = mongodb.MongoClient.connect(this.db);
     } else {
       this.db = Promise.resolve(this.db);
     }
@@ -127,7 +126,7 @@ export class MongoResource extends Resource {
   }
   getItemQuery(id) {
     return {
-      [ this.id ]: (this.idIsObjectId ? new ObjectId(id) : id)
+      [ this.id ]: (this.idIsObjectId ? new mongodb.ObjectId(id) : id)
     };
   }
 
@@ -374,3 +373,5 @@ export class MongoResource extends Resource {
 // TODO fine tune these values
 MongoResource.MAX_SCAN = 200;
 MongoResource.MAX_COUNT_MS = 200;
+
+module.exports.MongoResource = MongoResource;

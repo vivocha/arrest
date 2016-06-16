@@ -1,4 +1,4 @@
-export class RESTError extends Error {
+class RESTError extends Error {
   constructor(code, message, info, err) {
     super(message);
     this.name = 'RESTError';
@@ -14,5 +14,7 @@ export class RESTError extends Error {
     });
   }
 }
+
+module.exports.RESTError = RESTError;
 
 
