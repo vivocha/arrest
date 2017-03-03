@@ -201,16 +201,6 @@ export class QueryMongoOperation extends MongoOperation {
   }
 }
 
-export class SimpleQueryMongoOperation extends QueryMongoOperation {
-  constructor(resource:Resource, path:string, method:Method) {
-    super({
-
-    }, resource, path, method);
-  }
-
-  //static
-}
-
 export class ReadMongoOperation extends MongoOperation {
   prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)

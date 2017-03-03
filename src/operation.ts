@@ -1,3 +1,4 @@
+import * as _ from 'lodash';
 import { Router, RouterOptions, Request, Response, NextFunction, RequestHandler } from 'express';
 import * as jp from 'jsonpolice';
 import { json as jsonParser } from 'body-parser';

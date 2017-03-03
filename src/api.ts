@@ -3,11 +3,13 @@ import * as semver from 'semver';
 import * as jr from 'jsonref';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
+import Logger from './debug';
 import { RESTError } from './error';
 import { SchemaRegistry } from './schema';
 import { Swagger } from './swagger';
 import { Resource } from './resource';
 
+const logger = Logger('arrest');
 const __schemas = Symbol();
 const __registry = Symbol();
 const __resources = Symbol();

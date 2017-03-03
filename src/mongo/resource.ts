@@ -1,6 +1,5 @@
 import { MongoClient, Db } from 'mongodb';
-import { Routes, Resource, ResourceDefinition } from '../resource';
-import { QueryMongoOperation, ReadMongoOperation, CreateMongoOperation, UpdateMongoOperation, RemoveMongoOperation } from './operation';
+import { Routes, Resource, ResourceDefinition, OperationFactory } from '../resource';
 
 const __db = Symbol();
 
@@ -35,19 +34,17 @@ export class MongoResource extends Resource {
     return this[__db];
   }
 
-  /*
-  static defaultRoutes():Routes {
+  static defaultRoutes(query: OperationFactory, create: OperationFactory, read: OperationFactory, update: OperationFactory, remove: OperationFactory):Routes {
     return {
       '/': {
-        'get': QueryMongoOperation,
-        'post': CreateMongoOperation
+        'get': query,
+        'post': create
       },
       '/:id': {
-        'get': ReadMongoOperation,
-        'put': UpdateMongoOperation,
-        'delete': RemoveMongoOperation
+        'get': read,
+        'put': update,
+        'delete': remove
       }
     };
   }
-  */
 }
