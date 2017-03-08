@@ -204,11 +204,13 @@ export class API implements Swagger {
           out.basePath = req.baseUrl || '/v' + semver.major(this.info.version);
           out.id = 'https://' + out.host + out.basePath + '/swagger.json#';
           _.each(originalSwagger.securityDefinitions, function (i, k) {
-            if (i.authorizationUrl) {
-              out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, out.id, true);
-            }
-            if (i.tokenUrl) {
-              out.securityDefinitions[k].tokenUrl = jr.normalizeUri(i.tokenUrl, out.id, true);
+            if (k) {
+              if (i.authorizationUrl) {
+                out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, out.id, true);
+              }
+              if (i.tokenUrl) {
+                out.securityDefinitions[k].tokenUrl = jr.normalizeUri(i.tokenUrl, out.id, true);
+              }
             }
           });
           res.json(out);
@@ -247,12 +249,14 @@ export class API implements Swagger {
     }
   }
   addOauth2Scope(name:string, description:string): void {
-    _.each(_.filter(this.securityDefinitions, { type: 'oauth2' }), (i:Swagger.SecurityOAuth2) => {
-      if (!i.scopes) {
-        i.scopes = {};
-      }
-      i.scopes[name] = description;
-    });
+    if (this.securityDefinitions) {
+      _.each(_.filter(this.securityDefinitions, { type: 'oauth2' }), (i:Swagger.SecurityOAuth2) => {
+        if (!i.scopes) {
+          i.scopes = {};
+        }
+        i.scopes[name] = description;
+      });
+    }
   }
   registerSchema(id:string, handler:RequestHandler): this {
     this[__schemas][id] = handler;

@@ -1,5 +1,6 @@
 import { MongoClient, Db } from 'mongodb';
-import { Routes, Resource, ResourceDefinition, OperationFactory } from '../resource';
+import { Routes, Resource, ResourceDefinition } from '../resource';
+import { QueryMongoOperation, ReadMongoOperation, CreateMongoOperation, UpdateMongoOperation, RemoveMongoOperation } from './operation';
 
 const __db = Symbol();
 
@@ -9,10 +10,10 @@ export interface MongoResourceDefinition extends ResourceDefinition {
 }
 
 export class MongoResource extends Resource {
-  collection?: string;
+  collection: string;
   idIsObjectId?: boolean;
 
-  constructor(info:MongoResourceDefinition, routes:Routes, db: string | Db) {
+  constructor(db: string | Db, info:MongoResourceDefinition, routes:Routes = MongoResource.defaultRoutes()) {
     super(info, routes);
     if (!this.collection) {
       this.collection = this.namePlural.toLocaleLowerCase();
@@ -33,17 +34,20 @@ export class MongoResource extends Resource {
   get db(): Promise<Db> {
     return this[__db];
   }
+  get schema(): any {
+    return {};
+  }
 
-  static defaultRoutes(query: OperationFactory, create: OperationFactory, read: OperationFactory, update: OperationFactory, remove: OperationFactory):Routes {
+  static defaultRoutes():Routes {
     return {
       '/': {
-        'get': query,
-        'post': create
+        'get': QueryMongoOperation,
+        'post': CreateMongoOperation
       },
       '/:id': {
-        'get': read,
-        'put': update,
-        'delete': remove
+        'get': ReadMongoOperation,
+        'put': UpdateMongoOperation,
+        'delete': RemoveMongoOperation
       }
     };
   }

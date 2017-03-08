@@ -46,9 +46,7 @@ export namespace Swagger {
     [key:string]: Swagger.Schema
   }
 
-  export interface Parameters {
-    [key:string]: Parameter
-  }
+  export type Parameters = (Parameter | Reference)[];
 
   export interface Path {
     ["get"]?: Operation;
@@ -133,7 +131,7 @@ export namespace Swagger {
   }
 
   export interface BasicSchema {
-    format?: "string";
+    format?: string;
     ["default"]?: any;
     maximum?: number;
     exclusiveMaximum?: boolean;

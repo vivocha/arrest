@@ -24,13 +24,6 @@ export abstract class MongoOperation extends Operation {
   static readonly MAX_SCAN = 200;
   static readonly MAX_COUNT_MS = 200;
 
-  constructor(info:Swagger.Operation, resource:Resource, path:string, method:Method) {
-    super(info, resource, path, method);
-    // TODO restore these
-    //this.maxScan = MongoResource.MAX_SCAN;
-    //this.maxCountMs = MongoResource.MAX_COUNT_MS;
-  }
-
   get maxScan():number {
     return MongoOperation.MAX_SCAN;
   }
@@ -54,14 +47,22 @@ export abstract class MongoOperation extends Operation {
       return p;
     });
   }
+  get requestSchema(): any {
+    return this.resource.schema;
+  }
+  get responseSchema(): any {
+    return this.resource.schema;
+  }
 
   protected getCollectionOptions(): mongo.DbCollectionOptions {
-    return undefined;
+    return {};
   }
-  protected getItemQuery(id) {
+  protected getItemQuery(_id) {
+    let id = this.resource.id || 'id';
+    let idIsObjectId = this.resource.idIsObjectId || id === '_id';
     try {
       return {
-        [ this.resource.id ]: (this.resource.idIsObjectId ? new mongo.ObjectID(id) : id)
+        [ id ]: (idIsObjectId ? new mongo.ObjectID(_id) : _id)
       };
     } catch (error) {
       console.error('invalid id', error);
@@ -70,10 +71,11 @@ export abstract class MongoOperation extends Operation {
   }
   protected parseFields(fields: string[]) {
     let includeMode = false;
+    let id = this.resource.id || 'id';
     let out = {};
     if (fields && fields.length) {
       out = _.reduce(fields, (o: any, i: string) => {
-        if (!i || i === '_metadata' ||  (this.resource.id !== '_id' && i === '_id')) {
+        if (!i || i === '_metadata' ||  (id !== '_id' && i === '_id')) {
           //no op
         }
         else {
@@ -86,7 +88,7 @@ export abstract class MongoOperation extends Operation {
     if (!includeMode) {
       out['_metadata'] = 0;
     }
-    if (this.resource.id !== '_id') {
+    if (id !== '_id') {
       out['_id'] = 0;
     }
     return out;
@@ -130,6 +132,56 @@ export abstract class MongoOperation extends Operation {
 }
 
 export class QueryMongoOperation extends MongoOperation {
+  constructor(resource:Resource, path:string, method:Method) {
+    super('query', resource, path, method);
+  }
+  getDefaultInfo(id: string): Swagger.Operation {
+    return Object.assign(super.getDefaultInfo(id), {
+      "summary": `Retrieve a list of ${this.resource.name}`,
+      "parameters": [
+        {
+          "$ref": "#/parameters/limit"
+        },
+        {
+          "$ref": "#/parameters/skip"
+        },
+        {
+          "$ref": "#/parameters/fields"
+        },
+        {
+          "$ref": "#/parameters/sort"
+        },
+        {
+          "$ref": "#/parameters/query"
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": `List of matching ${this.resource.namePlural}`,
+          "schema": {
+            "type": "array",
+            "items": this.responseSchema
+          },
+          "headers": {
+            "Link": {
+              "description": "Data pagination links, as described in RFC5988. Currently only rel=next is supported",
+              "type": "string"
+            },
+            "Results-Matching": {
+              "description": "Total number of resources matching the query",
+              "type": "integer",
+              "minimum": 0
+            },
+            "Results-Skipped": {
+              "description": "Number of resources skipped to return the current batch of resources",
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    });
+  }
   prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
     job.query = {};
     job.opts = {};
@@ -202,6 +254,31 @@ export class QueryMongoOperation extends MongoOperation {
 }
 
 export class ReadMongoOperation extends MongoOperation {
+  constructor(resource:Resource, path:string, method:Method) {
+    super('read', resource, path, method);
+  }
+  getDefaultInfo(id: string): Swagger.Operation {
+    return Object.assign(super.getDefaultInfo(id), {
+      "summary": `Retrieve a ${this.resource.name} by id`,
+      "parameters": [
+        {
+          "$ref": "#/parameters/id"
+        },
+        {
+          "$ref": "#/parameters/fields"
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": `The requested ${this.resource.name}`,
+          "schema": this.responseSchema
+        },
+        "404": {
+          "$ref": "#/responses/notFound"
+        }
+      }
+    });
+  }
   prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
     return job;
@@ -226,10 +303,42 @@ export class ReadMongoOperation extends MongoOperation {
 }
 
 export class CreateMongoOperation extends MongoOperation {
+  constructor(resource:Resource, path:string, method:Method) {
+    super('create', resource, path, method);
+  }
+  getDefaultInfo(id: string): Swagger.Operation {
+    return Object.assign(super.getDefaultInfo(id), {
+      "summary": `Create a new ${this.resource.name}`,
+      "parameters": [
+        {
+          "description": `${this.resource.name} to be created, omitting ${ (typeof this.resource.id === '_id' && this.resource.idIsObjectId) ? 'the unique identifier (that will be generated by the server) and ' : '' } the metadata`,
+          "name": "body",
+          "in": "body",
+          "required": true,
+          "schema": this.requestSchema
+        }
+      ],
+      "responses": {
+        "201": {
+          "description": `${this.resource.name} successfully created`,
+          "schema": this.responseSchema,
+          "headers": {
+            "Location": {
+              "description": "URI of the newly created resource",
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    });
+  }
   prepareDoc(job:MongoJob): MongoJob | Promise<MongoJob> {
     job.doc = _.cloneDeep(job.req.body);
-    if (this.resource.id === '_id' && this.resource.idIsObjectId) {
-      delete job.doc._id;
+    let id = this.resource.id || 'id';
+    let idIsObjectId = this.resource.idIsObjectId || id === '_id';
+    if (id === '_id' && idIsObjectId) {
+      delete job.doc['_id'];
     }
     delete job.doc._metadata;
     return job;
@@ -244,7 +353,7 @@ export class CreateMongoOperation extends MongoOperation {
         API.fireError(500, 'internal');
       } else {
         job.data = result.ops[0];
-        job.res.set('Location', Resource.getFullURL(job.req) + '/' + job.data[this.resource.id]);
+        job.res.set('Location', Resource.getFullURL(job.req) + '/' + job.data[this.resource.id || '_id']);
         job.res.status(201);
         return job;
       }
@@ -260,17 +369,48 @@ export class CreateMongoOperation extends MongoOperation {
 }
 
 export class UpdateMongoOperation extends MongoOperation {
+  constructor(resource:Resource, path:string, method:Method) {
+    super('update', resource, path, method);
+  }
+  getDefaultInfo(id: string): Swagger.Operation {
+    return Object.assign(super.getDefaultInfo(id), {
+      "summary": `Update a ${this.resource.name}`,
+      "parameters": [
+        {
+          "$ref": "#/parameters/id"
+        },
+        {
+          "description": `The updated ${this.resource.name}, minus the unique identifier and the metatadata`,
+          "name": "body",
+          "in": "body",
+          "required": true,
+          "schema": this.requestSchema
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": `${this.resource.name} successfully updated`,
+          "schema": this.responseSchema
+        },
+        "404": {
+          "$ref": "#/responses/notFound"
+        }
+      }
+    });
+  }
   prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
     return job;
   }
   prepareDoc(job:MongoJob): MongoJob | Promise<MongoJob> {
     let out = _.cloneDeep(job.req.body);
-    if(this.resource.id === '_id' && this.resource.idIsObjectId) {
-      out[this.resource.id] = new mongo.ObjectID(job.req.params.id);
+    let id = this.resource.id || 'id';
+    let idIsObjectId = this.resource.idIsObjectId || id === '_id';
+    if(id === '_id' && idIsObjectId) {
+      out[id] = new mongo.ObjectID(job.req.params.id);
     } else {
       delete out._id;
-      out[this.resource.id] = job.req.params.id;
+      out[id] = job.req.params.id;
     }
     delete out._metadata;
     job.doc = {
@@ -294,8 +434,9 @@ export class UpdateMongoOperation extends MongoOperation {
     });
   }
   redactResult(job:MongoJob): MongoJob | Promise<MongoJob> {
-    if (this.resource.id !== '_id') {
-      delete job.data._id;
+    let id = this.resource.id || 'id';
+    if (id !== '_id') {
+      delete job.data['_id'];
     }
     delete job.data._metadata;
     return job;
@@ -303,6 +444,30 @@ export class UpdateMongoOperation extends MongoOperation {
 }
 
 export class RemoveMongoOperation extends MongoOperation {
+  constructor(resource:Resource, path:string, method:Method) {
+    super('remove', resource, path, method);
+  }
+  getDefaultInfo(id: string): Swagger.Operation {
+    return Object.assign(super.getDefaultInfo(id), {
+      "summary": `Delete a ${this.resource.name} by id`,
+      "parameters": [
+        {
+          "$ref": "#/parameters/id"
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": `${this.resource.name} successfully deleted`
+        },
+        "404": {
+          "$ref": "#/responses/notFound"
+        },
+        "default": {
+          "$ref": "#/responses/defaultError"
+        }
+      }
+    });
+  }
   prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
     return job;

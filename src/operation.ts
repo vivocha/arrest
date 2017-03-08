@@ -26,11 +26,11 @@ export abstract class Operation implements Swagger.Operation {
   deprecated?: boolean;
   security?: Swagger.Security[];
 
-  constructor(info:Swagger.Operation, resource:Resource, path:string, method:Method) {
-    Object.assign(this, info);
+  constructor(id: string, resource:Resource, path:string, method:Method) {
     this[__resource] = resource;
     this[__path] = path;
     this[__method] = method;
+    this.setInfo(this.getDefaultInfo(id));
   }
 
   get api():API {
@@ -51,7 +51,22 @@ export abstract class Operation implements Swagger.Operation {
     };
   }
 
-  // TODO added debug info into and out of the validators
+  protected getDefaultInfo(id:string): Swagger.Operation {
+    return {
+      "operationId": `${this.resource.name}.${id}`,
+      "tags": [ this.resource.name ],
+      "responses": {
+        "default": {
+          "$ref": "#/responses/defaultError"
+        }
+      }
+    };
+  }
+  protected setInfo(info:Swagger.Operation): this {
+    Object.assign(this, info);
+    return this;
+  }
+  // TODO add debug info into and out of the validators
   protected createValidators(key:string, parameters:Swagger.Parameter[]):Promise<RequestHandler> {
     return new Promise(resolve => {
       let validators: Promise<(req: Request) => void>[] = [];
@@ -96,7 +111,7 @@ export abstract class Operation implements Swagger.Operation {
       api.addOauth2Scope(i, scopes[i]);
     }
 
-    if (scopeNames.length) {
+    if (api.securityDefinitions && scopeNames.length) {
       for (let i in api.securityDefinitions) {
         if (api.securityDefinitions[i].type === 'oauth2') {
           if (!this.security) {
@@ -116,7 +131,7 @@ export abstract class Operation implements Swagger.Operation {
         // TODO add debug prints for the security validator
         middlewares.push(Promise.resolve(this.api.securityValidator(this.security)));
       }
-      let params = _.groupBy(this.parameters, 'in') as {
+      let params = _.groupBy(this.parameters || [], 'in') as {
         header: Swagger.HeaderParameter[];
         path: Swagger.PathParameter[];
         query: Swagger.QueryParameter[];

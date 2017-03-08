@@ -32,7 +32,7 @@ export class Resource implements ResourceDefinition {
   name: string;
   description?: string;
   externalDocs?: Swagger.ExternalDocs;
-  namePlural?: string;
+  namePlural: string;
   id?: string;
   title?: string;
   summaryFields?: string[];
@@ -110,13 +110,4 @@ export class Resource implements ResourceDefinition {
   static getFullURL(req: Request): string {
     return (req.protocol || 'http') + '://' + (req.headers['host'] || req.hostname) + (req.baseUrl || '/') + req.path;
   }
-
-  // TODO remove?
-  /*
-  static toQueryString(obj) {
-    return _.map(obj, function(v, k) {
-      return encodeURIComponent(k) + '=' + encodeURIComponent(v);
-    }).join('&');
-  }
-  */
 }

@@ -5,7 +5,8 @@
     "noImplicitAny": false,
     "sourceMap": true,
     "declaration": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "strictNullChecks": true
   },
   "files": [
     "src/index.ts"
