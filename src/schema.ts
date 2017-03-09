@@ -5,7 +5,7 @@ import * as jp from 'jsonpolice';
 export class SchemaRegistry {
   private opts:jr.ParseOptions;
 
-  constructor(scope:string) {
+  constructor(scope?:string) {
     this.opts = {
       scope,
       store: {},

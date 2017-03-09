@@ -32,7 +32,7 @@ export class Resource implements ResourceDefinition {
   name: string;
   description?: string;
   externalDocs?: Swagger.ExternalDocs;
-  namePlural: string;
+  namePlural?: string;
   id?: string;
   title?: string;
   summaryFields?: string[];
@@ -74,8 +74,7 @@ export class Resource implements ResourceDefinition {
     if (this.id) tag['x-id'] = this.id;
     if (this.title) tag['x-title'] = this.title;
     if (this.summaryFields) tag['x-summary-fields'] = this.summaryFields;
-    if (!api.tags) api.tags = [];
-    api.tags.push(tag);
+    api.addTag(tag);
 
     api.addOauth2Scope(this.name, this.scopeDescription);
 
@@ -103,9 +102,6 @@ export class Resource implements ResourceDefinition {
   // TODO shall I move them to operation?
   static uncapitalize(s) {
     return s.charAt(0).toLowerCase() + s.slice(1);
-  }
-  static capitalize(s) {
-    return s.charAt(0).toUpperCase() + s.slice(1);
   }
   static getFullURL(req: Request): string {
     return (req.protocol || 'http') + '://' + (req.headers['host'] || req.hostname) + (req.baseUrl || '/') + req.path;

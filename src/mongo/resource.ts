@@ -16,7 +16,7 @@ export class MongoResource extends Resource {
   constructor(db: string | Db, info:MongoResourceDefinition, routes:Routes = MongoResource.defaultRoutes()) {
     super(info, routes);
     if (!this.collection) {
-      this.collection = this.namePlural.toLocaleLowerCase();
+      this.collection = (this.namePlural || this.name).toLocaleLowerCase();
     }
     if (typeof db === 'string') {
       this[__db] = MongoClient.connect(db as string);

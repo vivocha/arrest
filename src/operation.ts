@@ -6,6 +6,7 @@ import { Swagger } from './swagger';
 import { API } from './api';
 import { Resource } from './resource';
 
+const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
 const __api = Symbol();
 const __resource = Symbol();
 const __path = Symbol();
@@ -41,6 +42,9 @@ export abstract class Operation implements Swagger.Operation {
   }
   get path():string {
     return this[__path];
+  }
+  get swaggerPath(): string {
+    return this.path.replace(swaggerPathRegExp, "/{$1}");
   }
   get method():Method {
     return this[__method];
@@ -99,9 +103,7 @@ export abstract class Operation implements Swagger.Operation {
 
   attach(api:API) {
     this[__api] = api;
-    if (!api.paths) api.paths = {};
-    if (!api.paths[this.path]) api.paths[this.path] = {};
-    api.paths[this.path][this.method] = this;
+    api.addOperation(this.resource.basePath + this.swaggerPath, this.method, this)
 
     let scopes = this.scopes;
     let scopeNames:string[] = [];
@@ -172,5 +174,5 @@ export abstract class Operation implements Swagger.Operation {
     });
   }
 
-  abstract handler(req:Request, res:Response);
+  abstract handler(req:Request, res:Response, next?: NextFunction);
 }

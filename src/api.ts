@@ -14,37 +14,8 @@ const __schemas = Symbol();
 const __registry = Symbol();
 const __resources = Symbol();
 const __router = Symbol();
-const _default = {
-  paths: {
-    "/schemas/{id}": {
-      "get": {
-        "summary": "Retrieve a Schema by id",
-        "operationId": "Schema.read",
-        "parameters": [
-          {
-            "$ref": "#/parameters/id"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The requested Schema",
-            "schema": {
-              "$ref": "http://json-schema.org/draft-04/schema#"
-            }
-          },
-          "404": {
-            "$ref": "#/responses/notFound"
-          },
-          "default": {
-            "$ref": "#/responses/defaultError"
-          }
-        },
-        "tags": [
-          "Schema"
-        ]
-      }
-    }
-  },
+const _default_swagger = {
+  swagger: '2.0',
   schemes: [ "https", "http" ],
   consumes: [ "application/json" ],
   produces: [ "application/json" ],
@@ -135,22 +106,39 @@ const _default = {
       "description": "The requested/specified resource was not found",
       "schema": { "$ref": "#/definitions/errorResponse" }
     }
-  },
-  tags: [
+  }
+};
+const _default_schema_operation: Swagger.Operation = {
+  "summary": "Retrieve a Schema by id",
+  "operationId": "Schema.read",
+  "parameters": [
     {
-      "name": "Schema",
-      "description": "JSON-Schema definitions used by this API",
-      "x-name-plural": "Schemas"
+      "$ref": "#/parameters/id"
     }
   ],
+  "responses": {
+    "200": {
+      "description": "The requested Schema",
+      "schema": {
+        "$ref": "http://json-schema.org/draft-04/schema#"
+      }
+    },
+    "404": {
+      "$ref": "#/responses/notFound"
+    },
+    "default": {
+      "$ref": "#/responses/defaultError"
+    }
+  },
+  "tags": [
+    "Schema"
+  ]
 };
-
-const toSwaggerPath = (function() {
-  var _regexp = /\/:([^#\?\/]*)/g;
-  return function (path) {
-    return path.replace(_regexp, "/{$1}");
-  }
-})();
+const _default_schema_tag: Swagger.Tag = {
+  "name": "Schema",
+  "description": "JSON-Schema definitions used by this API",
+  "x-name-plural": "Schemas"
+};
 
 export class API implements Swagger {
   swagger;
@@ -169,17 +157,18 @@ export class API implements Swagger {
   tags?: Swagger.Tag[];
   externalDocs?: Swagger.ExternalDocs;
 
-  constructor(info:Swagger, registry:SchemaRegistry) {
+  constructor(info:Swagger, registry:SchemaRegistry = new SchemaRegistry()) {
     delete info.paths;
     delete info.tags;
-    Object.assign(this, (new Eredita(info, new Eredita(_default))).mergePath());
+    Object.assign(this, (new Eredita(info, new Eredita(_default_swagger))).mergePath());
     if (!semver.valid(this.info.version)) {
       throw new Error('invalid_version');
     }
-    this[__schemas] = {};
+    this[__schemas] = null;
     this[__registry] = registry;
     this[__resources] = [];
   }
+
   get registry():SchemaRegistry {
     return this[__registry];
   }
@@ -192,36 +181,58 @@ export class API implements Swagger {
     resource.attach(this);
     return this;
   }
+  addOperation(path:string, method:string, operation:Swagger.Operation) {
+    if (!this.paths) {
+      this.paths = {};
+    }
+    if (!this.paths[path]) {
+      this.paths[path] = {};
+    }
+    this.paths[path][method] = operation;
+  }
+  addTag(tag:Swagger.Tag) {
+    if (!this.tags) {
+      this.tags = [];
+    }
+    this.tags.push(tag);
+  }
 
   router(options?: RouterOptions): Promise<Router> {
     if (!this[__router]) {
       this[__router] = new Promise(resolve => {
         let r = Router(options);
         let originalSwagger = JSON.parse(JSON.stringify(this));
-        r.get('/swagger.json', (req: Request, res: Response) => {
+        r.get('/swagger.json', (req: Request, res: Response, next: NextFunction) => {
           let out = _.cloneDeep(originalSwagger);
-          out.host = req.headers['host'] || req.hostname;
-          out.basePath = req.baseUrl || '/v' + semver.major(this.info.version);
-          out.id = 'https://' + out.host + out.basePath + '/swagger.json#';
-          _.each(originalSwagger.securityDefinitions, function (i, k) {
-            if (k) {
-              if (i.authorizationUrl) {
-                out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, out.id, true);
-              }
-              if (i.tokenUrl) {
-                out.securityDefinitions[k].tokenUrl = jr.normalizeUri(i.tokenUrl, out.id, true);
-              }
-            }
-          });
-          res.json(out);
-        });
-        r.get('/schemas/:id', (req: Request, res: Response, next: NextFunction) => {
-          if (this[__schemas][req.params.id]) {
-            (this[__schemas][req.params.id] as RequestHandler)(req, res, next);
+          if (!req.headers['host']) {
+            next(API.newError(400, 'Bad Request', 'Missing Host header in the request'));
           } else {
-            next();
+            out.host = req.headers['host'];
+            out.basePath = req.baseUrl;
+            let proto = this.schemes && this.schemes.length ? this.schemes[0] : 'http';
+            out.id = proto + '://' + out.host + out.basePath + '/swagger.json#';
+            _.each(originalSwagger.securityDefinitions, function (i, k) {
+              if (k) {
+                if (i.authorizationUrl) {
+                  out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, out.id, true);
+                }
+                if (i.tokenUrl) {
+                  out.securityDefinitions[k].tokenUrl = jr.normalizeUri(i.tokenUrl, out.id, true);
+                }
+              }
+            });
+            res.json(out);
           }
         });
+        if (this[__schemas]) {
+          r.get('/schemas/:id', (req: Request, res: Response, next: NextFunction) => {
+            if (this[__schemas][req.params.id]) {
+              (this[__schemas][req.params.id] as RequestHandler)(req, res, next);
+            } else {
+              next();
+            }
+          });
+        }
         resolve(this.registry.resolve(this).then(() => {
           let promises: Promise<Router>[] = [];
           this.resources.forEach((resource: Resource) => {
@@ -236,8 +247,8 @@ export class API implements Swagger {
     }
     return this[__router];
   }
-  attach(base:Router): Promise<Router> {
-    return this.router().then(router => {
+  attach(base:Router, options?: RouterOptions): Promise<Router> {
+    return this.router(options).then(router => {
       base.use('/v' + semver.major(this.info.version), router);
       return base;
     });
@@ -259,6 +270,11 @@ export class API implements Swagger {
     }
   }
   registerSchema(id:string, handler:RequestHandler): this {
+    if (!this[__schemas]) {
+      this[__schemas] = {};
+      this.addTag(_default_schema_tag);
+      this.addOperation('/schemas/{id}', 'get', _default_schema_operation);
+    }
     this[__schemas][id] = handler;
     return this;
   }
@@ -266,7 +282,7 @@ export class API implements Swagger {
   static handleMethodNotAllowed(req: Request, res: Response, next: NextFunction){
     next(API.newError(405, 'Method Not Allowed', "The API Endpoint doesn't support the specified HTTP method for the given resource", new Error('MethodNotAllowed')));
   }
-  static newError(code: number, message: string, info: any, err: any) {
+  static newError(code: number, message: string, info: any, err?: any) {
     return new RESTError(code, message, info, err);
   }
   static fireError(code: number, message?: string, info?: any, err?: any) {
