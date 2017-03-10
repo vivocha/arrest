@@ -1,4 +1,4 @@
-import { Router, RouterOptions, Request } from 'express';
+import { Router, RouterOptions, Request, Response, NextFunction } from 'express';
 import { Swagger } from './swagger';
 import { API } from './api';
 import { Method, Operation } from './operation';
@@ -91,7 +91,9 @@ export class Resource implements ResourceDefinition {
       });
       resolve(Promise.all(promises).then(() => {
         knownPaths.forEach(path => {
-          r.all(path, API.handleMethodNotAllowed);
+          r.all(path, (req: Request, res: Response, next: NextFunction) => {
+            next(API.newError(405, 'Method Not Allowed', "The API Endpoint doesn't support the specified HTTP method for the given resource"));
+          });
         });
         base.use(this.basePath, r);
         return r;
@@ -99,11 +101,7 @@ export class Resource implements ResourceDefinition {
     });
   }
 
-  // TODO shall I move them to operation?
   static uncapitalize(s) {
     return s.charAt(0).toLowerCase() + s.slice(1);
-  }
-  static getFullURL(req: Request): string {
-    return (req.protocol || 'http') + '://' + (req.headers['host'] || req.hostname) + (req.baseUrl || '/') + req.path;
   }
 }

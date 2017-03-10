@@ -279,25 +279,19 @@ export class API implements Swagger {
     return this;
   }
 
-  static handleMethodNotAllowed(req: Request, res: Response, next: NextFunction){
-    next(API.newError(405, 'Method Not Allowed', "The API Endpoint doesn't support the specified HTTP method for the given resource", new Error('MethodNotAllowed')));
-  }
-  static newError(code: number, message: string, info: any, err?: any) {
+  static newError(code: number, message?: string, info?: any, err?: any): RESTError {
     return new RESTError(code, message, info, err);
   }
-  static fireError(code: number, message?: string, info?: any, err?: any) {
-    throw new RESTError(code, message, info, err);
+  static fireError(code: number, message?: string, info?: any, err?: any): never {
+    throw API.newError(code, message, info, err);
   }
   static handleError(err: any, req: Request, res: Response, next?: NextFunction) {
     if (err.name === 'RESTError') {
       logger.error('REST ERROR', err);
-      RESTError.send(res, err.code || 500, err.message, err.info);
+      RESTError.send(res, err.code, err.message, err.info);
     } else if (err.name === 'ValidationError') {
       logger.error('DATA ERROR', err);
       RESTError.send(res, 400, err.message, err.path);    
-    } else if (err.name === 'MethodNotAllowed') {
-      logger.error('METHOD NOT ALLOWED ERROR', err);
-      RESTError.send(res, 405, err.message, err.path);    
     } else {
       logger.error('GENERIC ERROR', err, err.stack);
       RESTError.send(res, 500, 'internal');

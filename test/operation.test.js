@@ -511,7 +511,8 @@ describe('Operation', function() {
                   },
                   "additionalProperties": false,
                   "required": [ "a" ]
-                }
+                },
+                "required": true
               }
             ]
           });
@@ -520,8 +521,27 @@ describe('Operation', function() {
           spy(req, res);
         }
       }
+      class Op2 extends Operation {
+        constructor(resource, path, method) {
+          super('op1', resource, path, method);
+          this.setInfo({
+            parameters: [
+              {
+                "name": "bbb",
+                "in": "body",
+                "schema": {
+                  "type": "object",
+                }
+              }
+            ]
+          });
+        }
+        handler(req, res) {
+          res.send({});
+        }
+      }
 
-      let r = new Resource({ name: 'Test' }, { '/': { get: Op1, post: Op1 }});
+      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }});
       api.addResource(r);
 
       before(function() {
@@ -536,9 +556,9 @@ describe('Operation', function() {
       });
 
 
-      it('should fail the body is missing', function() {
+      it('should fail if a requested body is missing', function() {
         return request
-          .get('/tests/')
+          .post('/tests/a')
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
@@ -548,9 +568,18 @@ describe('Operation', function() {
           });
       });
 
+      it('should not fail if an optional body is missing', function() {
+        return request
+          .post('/tests/b')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+          });
+      });
+
       it('should fail if the body has the wrong type (1)', function() {
         return request
-          .post('/tests/')
+          .post('/tests/a')
           .send({ })
           .expect(400)
           .expect('Content-Type', /json/)
@@ -563,7 +592,7 @@ describe('Operation', function() {
 
       it('should fail if the body has the wrong type (2)', function() {
         return request
-          .post('/tests/')
+          .post('/tests/a')
           .send({ a: 'aaa' })
           .expect(400)
           .expect('Content-Type', /json/)
@@ -576,7 +605,7 @@ describe('Operation', function() {
 
       it('should fail if the body has the wrong type (3)', function() {
         return request
-          .post('/tests/')
+          .post('/tests/a')
           .send({ a: true, b: 'aaa' })
           .expect(400)
           .expect('Content-Type', /json/)
@@ -590,7 +619,7 @@ describe('Operation', function() {
 
       it('should correctly return the body', function() {
         return request
-          .post('/tests/')
+          .post('/tests/a')
           .send({ a: true, b: 5 })
           .expect(200)
           .expect('Content-Type', /json/)

@@ -16,12 +16,12 @@ export class MongoResource extends Resource {
   constructor(db: string | Db, info:MongoResourceDefinition, routes:Routes = MongoResource.defaultRoutes()) {
     super(info, routes);
     if (!this.collection) {
-      this.collection = (this.namePlural || this.name).toLocaleLowerCase();
+      this.collection = ('' + this.namePlural).toLocaleLowerCase();
     }
     if (typeof db === 'string') {
       this[__db] = MongoClient.connect(db as string);
     } else {
-      this[__db] = Promise.resolve(db as Db);
+      this[__db] = Promise.resolve(db as Db | Promise<Db>);
     }
     if (typeof this.id !== 'string') {
       this.id = '_id';

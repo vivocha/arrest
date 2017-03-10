@@ -4,6 +4,8 @@ var chai = require('chai')
   , supertest = require('supertest')
   , express = require('express')
   , API = require('../dist/api').API
+  , Resource = require('../dist/resource').Resource
+  , Operation = require('../dist/operation').Operation
 
 
 chai.use(spies);
@@ -52,6 +54,7 @@ describe('API', function() {
   });
 
   describe('plain api (no resources)', function() {
+
     describe('/swagger.json', function() {
 
       const port = 9876;
@@ -181,14 +184,19 @@ describe('API', function() {
       const request = supertest(basePath);
       const api = new API({ info: { version: '1.0.0' }});
       const app = express();
-      const schema = { a: true, b: 2 };
-      const spy = chai.spy(function(req, res) {
-        res.send(schema);
+      const schema1 = { a: true, b: 2 };
+      const schema2 = { c: 'd', e: [] };
+      const spy1 = chai.spy(function(req, res) {
+        res.send(schema1);
+      });
+      const spy2 = chai.spy(function(req, res) {
+        res.send(schema2);
       });
       let server;
 
       before(function() {
-        api.registerSchema('abc', spy);
+        api.registerSchema('abc', spy1);
+        api.registerSchema('def', spy2);
         return api.router().then(router => {
           app.use(router);
           server = app.listen(port);
@@ -211,8 +219,9 @@ describe('API', function() {
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.should.deep.equal(schema);
-            spy.should.have.been.called.once();
+            data.should.deep.equal(schema1);
+            spy1.should.have.been.called.once();
+            spy2.should.not.have.been.called();
           });
       });
     });
@@ -256,6 +265,104 @@ describe('API', function() {
         });
     });
 
+  });
+
+  describe('error handling', function() {
+
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    const app = express();
+    let server, spy;
+
+    const api = new API({ info: { version: '1.0.0' }});
+    class Op1 extends Operation {
+      constructor(resource, path, method) {
+        super('op1', resource, path, method);
+      }
+      handler(req, res) {
+        spy(req, res);
+      }
+    }
+
+    let r = new Resource({ name: 'Test' }, { '/a': { get: Op1 } });
+    api.addResource(r);
+
+    before(function() {
+      return api.router().then(router => {
+        app.use(router);
+        server = app.listen(port);
+      });
+    });
+
+    after(function() {
+      server.close();
+    });
+
+    it('should return the specified rest error', function() {
+      spy = chai.spy(function(req, res) {
+        API.fireError(418);
+      });
+      return request
+        .get('/tests/a')
+        .expect(418)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.message.should.equal('');
+          should.not.exist(data.info);
+          spy.should.have.been.called.once();
+        });
+
+    });
+
+    it('should return the specified rest error', function() {
+      spy = chai.spy(function(req, res) {
+        API.fireError(418);
+      });
+      return request
+        .get('/tests/a')
+        .expect(418)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.message.should.equal('');
+          should.not.exist(data.info);
+          spy.should.have.been.called.once();
+        });
+
+    });
+
+    it('should return 500 as the default error', function() {
+      spy = chai.spy(function(req, res) {
+        throw new Error('bla bla bla');
+      });
+      return request
+        .get('/tests/a')
+        .expect(500)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.message.should.equal('internal');
+          should.not.exist(data.info);
+          spy.should.have.been.called.once();
+        });
+
+    });
+
+    it('should return 405 if an unsupported method is called on a known path', function() {
+      spy = chai.spy(function(req, res) {
+        throw new Error('bla bla bla');
+      });
+      return request
+        .post('/tests/a')
+        .expect(405)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.message.should.equal('Method Not Allowed');
+          data.info.should.be.a('string');
+          spy.should.not.have.been.called();
+        });
+
+    });
   });
 
 });

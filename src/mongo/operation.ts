@@ -3,12 +3,15 @@ import * as qs from 'querystring';
 import * as _ from 'lodash';
 import { Request, Response } from 'express';
 import * as mongo from 'mongodb';
+import Logger from '../debug';
 import { Swagger } from '../swagger';
 import { API } from '../api';
 import { Resource } from '../resource';
 import { Method, Operation } from '../operation';
 import { MongoResource } from './resource';
 import rql from './rql';
+
+const logger = Logger('arrest');
 
 export interface MongoJob {
   req: Request;
@@ -40,7 +43,7 @@ export abstract class MongoOperation extends Operation {
           if (err) {
             reject(err);
           } else {
-            resolve(collection)
+            resolve(collection);
           }
         });
       });
@@ -58,24 +61,22 @@ export abstract class MongoOperation extends Operation {
     return {};
   }
   protected getItemQuery(_id) {
-    let id = this.resource.id || 'id';
-    let idIsObjectId = this.resource.idIsObjectId || id === '_id';
+    let idIsObjectId = this.resource.idIsObjectId || this.resource.id === '_id';
     try {
       return {
-        [ id ]: (idIsObjectId ? new mongo.ObjectID(_id) : _id)
+        [ '' + this.resource.id ]: (idIsObjectId ? new mongo.ObjectID(_id) : _id)
       };
     } catch (error) {
-      console.error('invalid id', error);
+      logger.error('invalid id', error);
       API.fireError(404, 'not_found');
     }
   }
   protected parseFields(fields: string[]) {
     let includeMode = false;
-    let id = this.resource.id || 'id';
     let out = {};
     if (fields && fields.length) {
       out = _.reduce(fields, (o: any, i: string) => {
-        if (!i || i === '_metadata' ||  (id !== '_id' && i === '_id')) {
+        if (!i || i === '_metadata' ||  (this.resource.id !== '_id' && i === '_id')) {
           //no op
         }
         else {
@@ -88,7 +89,7 @@ export abstract class MongoOperation extends Operation {
     if (!includeMode) {
       out['_metadata'] = 0;
     }
-    if (id !== '_id') {
+    if (this.resource.id !== '_id') {
       out['_id'] = 0;
     }
     return out;
@@ -137,7 +138,7 @@ export class QueryMongoOperation extends MongoOperation {
   }
   getDefaultInfo(id: string): Swagger.Operation {
     return Object.assign(super.getDefaultInfo(id), {
-      "summary": `Retrieve a list of ${this.resource.name}`,
+      "summary": `Retrieve a list of ${this.resource.namePlural}`,
       "parameters": [
         {
           "$ref": "#/parameters/limit"
@@ -241,7 +242,8 @@ export class QueryMongoOperation extends MongoOperation {
           let q = url.parse(job.req.originalUrl, true).query || {};
           q.limit = job.opts.limit;
           q.skip = job.opts.skip + job.opts.limit;
-          job.res.set('Link', '<' + Resource.getFullURL(job.req) + '?' + qs.stringify(q) + '>; rel="next"');
+          const fullURL = `${job.req.protocol || 'http'}://${job.req.headers['host'] || job.req.hostname}${job.req.baseUrl || '/'}${job.req.path}/?${qs.stringify(q)}`;
+          job.res.set('Link', '<' + fullURL + '>; rel="next"');
         }
         return job;
       });
@@ -284,9 +286,7 @@ export class ReadMongoOperation extends MongoOperation {
     return job;
   }
   prepareOpts(job:MongoJob): MongoJob | Promise<MongoJob> {
-    if (job.req.query.fields) {
-      job.opts.fields = this.parseFields(job.req.query.fields);
-    }
+    job.opts.fields = this.parseFields(job.req.query.fields);
     return job;
   }
   runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
@@ -335,9 +335,8 @@ export class CreateMongoOperation extends MongoOperation {
   }
   prepareDoc(job:MongoJob): MongoJob | Promise<MongoJob> {
     job.doc = _.cloneDeep(job.req.body);
-    let id = this.resource.id || 'id';
-    let idIsObjectId = this.resource.idIsObjectId || id === '_id';
-    if (id === '_id' && idIsObjectId) {
+    let idIsObjectId = this.resource.idIsObjectId || this.resource.id === '_id';
+    if (this.resource.id === '_id' && idIsObjectId) {
       delete job.doc['_id'];
     }
     delete job.doc._metadata;
@@ -345,17 +344,18 @@ export class CreateMongoOperation extends MongoOperation {
   }
   runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
     return job.coll.insertOne(job.doc, job.opts as mongo.CollectionInsertOneOptions).then(result => {
-      if (result.insertedCount != 1) {
-        console.error('insert failed', result);
-        API.fireError(500, 'failed');
-      } else if (!result.ops || result.ops.length !== 1) {
-        console.error('bad result', result);
-        API.fireError(500, 'internal');
+      job.data = result.ops[0];
+      const fullURL = `${job.req.protocol}://${job.req.headers['host']}${job.req.baseUrl}${job.req.path}${job.data['' + this.resource.id]}`;
+      job.res.set('Location', fullURL);
+      job.res.status(201);
+      return job;
+    }, err => {
+      if (err && err.name === 'MongoError' && err.code === 11000) {
+        logger.error('duplicate key', err);
+        API.fireError(400, 'duplicate key');
       } else {
-        job.data = result.ops[0];
-        job.res.set('Location', Resource.getFullURL(job.req) + '/' + job.data[this.resource.id || '_id']);
-        job.res.status(201);
-        return job;
+        logger.error('bad result', err);
+        API.fireError(500, 'internal');
       }
     });
   }
@@ -404,13 +404,12 @@ export class UpdateMongoOperation extends MongoOperation {
   }
   prepareDoc(job:MongoJob): MongoJob | Promise<MongoJob> {
     let out = _.cloneDeep(job.req.body);
-    let id = this.resource.id || 'id';
-    let idIsObjectId = this.resource.idIsObjectId || id === '_id';
-    if(id === '_id' && idIsObjectId) {
-      out[id] = new mongo.ObjectID(job.req.params.id);
+    let idIsObjectId = this.resource.idIsObjectId || this.resource.id === '_id';
+    if(this.resource.id === '_id' && idIsObjectId) {
+      out['' + this.resource.id] = new mongo.ObjectID(job.req.params.id);
     } else {
       delete out._id;
-      out[id] = job.req.params.id;
+      out['' + this.resource.id] = job.req.params.id;
     }
     delete out._metadata;
     job.doc = {
@@ -425,7 +424,7 @@ export class UpdateMongoOperation extends MongoOperation {
   runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
     return job.coll.findOneAndUpdate(job.query, job.doc, job.opts as mongo.FindOneAndReplaceOption).then(result => {
       if (!result.ok || !result.value) {
-        console.error('update failed', result);
+        logger.error('update failed', result);
         API.fireError(404, 'not_found');
       } else {
         job.data = result.value;
@@ -434,8 +433,7 @@ export class UpdateMongoOperation extends MongoOperation {
     });
   }
   redactResult(job:MongoJob): MongoJob | Promise<MongoJob> {
-    let id = this.resource.id || 'id';
-    if (id !== '_id') {
+    if (this.resource.id !== '_id') {
       delete job.data['_id'];
     }
     delete job.data._metadata;
@@ -477,7 +475,7 @@ export class RemoveMongoOperation extends MongoOperation {
     let opts = job.opts as { w?: number | string, wtimmeout?: number, j?: boolean, bypassDocumentValidation?: boolean };
     return job.coll.deleteOne(job.query, opts).then(result => {
       if (result.deletedCount != 1) {
-        console.error('delete failed', result);
+        logger.error('delete failed', result);
         API.fireError(404, 'not_found');
       } else {
         return job;

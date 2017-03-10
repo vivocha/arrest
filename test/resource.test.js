@@ -1,7 +1,6 @@
 var chai = require('chai')
   , spies = require('chai-spies')
   , should = chai.should()
-  , supertest = require('supertest')
   , API = require('../dist/api').API
   , Resource = require('../dist/resource').Resource
   , Operation = require('../dist/operation').Operation
@@ -118,11 +117,16 @@ describe('Resource', function() {
           super('aaa', resource, path, method);
         }
       }
-      let r = new Resource({ name: 'Test' }, { '/': { get: TestOp }});
-      api.addResource(r);
+      let r1 = new Resource({ name: 'Test' }, { '/': { get: TestOp }});
+      let r2 = new Resource({ name: 'Other' }, { '/': { post: TestOp }});
+      api.addResource(r1);
+      api.addResource(r2);
       should.exist(api.paths['/tests/']);
       should.exist(api.paths['/tests/'].get);
       api.paths['/tests/'].get.operationId.should.equal('Test.aaa');
+      should.exist(api.paths['/others/']);
+      should.exist(api.paths['/others/'].post);
+      api.paths['/others/'].post.operationId.should.equal('Other.aaa');
     });
 
   });

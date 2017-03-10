@@ -155,7 +155,7 @@ export abstract class Operation implements Swagger.Operation {
         middlewares.push(Promise.resolve(jsonParser()));
         middlewares.push(this.api.registry.create(params.body[0].schema).then((schema:jp.Schema) => {
           return (req:Request, res:Response, next:NextFunction) => {
-            if (typeof req.body === 'undefined') {
+            if (_.isEqual(req.body, {}) && (!parseInt(req.headers['content-length']))) {
               if (params.body[0].required === true) {
                 // TODO maybe scope shouldn't be protected
                 jp.fireValidationError('body', (schema as any).scope, 'required');
