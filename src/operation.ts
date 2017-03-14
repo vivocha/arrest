@@ -80,7 +80,7 @@ export abstract class Operation implements Swagger.Operation {
         validators.push(this.api.registry.create(parameter).then((schema: jp.Schema) => {
           return function (req: Request) {
             if (typeof req[key][parameter.name] === 'undefined' && required === true) {
-              jp.fireValidationError(key + '.' + parameter.name, (schema as any).scope, 'required');
+              throw new jp.ValidationError(key + '.' + parameter.name, (schema as any).scope, 'required');
             } else {
               let out = schema.validate(req[key][parameter.name], key + '.' + parameter.name);
               if (typeof out !== 'undefined') {
@@ -158,7 +158,7 @@ export abstract class Operation implements Swagger.Operation {
             if (_.isEqual(req.body, {}) && (!parseInt(req.headers['content-length']))) {
               if (params.body[0].required === true) {
                 // TODO maybe scope shouldn't be protected
-                jp.fireValidationError('body', (schema as any).scope, 'required');
+                throw new jp.ValidationError('body', (schema as any).scope, 'required');
               }
             } else {
               schema.validate(req.body, 'body');

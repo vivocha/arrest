@@ -186,17 +186,11 @@ describe('API', function() {
       const app = express();
       const schema1 = { a: true, b: 2 };
       const schema2 = { c: 'd', e: [] };
-      const spy1 = chai.spy(function(req, res) {
-        res.send(schema1);
-      });
-      const spy2 = chai.spy(function(req, res) {
-        res.send(schema2);
-      });
       let server;
 
       before(function() {
-        api.registerSchema('abc', spy1);
-        api.registerSchema('def', spy2);
+        api.registerSchema('abc', schema1);
+        api.registerSchema('def', schema2);
         return api.router().then(router => {
           app.use(router);
           server = app.listen(port);
@@ -220,8 +214,6 @@ describe('API', function() {
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             data.should.deep.equal(schema1);
-            spy1.should.have.been.called.once();
-            spy2.should.not.have.been.called();
           });
       });
     });
@@ -363,6 +355,217 @@ describe('API', function() {
         });
 
     });
+  });
+
+  describe('security validators', function() {
+
+    it('should create and execute security validators for all security descriptors');
+
+  });
+
+  describe('schema', function() {
+
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    let server;
+
+    afterEach(function() {
+      server.close();
+    });
+
+    it('should be able to resolve an internal schema', function() {
+      const spy = chai.spy((req, res) => { res.json({})});
+      const api = new API({ info: { version: '1.0.0' }});
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super('op1', resource, path, method);
+          this.setInfo({
+            parameters: [
+              {
+                "name": "aaa",
+                "in": "body",
+                "schema": { $ref: 'schemas/op1_schema2' },
+                "required": true
+              }
+            ]
+          });
+        }
+        attach(api) {
+          api.registerSchema('op1_schema1', {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "boolean"
+              },
+              "b": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false,
+            "required": ["a"]
+          });
+          api.registerSchema('op1_schema2', {
+            "type": "object",
+            "properties": {
+              "c": {
+                "type": "string"
+              },
+              "d": { $ref: 'op1_schema1' },
+              "e": { $ref: 'op1_schema1#/properties/b' }
+            },
+            "additionalProperties": false,
+            "required": [ "d" ]
+          });
+          super.attach(api);
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
+
+      return api.router().then(router => {
+        const app = express();
+        app.use(router);
+        server = app.listen(port);
+
+        return Promise.all([
+          request
+            .post('/tests/a')
+            .send({})
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('required');
+              data.info.should.equal('body/d');
+            }),
+          request
+            .post('/tests/a')
+            .send({ d: {} })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('required');
+              data.info.should.equal('body/d/a');
+            }),
+          request
+            .post('/tests/a')
+            .send({ d: { a: true }, e: true })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('type');
+              data.info.should.equal('body/e');
+            }),
+          request
+            .post('/tests/a')
+            .send({ d: { a: true }, e: 1 })
+            .expect(200)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+            })
+        ]).then(() => {
+          spy.should.have.been.called.once();
+        });
+      });
+
+    });
+
+    it('should be able to resolve an external schema', function() {
+      const spy = chai.spy((req, res) => { res.json({})});
+      const api = new API({ info: { version: '1.0.0' }});
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super('op1', resource, path, method);
+          this.setInfo({
+            parameters: [
+              {
+                "name": "aaa",
+                "in": "body",
+                "schema": { $ref: `${basePath}/aaa` },
+                "required": true
+              }
+            ]
+          });
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      const app = express();
+      app.get('/aaa', (req, res) => res.json({
+        "type": "object",
+        "properties": {
+          "h": {
+            "type": "boolean"
+          },
+          "i": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["h"]
+      }));
+      server = app.listen(port);
+
+      api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
+
+      return api.router().then(router => {
+        app.use(router);
+
+        return Promise.all([
+          request
+            .post('/tests/a')
+            .send({})
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('required');
+              data.info.should.equal('body/h');
+            }),
+          request
+            .post('/tests/a')
+            .send({ h: 1 })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('type');
+              data.info.should.equal('body/h');
+            }),
+          request
+            .post('/tests/a')
+            .send({ h: true, i: true })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('type');
+              data.info.should.equal('body/i');
+            }),
+          request
+            .post('/tests/a')
+            .send({ h: true, i: 1 })
+            .expect(200)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+            })
+        ]).then(() => {
+          spy.should.have.been.called.once();
+        });
+      })
+    });
+
   });
 
 });

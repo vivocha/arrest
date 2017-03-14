@@ -36,7 +36,7 @@ describe('SchemaRegistry', function() {
       });
     });
 
-    it('should fail when resolving an non existent url', function() {
+    it('should fail when resolving a non existent url', function() {
       this.slow(1000);
       let registry = new SchemaRegistry('http://example.com/a/b');
       return registry.resolve('http://undefined.example.com').then(function(data) {
@@ -47,13 +47,14 @@ describe('SchemaRegistry', function() {
       });
     });
 
-    it('should fail when resolving an non existent url', function() {
+    it('should fail when resolving a non existent url', function() {
       this.slow(1000);
       let registry = new SchemaRegistry('http://example.com/a/b');
       return registry.resolve('http://example.com/undefined').then(function(data) {
         should.fail();
       }, function(err) {
-        err.should.equal(404);
+        err.should.be.instanceOf(Error);
+        err.code.should.equal(404);
         return err;
       });
     });
@@ -79,6 +80,7 @@ describe('SchemaRegistry', function() {
         throw err;
       });
     });
+
   });
 
   describe('create', function() {
@@ -130,6 +132,7 @@ describe('SchemaRegistry', function() {
         throw err;
       });
     });
+
   });
 
 });

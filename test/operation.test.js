@@ -616,7 +616,6 @@ describe('Operation', function() {
           });
       });
 
-
       it('should correctly return the body', function() {
         return request
           .post('/tests/a')
@@ -633,4 +632,9 @@ describe('Operation', function() {
     });
 
   });
+
+  describe('registered schemas', function() {
+
+  });
+
 });

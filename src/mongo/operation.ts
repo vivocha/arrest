@@ -51,10 +51,10 @@ export abstract class MongoOperation extends Operation {
     });
   }
   get requestSchema(): any {
-    return this.resource.schema;
+    return this.resource.requestSchema;
   }
   get responseSchema(): any {
-    return this.resource.schema;
+    return this.resource.responseSchema;
   }
 
   protected getCollectionOptions(): mongo.DbCollectionOptions {
@@ -471,7 +471,7 @@ export class RemoveMongoOperation extends MongoOperation {
     return job;
   }
   runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
-    // TODO remove when mongo typings include a propery type
+    // TODO remove when mongo typings include a proper type
     let opts = job.opts as { w?: number | string, wtimmeout?: number, j?: boolean, bypassDocumentValidation?: boolean };
     return job.coll.deleteOne(job.query, opts).then(result => {
       if (result.deletedCount != 1) {

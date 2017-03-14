@@ -1,6 +1,7 @@
 import * as _ from 'lodash';
 import * as semver from 'semver';
 import * as jr from 'jsonref';
+import * as jp from 'jsonpolice';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
 import Logger from './debug';
@@ -160,7 +161,7 @@ export class API implements Swagger {
   constructor(info:Swagger, registry:SchemaRegistry = new SchemaRegistry()) {
     delete info.paths;
     delete info.tags;
-    Object.assign(this, (new Eredita(info, new Eredita(_default_swagger))).mergePath());
+    Object.assign(this, (new Eredita(info, new Eredita(_.cloneDeep(_default_swagger)))).mergePath());
     if (!semver.valid(this.info.version)) {
       throw new Error('invalid_version');
     }
@@ -199,19 +200,20 @@ export class API implements Swagger {
 
   router(options?: RouterOptions): Promise<Router> {
     if (!this[__router]) {
-      this[__router] = new Promise(resolve => {
-        let r = Router(options);
-        let originalSwagger = JSON.parse(JSON.stringify(this));
-        r.get('/swagger.json', (req: Request, res: Response, next: NextFunction) => {
-          let out = _.cloneDeep(originalSwagger);
-          if (!req.headers['host']) {
-            next(API.newError(400, 'Bad Request', 'Missing Host header in the request'));
-          } else {
-            out.host = req.headers['host'];
-            out.basePath = req.baseUrl;
-            let proto = this.schemes && this.schemes.length ? this.schemes[0] : 'http';
-            out.id = proto + '://' + out.host + out.basePath + '/swagger.json#';
-            _.each(originalSwagger.securityDefinitions, function (i, k) {
+      let r = Router(options);
+      //console.log(this.paths['/tests/a'].post.parameters);
+      let originalSwagger:Swagger = _.cloneDeep(this) as Swagger;
+      r.get('/swagger.json', (req: Request, res: Response, next: NextFunction) => {
+        let out:any = _.cloneDeep(originalSwagger);
+        if (!req.headers['host']) {
+          next(API.newError(400, 'Bad Request', 'Missing Host header in the request'));
+        } else {
+          out.host = req.headers['host'];
+          out.basePath = req.baseUrl;
+          let proto = this.schemes && this.schemes.length ? this.schemes[0] : 'http';
+          out.id = proto + '://' + out.host + out.basePath + '/swagger.json#';
+          if (originalSwagger.securityDefinitions) {
+            _.each(originalSwagger.securityDefinitions, (i:any, k) => {
               if (k) {
                 if (i.authorizationUrl) {
                   out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, out.id, true);
@@ -221,29 +223,34 @@ export class API implements Swagger {
                 }
               }
             });
-            res.json(out);
+          }
+          res.json(out);
+        }
+      });
+      if (this[__schemas]) {
+        r.get('/schemas/:id', (req: Request, res: Response, next: NextFunction) => {
+          if (this[__schemas][req.params.id]) {
+            res.json(this[__schemas][req.params.id]);
+          } else {
+            next();
           }
         });
-        if (this[__schemas]) {
-          r.get('/schemas/:id', (req: Request, res: Response, next: NextFunction) => {
-            if (this[__schemas][req.params.id]) {
-              (this[__schemas][req.params.id] as RequestHandler)(req, res, next);
-            } else {
-              next();
-            }
-          });
-        }
-        resolve(this.registry.resolve(this).then(() => {
-          let promises: Promise<Router>[] = [];
-          this.resources.forEach((resource: Resource) => {
-            promises.push(resource.router(r, options));
-          });
-          return Promise.all(promises).then(() => {
-            r.use(API.handleError);
-            return r;
-          });
-        }));
+      }
+      let p:Promise<any> = Promise.resolve(true);
+      for (let i in this[__schemas]) {
+        p = p.then(() => this.registry.create(this[__schemas][i]));
+      };
+      p = p.then(() => this.registry.resolve(this)).then(() => {
+        let promises: Promise<Router>[] = [];
+        this.resources.forEach((resource: Resource) => {
+          promises.push(resource.router(r, options));
+        });
+        return Promise.all(promises).then(() => {
+          r.use(API.handleError);
+          return r;
+        });
       });
+      this[__router] = p.then(() => r);
     }
     return this[__router];
   }
@@ -269,14 +276,14 @@ export class API implements Swagger {
       });
     }
   }
-  registerSchema(id:string, handler:RequestHandler): this {
+  registerSchema(id:string, schema:Swagger.Schema) {
     if (!this[__schemas]) {
       this[__schemas] = {};
-      this.addTag(_default_schema_tag);
-      this.addOperation('/schemas/{id}', 'get', _default_schema_operation);
+      this.addTag(_.cloneDeep(_default_schema_tag));
+      this.addOperation('/schemas/{id}', 'get', _.cloneDeep(_default_schema_operation));
     }
-    this[__schemas][id] = handler;
-    return this;
+    this[__schemas][id] = schema;
+    this.registry.register(`schemas/${id}`, schema);
   }
 
   static newError(code: number, message?: string, info?: any, err?: any): RESTError {

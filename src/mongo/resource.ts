@@ -37,6 +37,12 @@ export class MongoResource extends Resource {
   get schema(): any {
     return {};
   }
+  get requestSchema(): any {
+    return this.schema;
+  }
+  get responseSchema(): any {
+    return this.schema;
+  }
 
   static defaultRoutes():Routes {
     return {
