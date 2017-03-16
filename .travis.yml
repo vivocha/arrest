@@ -9,6 +9,8 @@ notifications:
   email: false
 node_js:
   - '6'
+services:
+  - mongodb
 before_script:
   - npm prune
 after_success:
