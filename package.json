@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "2.3.0-beta.35",
+  "version": "2.3.0-beta.36",
   "description": "REST framework for Node.js, Express and MongoDB",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
