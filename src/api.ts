@@ -1,7 +1,6 @@
 import * as _ from 'lodash';
 import * as semver from 'semver';
 import * as jr from 'jsonref';
-import * as jp from 'jsonpolice';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
 import Logger from './debug';

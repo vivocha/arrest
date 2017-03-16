@@ -8,6 +8,7 @@ let chai = require('chai')
   , API = arrest.API
   , MongoResource = arrest.MongoResource
   , MongoOperation = arrest.MongoOperation
+  , QueryMongoOperation = arrest.QueryMongoOperation
 
 
 chai.use(spies);
@@ -81,12 +82,28 @@ describe('mongo', function() {
     const api = new API({ info: { version: '1.0.0' }});
     const collectionName = 'arrest_test';
 
+    class FakeOp1 extends QueryMongoOperation {
+      getDefaultInfo(id) {
+        let out = super.getDefaultInfo(id);
+        delete out.parameters;
+        return out;
+      }
+    }
+
+    class FakeOp2 extends QueryMongoOperation {
+      prepareOpts(job) {
+        return job;
+      }
+    }
+
     let id;
     let coll;
     let r1 = new MongoResource(db, { name: 'Test', collection: collectionName });
     let r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false });
+    let r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 },  '/2': { get: FakeOp2 }});
     api.addResource(r1);
     api.addResource(r2);
+    api.addResource(r3);
 
     before(function() {
       return api.router().then(router => {
@@ -176,6 +193,23 @@ describe('mongo', function() {
 
     });
 
+    describe('collection', function() {
+
+      it('should fail to return a non existent collection in strict mode', function() {
+
+        class TestOperation extends MongoOperation {
+          getCollectionOptions() {
+            return { strict: true }
+          }
+        };
+
+        let r = new MongoResource(db, { name: 'Test', collection: 'aaa' });
+        let c = new TestOperation('x', r, '/', 'get');
+        c.collection.then(() => should.fail(), err => true);
+      });
+
+    });
+
     describe('read', function() {
 
       it('should return a record by object id', function() {
@@ -194,7 +228,7 @@ describe('mongo', function() {
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.should.deep.equal({ a: 1, _id: id });
+            data.should.deep.equal({ a: 1 });
           });
       });
 
@@ -305,6 +339,147 @@ describe('mongo', function() {
           .then(({ body: data }) => {
             data.message.should.equal('not_found');
           });
+      });
+
+    });
+
+    describe('query', function() {
+
+      before(function() {
+        return Promise.all([
+          request.post('/tests').send({  myid: 'test2', y: 11, z: false, p: 'bbb' }).expect(201),
+          request.post('/tests').send({  myid: 'test3', y: 30, z: false }).expect(201),
+          request.post('/tests').send({  myid: 'test1', y: 13, z: true, p: 'aaa' }).expect(201),
+          request.post('/tests').send({  myid: 'test4', y: 20, p: 'ddd' }).expect(201)
+        ]);
+      });
+
+      it('should return all objects in the collection (1)', function() {
+        return request
+          .get('/tests')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(6);
+          });
+      });
+
+      it('should return all objects in the collection (2)', function() {
+        return request
+          .get('/fakes/1')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(6);
+          });
+      });
+
+      it('should return all objects in the collection (3)', function() {
+        return request
+          .get('/fakes/2')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(6);
+          });
+      });
+
+      it('should return a single attribute of all objects, in ascending order by id (1)', function() {
+        return request
+          .get('/tests?fields=y&sort=myid')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(4);
+            data[0].should.deep.equal({ y: 13 });
+            data[1].should.deep.equal({ y: 11 });
+            data[2].should.deep.equal({ y: 30 });
+            data[3].should.deep.equal({ y: 20 });
+          });
+      });
+
+      it('should return a single attribute of all objects, in ascending order by id (2)', function() {
+        return request
+          .get('/tests?fields=y&sort=%2Bmyid') // +myid
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(4);
+            data[0].should.deep.equal({ y: 13 });
+            data[1].should.deep.equal({ y: 11 });
+            data[2].should.deep.equal({ y: 30 });
+            data[3].should.deep.equal({ y: 20 });
+          });
+      });
+
+      it('should return a single attribute of all objects, in descending order by id (1)', function() {
+        return request
+          .get('/tests?fields=y,&sort=-myid')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(4);
+            data[0].should.deep.equal({ y: 20 });
+            data[1].should.deep.equal({ y: 30 });
+            data[2].should.deep.equal({ y: 11 });
+            data[3].should.deep.equal({ y: 13 });
+          });
+      });
+
+      it('should return a single attribute of all objects, in descending order by id (2)', function() {
+        return request
+          .get('/others?fields=y,_id&sort=-myid')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(4);
+            data[0].should.deep.equal({ y: 20 });
+            data[1].should.deep.equal({ y: 30 });
+            data[2].should.deep.equal({ y: 11 });
+            data[3].should.deep.equal({ y: 13 });
+          });
+      });
+
+      it('should return the _id and a specified attribute (if available) of all objects', function() {
+        return request
+          .get('/tests?fields=y,_id')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(6);
+            data[0]._id.should.be.a('string');
+            data[1]._id.should.be.a('string');
+            data[2]._id.should.be.a('string');
+            data[3]._id.should.be.a('string');
+          });
+      });
+
+      it('should skip and limit the results', function() {
+        return request
+          .get('/tests?limit=2&skip=3')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .expect('Results-Skipped', '3')
+          .then(({ body: data }) => {
+            data.length.should.equal(2);
+          });
+      });
+
+      it('should return zero results with an invalid query', function() {
+        return request
+          .get('/tests?q=eq($__$,0)')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '0');
       });
 
     });

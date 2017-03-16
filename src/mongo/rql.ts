@@ -2,7 +2,7 @@ import * as _ from 'lodash';
 
 const rqlParser = require('rql/parser').parseQuery;
 
-export default function(query:any, opts:any, data:any) {
+export default function(query:any, opts:any, data:string) {
   return _rqlToMongo(query, opts, rqlParser(data));
 }
 
@@ -16,7 +16,7 @@ function _rqlToMongo(query:any, opts:any, data:any) {
       break;
     case 'and':
       if (data.args.length === 1) {
-        _rqlToMongo(query, opts, data.args[0]);
+        query = _rqlToMongo(query, opts, data.args[0]);
       } else if (_.find(data.args, (i: any) => i.name === 'or' || i.name === 'and')) {
         query.$and = [];
         _.each(data.args, function(i) {
@@ -28,13 +28,13 @@ function _rqlToMongo(query:any, opts:any, data:any) {
         }
       } else {
         _.each(data.args, function(i) {
-          _rqlToMongo(query, opts, i);
+          query = _rqlToMongo(query, opts, i);
         });
       }
       break;
     case 'or':
       if (data.args.length === 1) {
-        _rqlToMongo(query, opts, data.args[0]);
+        query = _rqlToMongo(query, opts, data.args[0]);
       } else {
         query.$or = [];
         _.each(data.args, function (i) {
@@ -90,6 +90,7 @@ function _rqlToMongo(query:any, opts:any, data:any) {
     case 'min':
     case 'recurse':
     default:
+      query = null;
       break;
   }
   return query;
