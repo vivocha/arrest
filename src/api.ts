@@ -14,7 +14,7 @@ const __schemas = Symbol();
 const __registry = Symbol();
 const __resources = Symbol();
 const __router = Symbol();
-const _default_swagger = {
+const __default_swagger = {
   swagger: '2.0',
   schemes: [ "https", "http" ],
   consumes: [ "application/json" ],
@@ -108,7 +108,7 @@ const _default_swagger = {
     }
   }
 };
-const _default_schema_operation: Swagger.Operation = {
+const __default_schema_operation: Swagger.Operation = {
   "summary": "Retrieve a Schema by id",
   "operationId": "Schema.read",
   "parameters": [
@@ -134,7 +134,7 @@ const _default_schema_operation: Swagger.Operation = {
     "Schema"
   ]
 };
-const _default_schema_tag: Swagger.Tag = {
+const __default_schema_tag: Swagger.Tag = {
   "name": "Schema",
   "description": "JSON-Schema definitions used by this API",
   "x-name-plural": "Schemas"
@@ -160,7 +160,7 @@ export class API implements Swagger {
   constructor(info:Swagger, registry:SchemaRegistry = new SchemaRegistry()) {
     delete info.paths;
     delete info.tags;
-    Object.assign(this, (new Eredita(info, new Eredita(_.cloneDeep(_default_swagger)))).mergePath());
+    Object.assign(this, (new Eredita(info, new Eredita(_.cloneDeep(__default_swagger)))).mergePath());
     if (!semver.valid(this.info.version)) {
       throw new Error('invalid_version');
     }
@@ -278,8 +278,8 @@ export class API implements Swagger {
   registerSchema(id:string, schema:Swagger.Schema) {
     if (!this[__schemas]) {
       this[__schemas] = {};
-      this.addTag(_.cloneDeep(_default_schema_tag));
-      this.addOperation('/schemas/{id}', 'get', _.cloneDeep(_default_schema_operation));
+      this.addTag(_.cloneDeep(__default_schema_tag));
+      this.addOperation('/schemas/{id}', 'get', _.cloneDeep(__default_schema_operation));
     }
     this[__schemas][id] = schema;
     this.registry.register(`schemas/${id}`, schema);

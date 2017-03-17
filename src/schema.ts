@@ -154,7 +154,6 @@ const json_schema_draft_04 = {
   "default": {}
 }
 
-
 export class SchemaRegistry {
   private opts:jr.ParseOptions;
 
