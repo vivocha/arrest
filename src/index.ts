@@ -1,6 +1,6 @@
-export { RESTError } from './error';
-export { SchemaRegistry } from './schema';
-export { API } from './api';
-export { Resource } from './resource';
-export { Operation } from './operation';
+export * from './error';
+export * from './schema';
+export * from './api';
+export * from './resource';
+export * from './operation';
 export * from './mongo';
