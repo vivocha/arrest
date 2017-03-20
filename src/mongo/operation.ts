@@ -1,21 +1,17 @@
 import * as url from 'url';
 import * as qs from 'querystring';
 import * as _ from 'lodash';
-import { Request, Response } from 'express';
 import * as mongo from 'mongodb';
-import Logger from '../debug';
 import { Swagger } from '../swagger';
-import { API } from '../api';
+import { API, APIRequest, APIResponse } from '../api';
 import { Resource } from '../resource';
 import { Method, Operation } from '../operation';
 import { MongoResource } from './resource';
 import rql from './rql';
 
-const logger = Logger('arrest');
-
 export interface MongoJob {
-  req: Request;
-  res: Response;
+  req: APIRequest;
+  res: APIResponse;
   coll: mongo.Collection;
   query?: any;
   doc?: any;
@@ -67,7 +63,6 @@ export abstract class MongoOperation extends Operation {
         [ '' + this.resource.id ]: (idIsObjectId ? new mongo.ObjectID(_id) : _id)
       };
     } catch (error) {
-      logger.error('invalid id', error);
       API.fireError(404, 'not_found');
     }
   }
@@ -113,7 +108,7 @@ export abstract class MongoOperation extends Operation {
     return job;
   }
 
-  handler(req:Request, res:Response) {
+  handler(req:APIRequest, res:APIResponse) {
     this.collection.then((coll: mongo.Collection) => {
       return Promise.resolve({ req, res, coll, query: {}, opts: {} } as MongoJob)
         .then(job => this.prepareQuery(job))
@@ -285,8 +280,7 @@ export class ReadMongoOperation extends MongoOperation {
     return job;
   }
   runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
-    // TODO stop using find
-    return job.coll.find(job.query, job.opts).limit(1).next().then(data => {
+    return job.coll.findOne(job.query, job.opts as mongo.FindOneOptions).then(data => {
       if (data) {
         job.data = data;
         return job;
@@ -348,10 +342,10 @@ export class CreateMongoOperation extends MongoOperation {
       return job;
     }, err => {
       if (err && err.name === 'MongoError' && err.code === 11000) {
-        logger.error('duplicate key', err);
+        job.req.logger.error('duplicate key', err);
         API.fireError(400, 'duplicate key');
       } else {
-        logger.error('bad result', err);
+        job.req.logger.error('bad result', err);
         API.fireError(500, 'internal');
       }
     });
@@ -421,7 +415,7 @@ export class UpdateMongoOperation extends MongoOperation {
   runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
     return job.coll.findOneAndUpdate(job.query, job.doc, job.opts as mongo.FindOneAndReplaceOption).then(result => {
       if (!result.ok || !result.value) {
-        logger.error('update failed', result);
+        job.req.logger.error('update failed', result);
         API.fireError(404, 'not_found');
       } else {
         job.data = result.value;
@@ -468,11 +462,10 @@ export class RemoveMongoOperation extends MongoOperation {
     return job;
   }
   runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
-    // TODO remove when mongo typings include a proper type
     let opts = job.opts as { w?: number | string, wtimmeout?: number, j?: boolean, bypassDocumentValidation?: boolean };
     return job.coll.deleteOne(job.query, opts).then(result => {
       if (result.deletedCount != 1) {
-        logger.error('delete failed', result);
+        job.req.logger.error('delete failed', result);
         API.fireError(404, 'not_found');
       } else {
         return job;

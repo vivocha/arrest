@@ -1,7 +1,7 @@
-import { Router, RouterOptions, Request, Response, NextFunction } from 'express';
+import { Router, RouterOptions, NextFunction } from 'express';
 import { Swagger } from './swagger';
-import { API } from './api';
-import { Method, Operation } from './operation';
+import { API, APIRequest, APIResponse, APIRequestHandler } from './api';
+import { Method, Operation, SimpleOperation } from './operation';
 
 const __operations = Symbol();
 
@@ -11,42 +11,60 @@ export interface OperationFactory {
 
 export interface Routes {
   [path:string]: {
-    ["get"]?: OperationFactory;
-    ["put"]?: OperationFactory;
-    ["post"]?: OperationFactory;
-    ["delete"]?: OperationFactory;
-    ["options"]?: OperationFactory;
-    ["head"]?: OperationFactory;
-    ["patch"]?: OperationFactory;
+    ["get"]?: OperationFactory | APIRequestHandler;
+    ["put"]?: OperationFactory | APIRequestHandler;
+    ["post"]?: OperationFactory | APIRequestHandler;
+    ["delete"]?: OperationFactory | APIRequestHandler;
+    ["options"]?: OperationFactory | APIRequestHandler;
+    ["head"]?: OperationFactory | APIRequestHandler;
+    ["patch"]?: OperationFactory | APIRequestHandler;
   };
 }
 
-export interface ResourceDefinition extends Swagger.Tag {
-  namePlural?: string;
-  id?: string;
-  title?: string;
-  summaryFields?: string[];
-}
-
-export class Resource implements ResourceDefinition {
-  name: string;
+export interface ResourceDefinition {
+  name?: string;
   description?: string;
   externalDocs?: Swagger.ExternalDocs;
   namePlural?: string;
   id?: string;
   title?: string;
   summaryFields?: string[];
+  routes?: Routes;
+  [ext: string]: any;
+}
 
-  constructor(info:ResourceDefinition, routes:Routes) {
+export class Resource implements ResourceDefinition {
+  name?: string;
+  description?: string;
+  externalDocs?: Swagger.ExternalDocs;
+  namePlural?: string;
+  id?: string;
+  title?: string;
+  summaryFields?: string[];
+  [ext: string]: any;
+
+  constructor(info?: ResourceDefinition, routes?: Routes) {
+    if (info && info.routes) {
+      if (routes) {
+        throw new Error('double routes specification');
+      }
+      routes = info.routes;
+      delete info.routes;
+    }
     Object.assign(this, info);
+    if (!this.name) {
+      this.name = this.constructor.name;
+    }
     if (!this.namePlural) {
       this.namePlural = this.name + 's';
     }
     this[__operations] = [];
-    for (let path in routes) {
-      let factories = routes[path];
-      for (let method in factories) {
-        this.addOperation(new factories[method](this, path, method));
+    if (routes) {
+      for (let path in routes) {
+        let handlers = routes[path];
+        for (let method in handlers) {
+          this.addOperation(path, method as  Method, handlers[method]);
+        }
       }
     }
   }
@@ -61,22 +79,39 @@ export class Resource implements ResourceDefinition {
     return `Unrestricted access to all ${this.namePlural}`;
   }
 
-  addOperation(op:Operation): this {
+  addOperation(op: Operation): this;
+  addOperation(path: string, method: Method, handler: OperationFactory | APIRequestHandler): this;
+  addOperation(pathOrOp: any, method?: Method, handler?: OperationFactory | APIRequestHandler): this {
+    let op:Operation;
+    if (typeof pathOrOp === 'string') {
+      if (!method) {
+        throw new Error('invalid method');
+      } else if (!handler) {
+        throw new Error('invalid handler, must be an Operation constructor or an express RequestHandler');
+      } else if (Operation.prototype === handler.prototype || Operation.prototype.isPrototypeOf(handler.prototype)) {
+        op = new (handler as OperationFactory)(this, pathOrOp as string, method);
+      } else {
+        op = new SimpleOperation(this, pathOrOp as string, method, handler as APIRequestHandler);
+      }
+    } else {
+      op = pathOrOp as Operation;
+    }
     this.operations.push(op);
     return this;
   }
-  attach(api:API) {
+
+  attach(api: API) {
     let tag:Swagger.Tag = {
-      name: this.name
+      name: '' + this.name
     };
     if (this.description) tag.description = this.description;
     if (this.externalDocs) tag.externalDocs = this.externalDocs;
     if (this.id) tag['x-id'] = this.id;
     if (this.title) tag['x-title'] = this.title;
     if (this.summaryFields) tag['x-summary-fields'] = this.summaryFields;
-    api.addTag(tag);
+    api.registerTag(tag);
 
-    api.addOauth2Scope(this.name, this.scopeDescription);
+    api.registerOauth2Scope('' + this.name, this.scopeDescription);
 
     this.operations.forEach((op:Operation) => op.attach(api));
   }
@@ -91,7 +126,7 @@ export class Resource implements ResourceDefinition {
       });
       resolve(Promise.all(promises).then(() => {
         knownPaths.forEach(path => {
-          r.all(path, (req: Request, res: Response, next: NextFunction) => {
+          r.all(path, (req: APIRequest, res: APIResponse, next: NextFunction) => {
             next(API.newError(405, 'Method Not Allowed', "The API Endpoint doesn't support the specified HTTP method for the given resource"));
           });
         });

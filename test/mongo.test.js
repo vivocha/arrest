@@ -124,8 +124,8 @@ describe('mongo', function() {
     });
 
     it('should install default operation handlers', function() {
-      api.paths['/tests/'].get.operationId.should.equal('Test.query');
-      api.paths['/tests/'].post.operationId.should.equal('Test.create');
+      api.paths['/tests'].get.operationId.should.equal('Test.query');
+      api.paths['/tests'].post.operationId.should.equal('Test.create');
       api.paths['/tests/{id}'].get.operationId.should.equal('Test.read');
       api.paths['/tests/{id}'].put.operationId.should.equal('Test.update');
       api.paths['/tests/{id}'].delete.operationId.should.equal('Test.remove');

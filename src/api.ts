@@ -3,13 +3,13 @@ import * as semver from 'semver';
 import * as jr from 'jsonref';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
-import Logger from './debug';
+import { Logger, contextLogger } from './debug';
 import { RESTError } from './error';
 import { SchemaRegistry } from './schema';
 import { Swagger } from './swagger';
+import { Scopes } from './scopes';
 import { Resource } from './resource';
 
-const logger = Logger('arrest');
 const __schemas = Symbol();
 const __registry = Symbol();
 const __resources = Symbol();
@@ -140,6 +140,17 @@ const __default_schema_tag: Swagger.Tag = {
   "x-name-plural": "Schemas"
 };
 
+export interface APIRequest extends Request {
+  scopes: Scopes;
+  logger: Logger;
+}
+export interface APIResponse extends Response {
+  logger: Logger;
+}
+export interface APIRequestHandler extends RequestHandler {
+  (req: APIRequest, res: APIResponse, next: NextFunction): any;
+}
+
 export class API implements Swagger {
   swagger;
   info;
@@ -181,28 +192,59 @@ export class API implements Swagger {
     resource.attach(this);
     return this;
   }
-  addOperation(path:string, method:string, operation:Swagger.Operation) {
+
+  registerSchema(id:string, schema:Swagger.Schema) {
+    if (!this[__schemas]) {
+      this[__schemas] = {};
+      this.registerTag(_.cloneDeep(__default_schema_tag));
+      this.registerOperation('/schemas/{id}', 'get', _.cloneDeep(__default_schema_operation));
+    }
+    this[__schemas][id] = schema;
+    this.registry.register(`schemas/${id}`, schema);
+  }
+  registerOperation(path:string, method:string, operation:Swagger.Operation) {
     if (!this.paths) {
       this.paths = {};
     }
-    if (!this.paths[path]) {
-      this.paths[path] = {};
+    let _path = path;
+    if (_path.length > 1 && _path[_path.length - 1] === '/') {
+      _path = _path.substr(0, _path.length - 1);
     }
-    this.paths[path][method] = operation;
+    if (!this.paths[_path]) {
+      this.paths[_path] = {};
+    }
+    this.paths[_path][method] = operation;
   }
-  addTag(tag:Swagger.Tag) {
+  registerTag(tag:Swagger.Tag) {
     if (!this.tags) {
       this.tags = [];
     }
     this.tags.push(tag);
   }
+  registerOauth2Scope(name:string, description:string): void {
+    if (this.securityDefinitions) {
+      _.each(_.filter(this.securityDefinitions, { type: 'oauth2' }), (i:Swagger.SecurityOAuth2) => {
+        if (!i.scopes) {
+          i.scopes = {};
+        }
+        i.scopes[name] = description;
+      });
+    }
+  }
 
   router(options?: RouterOptions): Promise<Router> {
     if (!this[__router]) {
       let r = Router(options);
-      //console.log(this.paths['/tests/a'].post.parameters);
+      r.use(function(_req: Request, res: Response, next: NextFunction) {
+        let req: APIRequest = _req as APIRequest;
+        if (!req.logger) {
+          req.logger = contextLogger('arrest');
+        }
+        next();
+      });
+      r.use(this.securityValidator.bind(this));
       let originalSwagger:Swagger = _.cloneDeep(this) as Swagger;
-      r.get('/swagger.json', (req: Request, res: Response, next: NextFunction) => {
+      r.get('/swagger.json', (req: APIRequest, res: APIResponse, next: NextFunction) => {
         let out:any = _.cloneDeep(originalSwagger);
         if (!req.headers['host']) {
           next(API.newError(400, 'Bad Request', 'Missing Host header in the request'));
@@ -227,7 +269,7 @@ export class API implements Swagger {
         }
       });
       if (this[__schemas]) {
-        r.get('/schemas/:id', (req: Request, res: Response, next: NextFunction) => {
+        r.get('/schemas/:id', (req: APIRequest, res: APIResponse, next: NextFunction) => {
           if (this[__schemas][req.params.id]) {
             res.json(this[__schemas][req.params.id]);
           } else {
@@ -259,30 +301,13 @@ export class API implements Swagger {
       return base;
     });
   }
-  securityValidator(security): RequestHandler {
-    return function(req:Request, res:Response, next:NextFunction) {
-      logger.warn('using default security validator');
-      next();
+  securityValidator(req:APIRequest, res:APIResponse, next:NextFunction) {
+    req.logger.warn('using default security validator');
+    if (!req.scopes) {
+      req.logger.warn('scopes not set, setting default to *');
+      req.scopes = new Scopes('*');
     }
-  }
-  addOauth2Scope(name:string, description:string): void {
-    if (this.securityDefinitions) {
-      _.each(_.filter(this.securityDefinitions, { type: 'oauth2' }), (i:Swagger.SecurityOAuth2) => {
-        if (!i.scopes) {
-          i.scopes = {};
-        }
-        i.scopes[name] = description;
-      });
-    }
-  }
-  registerSchema(id:string, schema:Swagger.Schema) {
-    if (!this[__schemas]) {
-      this[__schemas] = {};
-      this.addTag(_.cloneDeep(__default_schema_tag));
-      this.addOperation('/schemas/{id}', 'get', _.cloneDeep(__default_schema_operation));
-    }
-    this[__schemas][id] = schema;
-    this.registry.register(`schemas/${id}`, schema);
+    next();
   }
 
   static newError(code: number, message?: string, info?: any, err?: any): RESTError {
@@ -291,15 +316,15 @@ export class API implements Swagger {
   static fireError(code: number, message?: string, info?: any, err?: any): never {
     throw API.newError(code, message, info, err);
   }
-  static handleError(err: any, req: Request, res: Response, next?: NextFunction) {
+  static handleError(err: any, req: APIRequest, res: APIResponse, next?: NextFunction) {
     if (err.name === 'RESTError') {
-      logger.error('REST ERROR', err);
+      req.logger.error('REST ERROR', err);
       RESTError.send(res, err.code, err.message, err.info);
     } else if (err.name === 'ValidationError') {
-      logger.error('DATA ERROR', err);
+      req.logger.error('DATA ERROR', err);
       RESTError.send(res, 400, err.message, err.path);    
     } else {
-      logger.error('GENERIC ERROR', err, err.stack);
+      req.logger.error('GENERIC ERROR', err, err.stack);
       RESTError.send(res, 500, 'internal');
     }    
   }

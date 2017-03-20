@@ -47,11 +47,11 @@ describe('Operation', function() {
       }
       let r = new Resource({ name: 'Test' }, { '/': { get: Op1, post: Op2 }});
       api.addResource(r);
-      should.exist(api.paths['/tests/']);
-      should.exist(api.paths['/tests/'].get);
-      should.exist(api.paths['/tests/'].post);
-      api.paths['/tests/'].get.operationId.should.equal('Test.op1');
-      api.paths['/tests/'].post.operationId.should.equal('Test.op2');
+      should.exist(api.paths['/tests']);
+      should.exist(api.paths['/tests'].get);
+      should.exist(api.paths['/tests'].post);
+      api.paths['/tests'].get.operationId.should.equal('Test.op1');
+      api.paths['/tests'].post.operationId.should.equal('Test.op2');
 
       should.exist(api.securityDefinitions.access_code.scopes['Test']);
       should.exist(api.securityDefinitions.access_code.scopes['Test.op1']);

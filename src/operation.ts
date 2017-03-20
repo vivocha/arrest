@@ -1,9 +1,10 @@
 import * as _ from 'lodash';
-import { Router, RouterOptions, Request, Response, NextFunction, RequestHandler } from 'express';
+import { Router, RouterOptions, NextFunction } from 'express';
 import * as jp from 'jsonpolice';
 import { json as jsonParser } from 'body-parser';
 import { Swagger } from './swagger';
-import { API } from './api';
+import { Scopes } from './scopes';
+import { API, APIRequest, APIResponse, APIRequestHandler } from './api';
 import { Resource } from './resource';
 
 const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
@@ -11,6 +12,7 @@ const __api = Symbol();
 const __resource = Symbol();
 const __path = Symbol();
 const __method = Symbol();
+const __scopes = Symbol();
 
 export type Method = "get" | "put" | "post" | "delete" | "options" | "head" | "patch";
 
@@ -27,7 +29,7 @@ export abstract class Operation implements Swagger.Operation {
   deprecated?: boolean;
   security?: Swagger.Security[];
 
-  constructor(id: string, resource:Resource, path:string, method:Method) {
+  constructor(id: string, resource: Resource, path: string, method: Method) {
     this[__resource] = resource;
     this[__path] = path;
     this[__method] = method;
@@ -49,16 +51,19 @@ export abstract class Operation implements Swagger.Operation {
   get method():Method {
     return this[__method];
   }
-  get scopes(): Swagger.Scopes {
+  get swaggerScopes(): Swagger.Scopes {
     return {
       [this.operationId]: this.summary || `Execute ${this.operationId} on a ${this.resource.name}`
     };
   }
+  get scopes(): Scopes {
+    return this[__scopes];
+  }
 
-  protected getDefaultInfo(id:string): Swagger.Operation {
+  protected getDefaultInfo(id: string): Swagger.Operation {
     return {
       "operationId": `${this.resource.name}.${id}`,
-      "tags": [ this.resource.name ],
+      "tags": [ '' + this.resource.name ],
       "responses": {
         "default": {
           "$ref": "#/responses/defaultError"
@@ -66,19 +71,19 @@ export abstract class Operation implements Swagger.Operation {
       }
     };
   }
-  protected setInfo(info:Swagger.Operation): this {
+  protected setInfo(info: Swagger.Operation): this {
     Object.assign(this, info);
     return this;
   }
-  // TODO add debug info into and out of the validators
-  protected createValidators(key:string, parameters:Swagger.Parameter[]):Promise<RequestHandler> {
+  protected createValidators(key: string, parameters: Swagger.Parameter[]): Promise<APIRequestHandler> {
     return new Promise(resolve => {
-      let validators: Promise<(req: Request) => void>[] = [];
+      let validators: Promise<(req: APIRequest) => void>[] = [];
       parameters.forEach((parameter: Swagger.Parameter) => {
         let required = parameter.required;
         delete parameter.required;
         validators.push(this.api.registry.create(parameter).then((schema: jp.Schema) => {
-          return function (req: Request) {
+          return function (req: APIRequest) {
+            req.logger.debug(`validator ${key}.${parameter.name}`);
             if (typeof req[key][parameter.name] === 'undefined' && required === true) {
               throw new jp.ValidationError(key + '.' + parameter.name, (schema as any).scope, 'required');
             } else {
@@ -92,9 +97,11 @@ export abstract class Operation implements Swagger.Operation {
           }
         }));
       });
-      resolve(Promise.all(validators).then((validators:((req: Request) => void)[]) => {
-        return function(req:Request, res:Response, next:NextFunction) {
+      resolve(Promise.all(validators).then((validators:((req: APIRequest) => void)[]) => {
+        return function(req:APIRequest, res:APIResponse, next:NextFunction) {
+          req.logger.debug('validating');
           validators.forEach(v => v(req));
+          req.logger.debug('validated');
           next();
         }
       }));
@@ -103,14 +110,14 @@ export abstract class Operation implements Swagger.Operation {
 
   attach(api:API) {
     this[__api] = api;
-    api.addOperation(this.resource.basePath + this.swaggerPath, this.method, this)
+    api.registerOperation(this.resource.basePath + this.swaggerPath, this.method, this);
 
-    let scopes = this.scopes;
+    let swaggerScopes = this.swaggerScopes;
     let scopeNames:string[] = [];
 
-    for (let i in scopes) {
+    for (let i in swaggerScopes) {
       scopeNames.push(i);
-      api.addOauth2Scope(i, scopes[i]);
+      api.registerOauth2Scope(i, swaggerScopes[i]);
     }
 
     if (api.securityDefinitions && scopeNames.length) {
@@ -125,13 +132,27 @@ export abstract class Operation implements Swagger.Operation {
         }
       }
     }
+    if (scopeNames.length) {
+      this[__scopes] = new Scopes(scopeNames);
+    }
   }
   router(router:Router): Promise<Router> {
-    return new Promise((resolve, reject) => {
-      let middlewares:Promise<RequestHandler>[] = [];
-      if (this.security && this.security.length) {
-        // TODO add debug prints for the security validator
-        middlewares.push(Promise.resolve(this.api.securityValidator(this.security)));
+    return new Promise(resolve => {
+      let middlewares:Promise<APIRequestHandler>[] = [];
+      if (this.scopes) {
+        middlewares.push(Promise.resolve((req: APIRequest, res: APIResponse, next: NextFunction) => {
+          req.logger.debug(`checking scope, required: ${this.scopes}`);
+          if (!req.scopes) {
+            req.logger.warn('no scope');
+            next(API.newError(401, 'no scope'));
+          } else if (!req.scopes.match(this.scopes)) {
+            req.logger.warn('insufficient scope', req.scopes);
+            next(API.newError(403, 'insufficient privileges'));
+          } else {
+            req.logger.debug('scope ok');
+            next();
+          }
+        }));
       }
       let params = _.groupBy(this.parameters || [], 'in') as {
         header: Swagger.HeaderParameter[];
@@ -154,11 +175,10 @@ export abstract class Operation implements Swagger.Operation {
       if (params.body) {
         middlewares.push(Promise.resolve(jsonParser()));
         middlewares.push(this.api.registry.create(params.body[0].schema).then((schema:jp.Schema) => {
-          return (req:Request, res:Response, next:NextFunction) => {
+          return (req:APIRequest, res:APIResponse, next:NextFunction) => {
             if (_.isEqual(req.body, {}) && (!parseInt(req.headers['content-length']))) {
               if (params.body[0].required === true) {
-                // TODO maybe scope shouldn't be protected
-                throw new jp.ValidationError('body', (schema as any).scope, 'required');
+                throw new jp.ValidationError('body', schema.scope, 'required');
               }
             } else {
               schema.validate(req.body, 'body');
@@ -167,12 +187,22 @@ export abstract class Operation implements Swagger.Operation {
           }
         }));
       }
-      resolve(Promise.all(middlewares).then((middlewares:RequestHandler[]) => {
+      resolve(Promise.all(middlewares).then((middlewares:APIRequestHandler[]) => {
         router[this.method](this.path, ...middlewares, this.handler.bind(this));
         return router;
       }));
     });
   }
 
-  abstract handler(req:Request, res:Response, next?: NextFunction);
+  abstract handler(req: APIRequest, res: APIResponse, next?: NextFunction);
+}
+
+export class SimpleOperation extends Operation {
+  constructor(resource: Resource, path: string, method: Method, handler: APIRequestHandler) {
+    super(`${path}.${method}`, resource, path, method);
+    this.handler = handler;
+  }
+  handler(req: APIRequest, res: APIResponse, next?: NextFunction) {
+    throw new Error('SimpleOperation handler not defined');
+  }
 }

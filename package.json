@@ -82,7 +82,7 @@
     "debug": "2.6.1",
     "eredita": "1.0.1",
     "express": "4.14.1",
-    "jsonpolice": "4.0.1",
+    "jsonpolice": "4.1.0",
     "jsonref": "3.5.0",
     "lodash": "4.17.4",
     "mongodb": "2.2.24",
@@ -95,7 +95,7 @@
       "path": "node_modules/cz-conventional-changelog"
     },
     "ghooks": {
-      "pre-commit": "npm run build && npm run cover && npm run check-coverage"
+      "_pre-commit": "npm run build && npm run cover && npm run check-coverage"
     }
   },
   "engines": {
