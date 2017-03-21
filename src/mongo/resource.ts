@@ -1,3 +1,4 @@
+import * as decamelize from 'decamelize';
 import { MongoClient, Db } from 'mongodb';
 import { Routes, Resource, ResourceDefinition } from '../resource';
 import { QueryMongoOperation, ReadMongoOperation, CreateMongoOperation, UpdateMongoOperation, RemoveMongoOperation } from './operation';
@@ -16,7 +17,7 @@ export class MongoResource extends Resource {
   constructor(db: string | Db, info:MongoResourceDefinition, routes:Routes = MongoResource.defaultRoutes()) {
     super(info, routes);
     if (!this.collection) {
-      this.collection = ('' + this.namePlural).toLocaleLowerCase();
+      this.collection = decamelize('' + this.namePlural, '_');
     }
     if (typeof db === 'string') {
       this[__db] = MongoClient.connect(db as string);

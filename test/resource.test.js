@@ -100,8 +100,12 @@ describe('Resource', function() {
   describe('basePath', function () {
 
     it('should return the correct base path', function () {
-      let r = new Resource({name: 'Test'});
-      r.basePath.should.equal('/tests');
+      let r1 = new Resource({name: 'Test'});
+      r1.basePath.should.equal('/tests');
+      let r2 = new Resource({name: 'MyTest'});
+      r2.basePath.should.equal('/my-tests');
+      let r3 = new Resource({name: 'Test', path: 'my-path' });
+      r3.basePath.should.equal('/my-path');
     });
 
   });

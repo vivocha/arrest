@@ -1,3 +1,5 @@
+import * as camelcase from 'camelcase';
+import * as decamelize from 'decamelize';
 import { Router, RouterOptions, NextFunction } from 'express';
 import { Swagger } from './swagger';
 import { API, APIRequest, APIResponse, APIRequestHandler } from './api';
@@ -38,6 +40,7 @@ export class Resource implements ResourceDefinition {
   description?: string;
   externalDocs?: Swagger.ExternalDocs;
   namePlural?: string;
+  path?: string;
   id?: string;
   title?: string;
   summaryFields?: string[];
@@ -53,7 +56,7 @@ export class Resource implements ResourceDefinition {
     }
     Object.assign(this, info);
     if (!this.name) {
-      this.name = this.constructor.name;
+      this.name = Resource.capitalize(camelcase(this.constructor.name));
     }
     if (!this.namePlural) {
       this.namePlural = this.name + 's';
@@ -70,7 +73,7 @@ export class Resource implements ResourceDefinition {
   }
 
   get basePath(): string {
-    return '/' + Resource.uncapitalize(this.namePlural);
+    return '/' + (this.path ? this.path : decamelize('' + this.namePlural, '-'));
   }
   get operations():Operation[] {
     return this[__operations];
@@ -136,7 +139,7 @@ export class Resource implements ResourceDefinition {
     });
   }
 
-  static uncapitalize(s) {
-    return s.charAt(0).toLowerCase() + s.slice(1);
+  static capitalize(s) {
+    return s.charAt(0).toUpperCase() + s.slice(1);
   }
 }
