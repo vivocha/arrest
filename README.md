@@ -1,11 +1,19 @@
 arrest
 ======
 
-REST framework for Node.js, Express and MongoDB
+Swagger REST framework for Node.js, with support for MongoDB and [JSON-Schema](http://json-schema.org/)
 
-Arrest lets you write RESTful web services in minutes. It works with Express 4.x,
-implements simple CRUD semantics on MongoDB and the resulting web services
-are compatible with the $resource service of AngularJS.
+Arrest lets you write RESTful web services in minutes. It automatically generates a [Swagger](http://swagger.io/) description
+of the API and support input validation using JSON-Schemas.
+
+Highlight features:
+- Compatible with Express 4.x
+- Implements simple CRUD semantics on MongoDB
+- Supports querying object with the RQL syntax
+- Input validation with JSON-Schema
+- Oauth2 scope checks per operation
+
+**Note for 1.3 users**: arrest 3.x is a complete rewrite of the old module and it's not backwards compatible.
 
 ## How to Install
 
@@ -13,148 +21,259 @@ are compatible with the $resource service of AngularJS.
 npm install arrest
 ```
 
-## Super Simple Sample
+## Super Simple Example
 
-The following sample application shows how to attach a simple REST API to and express
-application. In the sample, the path */api* is linked to a *data* collection
-on a MongoDB instance running on *localhost*:
+The following sample application shows how to create a simple REST API, using a MongoDB collection as
+the data store. In the sample, the path */tests* is linked to a *tests* collection on a MongoDB
+instance running on *localhost*:
 
 ```js
-var arrest = require('arrest')
-  , express = require('express')
-  , bodyParser = require('body-parser')
-  , app = express()
+const arrest = require('arrest');
+const api = new arrest.API();
 
-app.use(bodyParser.json());
+api.addResource(new arrest.MongoResource('mongodb://localhost:27017', { name: 'Test' }));
 
-arrest.use(app, '/api', new arrest.RestMongoAPI('mongodb://localhost:27017', 'data'));
-
-app.listen(3000);
+api.listen(3000);
 ```
 
 Now you can query your *data* collection like this:
 
 ```bash
-curl "http://localhost:3000/api"
+curl "http://localhost:3000/tests"
 ```
 
 You can add a new item:
 
 ```bash
-curl "http://localhost:3000/api" -d "name=Jimbo&surname=Johnson"
+curl "http://localhost:3000/tests" -H "Content-Type: application/json" -X POST -d '{ "name": "Jimbo", "surname": "Johnson" }'
 ```
-
-(for complex objects, just do a POST with a JSON body)
 
 You can query a specific item by appeding the identifier of the record (the _id attribute):
 
 ```bash
-curl "http://localhost:3000/api/51acc04f196573941f000002"
+curl "http://localhost:3000/tests/51acc04f196573941f000002"
 ```
 
 You can update an item:
 
 ```bash
-curl "http://localhost:3000/api/51acc04f196573941f000002" "name=Jimbo&surname=Smith"
+curl "http://localhost:3000/tests/51acc04f196573941f000002" -H "Content-Type: application/json" -X PUT -d '{ "name": "Jimbo", "surname": "Smith" }'
 ```
 
 And finally you can delete an item:
 
 ```bash
-curl "http://localhost:3000/api/51acc04f196573941f000002" -X DELETE
+curl "http://localhost:3000/tests/51acc04f196573941f000002" -X DELETE
 ```
 
-To use this REST service in an [AngularJS](http://angularjs.org) application, all you need to do is to include the
-[ngResource](http://docs.angularjs.org/api/ngResource.$resource) service and, in a controller, create a $resource object:
+## Creating an API
+
+An _API_ is a collection of _Resources_, each supporting one or more _Operations_.
+
+In arrest you create an API by creating an instance of the base `API` class or of a derived class.
+You then add instances of the `Resource` class or a derived one. Each resource contains its supported `Routes`, that is
+a collection of instances of classes derived from the abstract `Operation`, which represents an operation to be executed
+when an HTTP method is called on a path.
+
+The following code demonstrates this three level structure:
 
 ```js
-var api = new $resource('/api/:_id', { _id: '@_id' }, {});
+const arrest = require('arrest');
+const api = new arrest.API();
 
-$scope.data = api.query();
+const operation1 = function(req, res, next) {
+  res.json({ data: 'this is operation 1' });
+}
+const operation2 = function(req, res, next) {
+  res.json({ data: 'this is operation 2' });
+}
+const operation3 = function(req, res, next) {
+  res.json({ data: 'this is operation 3' });
+}
+const resource1 = new arrest.Resource({
+  name: 'SomeResource',
+  routes: {
+    '/': {
+      get: operation1,
+      post: operation2
+    },
+    '/some-path': {
+      put: operation3
+    }
+  }
+})
+
+api.addResource(resource1);
+api.listen(3000);
 ```
 
-## Default API routes
+The API above supports the following operations:
+- `GET` on `http://localhost/some-resources`
+- `POST` on `http://localhost/some-resources`
+- `PUT` on `http://localhost/some-resources/some-path`
 
-By default, each time you call `arrest.use` specifying a different `path`, the following routes are
-added to your Express `app`:
+Please note how the some-resources path was automatically constructed using the name of the resource `SomeResource`, making
+it plural and converting the camelcase in a dash-separated name. This default behaviour can be changed specifying the
+namePlural and path when creating the resource (e.g. `new Resource({ name: 'OneResource', namePlural: 'ManyResources', path: 'my_resources' })`)
+
+Another other way to produce the same result is:
 
 ```js
-app.get('/path', arrest.RestAPI._query);
-app.get('/path/:id', arrest.RestAPI._get);
-app.put('/path', arrest.RestAPI._create);
-app.post('/path', arrest.RestAPI._create);
-app.post('/path/:id', arrest.RestAPI._update);
-app.delete('/path/:id', arrest.RestAPI._remove);
+const arrest = require('arrest');
+const api = new arrest.API();
+
+const resource1 = new arrest.Resource({ name: 'SomeResource' });
+
+resource1.addOperation('/', 'get', function(req, res, next) {
+  res.json({ data: 'this is operation 1' });
+});
+resource1.addOperation('/', 'post', function(req, res, next) {
+  res.json({ data: 'this is operation 2' });
+});
+resource1.addOperation('/some-path', 'put', function(req, res, next) {
+  res.json({ data: 'this is operation 3' });
+});
+
+api.addResource(resource1);
+api.listen(3000);
 ```
 
-## Creating a custom API
-
-To create a custom API, start by defining a sub class of RestMongoAPI (or RestAPI if you don't need
-MongoDB support):
+In real world applications, where resources and operation are in fact more complex, you will want to create class that
+extend the basic classes in arrest, like in the next example:
 
 ```js
-var util = require('util')
-  , arrest = require('arrest')
-  
-function MyAPI() {
-  arrest.RestMongoAPI.call(this, 'mongodb://localhost:27017', 'my_collection');
+const arrest = require('arrest');
+
+class MyOperation extends arrest.Operation {
+  constructor(resource, path, method) {
+    super('op1', resource, path, method);
+  }
+  handler(req, res, next) {
+    res.json({ data: 'this is a custom operation' });
+  }
 }
 
-util.inherits(MyAPI, RestMongoAPI);
+class MyResource extends arrest.Resource {
+  constructor() {
+    super();
+    this.addOperation(new MyOperation(this, '/', 'get'));
+  }
+}
+
+class MyAPI extends arrest.API {
+  constructor() {
+    super({
+      info: {
+        title: 'This is a custom API',
+        version: '0.9.5'
+      }
+    });
+    this.addResource(new MyResource());
+  }
+}
+
+const api = new MyAPI();
+api.listen(3000);
 ```
 
-You can now customize, for example, how the queries on the entire collection are performed: the
-following example checks that a query parameter `q` is passed to the web service:
+The API above supports `GET`s on `http://localhost/my-resources` (note how the path was in this case constructed automatically
+from the name of the class MyResource).
+
+By the default, arrest APIs add a special route `/swagger.json` that returns the Swagger description of the API: the Swagger
+object is populated with the properties of the API object, Resources are converted into Swagger Tags and Operations are
+mapped to Swagger Operations.
+
+### Data validation
+
+arrest supports JSON-Schema for data validation. Validation rules are set using the [Swagger specification](http://swagger.io/specification/). For instance,
+the following code show how to validate the body of a `POST` and the query paramters of a `GET`:
 
 ```js
-MyAPI.prototype._query = function(req, res) {
-  if (!req.query.q) {
-    arrest.sendError(res, 400, 'q parameter is missing');
-  } else {
-    this.query({ name: req.query.q}, arrest.responseCallback(res));
+class MyOperation1 extends arrest.Operation {
+  constructor(resource, path, method) {
+    super('op1', resource, path, method);
+    this.setInfo({
+      parameters: [
+        {
+          name: 'body',
+          in: 'body',
+          required: true,
+          schema: {
+            type: 'object',
+            required: [ 'name' ],
+            additionalProperties: false,
+            properties: {
+              name: {
+                type: 'string'
+              },
+              surname: {
+                type: 'string'
+              }
+            }
+          }
+        }
+      ]
+    });
+  }
+  handler(req, res, next) {
+    res.json({ data: 'this is a op1' });
+  }
+}
+
+class MyOperation2 extends arrest.Operation {
+  constructor(resource, path, method) {
+    super('op2', resource, path, method);
+    this.setInfo({
+      parameters: [
+        {
+          name: 'lang',
+          in: 'query',
+          type: 'string',
+          required: true
+        },
+        {
+          name: 'count',
+          in: 'query',
+          type: 'integer'
+        }
+      ]
+    });
+  }
+  handler(req, res, next) {
+    res.json({ data: 'this is a op2' });
+  }
+}
+
+class MyResource extends arrest.Resource {
+  constructor() {
+    super();
+    this.addOperation(new MyOperation1(this, '/', 'post'));
+    this.addOperation(new MyOperation2(this, '/', 'get'));
   }
 }
 ```
 
-To add a new web services, modify the `routes` array, adding the required entries.
-The array contains objects with to following format:
+Omitting the body or passing an invalid body (e.g. an object without the name property) when `POST`ing to
+`http://localhost/my-resources` will return an error. Likewise `GET`ting without a lang parameter or with a count
+set to anything other than a number will fail.
 
-```js
-{
-  method: 'get|post|put|patch|delete|any other valid http method',
-  mount: '/path/to/the/new/webservice/:with/:needed/:paramenters',
-  handler: this.handler_function }
-}
-```
+## Scopes and security validators
 
-The default routes are:
+**TBA**
 
-```js
-[
-  { method: 'get',    mount: '',     handler: this._query },
-  { method: 'get',    mount: '/:id', handler: this._get },
-  { method: 'put',    mount: '',     handler: this._create },
-  { method: 'post',   mount: '',     handler: this._create },
-  { method: 'post',   mount: '/:id', handler: this._update },
-  { method: 'delete', mount: '/:id', handler: this._remove }
-]
-```
+## Creating an API with a MongoDB data store
 
-For example:
+**TBA**
+(default api routes)
 
-```js
-function MyAPI() {
-  arrest.RestMongoAPI.call(this, 'mongodb://localhost:27017', 'my_collection');
-  this.routes.push({ method: 'get', mount: '/greet/:name', handler: this._hello });
-}
+## Using arrest with express
 
-util.inherits(MyAPI, arrest.RestMongoAPI);
+**TBA**
 
-MyAPI.prototype._hello = function(req, res) {
-  res.jsonp({ hello: req.params.name });
-}
-```
+## Debugging
 
-And, as a last step, remember to *use* the new API:
+**TBA**
 
-```arrest.use(app, "/api", new MyAPI());```
+## API documentation
+
+**TBA**
