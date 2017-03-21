@@ -25,8 +25,13 @@
     "rest",
     "mongodb",
     "express",
-    "connect",
-    "angularjs"
+    "swagger",
+    "openapi",
+    "schema",
+    "jsonschema",
+    "json",
+    "rql",
+    "oauth2"
   ],
   "files": [
     "dist",
