@@ -1,8 +1,0 @@
-{
-  "<%- name %>": "Unrestricted access to all <%- namePlural %>",
-  "<%- name %>.create": "Create a new <%- name %>",
-  "<%- name %>.query": "List and search the <%- namePlural %>",
-  "<%- name %>.read": "Read a <%- name %>",
-  "<%- name %>.remove": "Remove a <%- name %>",
-  "<%- name %>.update": "Update a <%- name %>"
-}
