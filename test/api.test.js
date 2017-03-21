@@ -16,20 +16,17 @@ describe('API', function() {
 
   describe('constructor', function() {
 
-    it('should fail to create an API instance if no version or an invalid version is specified', function() {
-      (function() { new API() }).should.throw(Error, /Cannot convert/);
-      (function() { new API({}) }).should.throw(Error, /Cannot read/);
-      (function() { new API({ info: { }}) }).should.throw(Error, 'invalid_version');
+    it('should fail to create an API instance if an invalid version is specified', function() {
       (function() { new API({ info: { version: true }}) }).should.throw(Error, 'invalid_version');
       (function() { new API({ info: { version: 'a' }}) }).should.throw(Error, 'invalid_version');
       (function() { new API({ info: { version: 1 }}) }).should.throw(Error, 'invalid_version');
       (function() { new API({ info: { version: '1' }}) }).should.throw(Error, 'invalid_version');
       (function() { new API({ info: { version: '1.0' }}) }).should.throw(Error, 'invalid_version');
-      (function() { new API({ info: { version: '1.0.0' }}) }).should.not.throw();
+      (function() { new API() }).should.not.throw();
     });
 
     it('should create an API instance', function() {
-      let api = new API({ info: { version: '1.0.0' }});
+      let api = new API();
       api.swagger.should.equal('2.0')
       api.info.version.should.equal('1.0.0')
     });
@@ -38,14 +35,14 @@ describe('API', function() {
   describe('router', function() {
 
     it('should return an Expressjs router', function() {
-      let api = new API({ info: { version: '1.0.0' }});
+      let api = new API();
       return api.router().then(router => {
         router.should.be.a('function');
       });
     });
 
     it('should return the same object when called twice', function() {
-      let api = new API({ info: { version: '1.0.0' }});
+      let api = new API();
       return api.router().then(router1 => {
         return api.router().then(router2 => {
           router1.should.equal(router2);
@@ -57,13 +54,55 @@ describe('API', function() {
 
   describe('plain api (no resources)', function() {
 
+    describe('swagger disabled', function() {
+
+      const port = 9876;
+      const host = 'localhost:' + port;
+      const basePath = 'http://' + host;
+      const request = supertest(basePath);
+      const api = new API(null, { swagger: false });
+      const app = express();
+      let server;
+
+      before(function() {
+        api.securityDefinitions = {
+          "access_code": {
+            "type": "oauth2",
+            "flow": "accessCode",
+            "tokenUrl": "token"
+          },
+          "implicit": {
+            "type": "oauth2",
+            "flow": "implicit",
+            "authorizationUrl": "/a/b/authorize"
+          },
+          "": {}
+        };
+        return api.router().then(router => {
+          app.use(router);
+          server = app.listen(port);
+        });
+      });
+
+      after(function() {
+        server.close();
+      });
+
+      it('should return a the default swagger file', function() {
+        return request
+          .get('/swagger.json')
+          .expect(404);
+      });
+
+    });
+
     describe('/swagger.json', function() {
 
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
       const request = supertest(basePath);
-      const api = new API({ info: { version: '1.0.0' }});
+      const api = new API();
       const app = express();
       let server;
 
@@ -184,7 +223,7 @@ describe('API', function() {
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
       const request = supertest(basePath);
-      const api = new API({ info: { version: '1.0.0' }});
+      const api = new API();
       const app = express();
       const schema1 = { a: true, b: 2 };
       const schema2 = { c: 'd', e: [] };
@@ -443,7 +482,7 @@ describe('API', function() {
     const app = express();
     let server, spy;
 
-    const api = new API({ info: { version: '1.0.0' }});
+    const api = new API();
     class Op1 extends Operation {
       constructor(resource, path, method) {
         super('op1', resource, path, method);
@@ -569,7 +608,7 @@ describe('API', function() {
 
     it('should be able to resolve an internal schema', function() {
       const spy = chai.spy((req, res) => { res.json({})});
-      const api = new API({ info: { version: '1.0.0' }});
+      const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super('op1', resource, path, method);
@@ -672,7 +711,7 @@ describe('API', function() {
 
     it('should be able to resolve an external schema', function() {
       const spy = chai.spy((req, res) => { res.json({})});
-      const api = new API({ info: { version: '1.0.0' }});
+      const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super('op1', resource, path, method);

@@ -134,7 +134,7 @@ describe('Operation', function() {
       const app = express();
       let server;
 
-      const api = new API({ info: { version: '1.0.0' }});
+      const api = new API();
       const spy = chai.spy(function(req, res) {
         res.send({ headers: req.headers });
       });
@@ -265,7 +265,7 @@ describe('Operation', function() {
       const app = express();
       let server;
 
-      const api = new API({ info: { version: '1.0.0' }});
+      const api = new API();
       const spy = chai.spy(function(req, res) {
         res.send({ params: req.params });
       });
@@ -366,7 +366,7 @@ describe('Operation', function() {
       const app = express();
       let server;
 
-      const api = new API({ info: { version: '1.0.0' }});
+      const api = new API();
       const spy = chai.spy(function(req, res) {
         res.send({ query: req.query });
       });
@@ -488,7 +488,7 @@ describe('Operation', function() {
       const app = express();
       let server;
 
-      const api = new API({ info: { version: '1.0.0' }});
+      const api = new API();
       const spy = chai.spy(function(req, res) {
         res.send({ body: req.body });
       });

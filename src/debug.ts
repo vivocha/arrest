@@ -2,6 +2,7 @@ import * as debug from 'debug';
 
 export interface Logger {
   log: debug.IDebugger;
+  info: debug.IDebugger;
   warn: debug.IDebugger;
   error: debug.IDebugger;
   debug: debug.IDebugger;
@@ -20,6 +21,7 @@ export default function(label: string, context?: string): Logger {
   } : debug;
   return {
     log: d(label + ':log'),
+    info: d(label + ':info'),
     warn: d(label + ':warn'),
     error: d(label + ':error'),
     debug: d(label + ':debug')

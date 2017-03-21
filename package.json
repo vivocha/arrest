@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "2.3.0-beta.39",
+  "version": "2.3.0-beta.40",
   "description": "REST framework for Node.js, Express and MongoDB",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -96,7 +96,7 @@
       "path": "node_modules/cz-conventional-changelog"
     },
     "ghooks": {
-      "_pre-commit": "npm run build && npm run cover && npm run check-coverage"
+      "pre-commit": "npm run build && npm run cover && npm run check-coverage"
     }
   },
   "engines": {

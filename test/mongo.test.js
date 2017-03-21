@@ -79,7 +79,7 @@ describe('mongo', function() {
     const request = supertest(basePath);
     const db = (new mongo.MongoClient()).connect('mongodb://localhost:27017');
     const app = express();
-    const api = new API({ info: { version: '1.0.0' }});
+    const api = new API();
     const collectionName = 'arrest_test';
 
     class FakeOp1 extends QueryMongoOperation {
