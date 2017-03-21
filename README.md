@@ -3,6 +3,10 @@ arrest
 
 Swagger REST framework for Node.js, with support for MongoDB and [JSON-Schema](http://json-schema.org/)
 
+[![travis build](https://img.shields.io/travis/vivocha/arrest.svg)](https://travis-ci.org/vivocha/arrest)
+[![codecov coverage](https://img.shields.io/codecov/c/github/vivocha/arrest.svg)](https://codecov.io/gh/vivocha/arrest)
+[![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
+
 Arrest lets you write RESTful web services in minutes. It automatically generates a [Swagger](http://swagger.io/) description
 of the API and support input validation using JSON-Schemas.
 
