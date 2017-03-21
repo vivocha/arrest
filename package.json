@@ -1,7 +1,7 @@
 {
   "name": "arrest",
   "version": "0.0.0-semantically-released",
-  "description": "REST framework for Node.js, Express and MongoDB",
+  "description": "Swagger REST framework for Node.js, with support for MongoDB and JSON-Schema",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "scripts": {
