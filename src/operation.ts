@@ -198,8 +198,19 @@ export abstract class Operation implements Swagger.Operation {
 }
 
 export class SimpleOperation extends Operation {
-  constructor(resource: Resource, path: string, method: Method, handler: APIRequestHandler) {
-    super(`${path}.${method}`, resource, path, method);
+  constructor(resource: Resource, path: string, method: Method, handler: APIRequestHandler, id?: string) {
+    if (!id) {
+      id = path;
+      if (id.length && id[0] === '/') {
+        id = id.substr(1);
+      }
+      if (!id.length) {
+        id = method;
+      } else if (method !== 'get') {
+        id += '-' + method;
+      }
+    }
+    super(id, resource, path, method);
     this.handler = handler;
   }
   handler(req: APIRequest, res: APIResponse, next?: NextFunction) {

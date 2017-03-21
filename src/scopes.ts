@@ -56,7 +56,7 @@ export class Scopes {
       v = this[category][operation];
     } else if (_defined(this[category]) && _defined(this[category]['*'])) {
       v = this[category]['*'];
-    } if (_defined(this['*']) && _defined(this['*'][operation])) {
+    } else if (_defined(this['*']) && _defined(this['*'][operation])) {
       v = this['*'][operation];
     } else if (_defined(this['*']) && _defined(this['*']['*'])) {
       v = this['*']['*'];
@@ -79,6 +79,7 @@ export class Scopes {
     }
     return true;
   }
+  /* TODO currently not used
   filter(_scopes: string | string[] | Scopes): Scopes {
     let scopes: Scopes;
     if (typeof _scopes === 'string' || Array.isArray(_scopes)) {
@@ -96,4 +97,5 @@ export class Scopes {
     }
     return out;
   }
+  */
 }

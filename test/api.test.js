@@ -2,7 +2,9 @@ var chai = require('chai')
   , spies = require('chai-spies')
   , should = chai.should()
   , supertest = require('supertest')
+  , pem = require('pem')
   , express = require('express')
+  , Scopes = require('../dist/scopes').Scopes
   , API = require('../dist/api').API
   , Resource = require('../dist/resource').Resource
   , Operation = require('../dist/operation').Operation
@@ -190,7 +192,7 @@ describe('API', function() {
 
       before(function() {
         api.registerSchema('abc', schema1);
-        api.registerSchema('def', schema2);
+        api.registerSchema('def', (req, res) => res.json(schema2));
         return api.router().then(router => {
           app.use(router);
           server = app.listen(port);
@@ -207,13 +209,23 @@ describe('API', function() {
           .expect(404);
       });
 
-      it('should return the requested schema', function() {
+      it('should return the requested static schema', function() {
         return request
           .get('/schemas/abc')
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             data.should.deep.equal(schema1);
+          });
+      });
+
+      it('should return the requested dynamic schema', function() {
+        return request
+          .get('/schemas/def')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal(schema2);
           });
       });
     });
@@ -228,10 +240,10 @@ describe('API', function() {
     const request = supertest(basePath);
     const api = new API({ info: { version: '3.2.1' }});
     const app = express();
+    const r = express.Router();
     let server;
 
     before(function() {
-      let r = express.Router();
       app.use(r);
       return api.attach(r).then(router => {
         app.use(router);
@@ -243,7 +255,7 @@ describe('API', function() {
       server.close();
     });
 
-    it('should attach the api on /v{major version} and refect that in the swagger', function() {
+    it('should attach the api on /v{major version} and reflect that in the swagger', function() {
       return request
         .get('/v3/swagger.json')
         .expect(200)
@@ -255,6 +267,169 @@ describe('API', function() {
           data.basePath.should.equal('/v3');
           data.id.should.equal('https://' + host + '/v3/swagger.json#');
         });
+    });
+
+    it('should attach another api version and reflect that in the swagger', function() {
+      const api2 = new API({ info: { version: '4.0.0' }});
+
+      return api2.attach(r).then(() => {
+        return request
+          .get('/v4/swagger.json')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({body: data}) => {
+            should.exist(data);
+            data.swagger.should.equal('2.0');
+            data.host.should.equal(host);
+            data.basePath.should.equal('/v4');
+            data.id.should.equal('https://' + host + '/v4/swagger.json#');
+          });
+      });
+    });
+
+    it('should attach another api with the same version which will handle resources to handled by the fist one', function() {
+      const api3 = new API({ info: { version: '3.2.2' }});
+      api3.addResource(new Resource({ routes: { '/': { get: (req, res) => res.json({ result: 10 }) } } } ));
+
+      return api3.attach(r).then(() => {
+        return request
+          .get('/v3/resources')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({body: data}) => {
+            should.exist(data);
+            data.result.should.equal(10);
+          });
+      });
+    });
+
+  });
+
+  describe('listen', function() {
+
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    let server1;
+    let server2;
+
+    afterEach(function() {
+      delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      if (server1) {
+        server1.close();
+      }
+      if (server2) {
+        server2.close();
+      }
+    });
+
+    it('should fail if no ports are specified', function() {
+      const api = new API({ info: { version: '3.2.1' }});
+      should.throw(function() { api.listen() }, Error, /no listen ports specified/);
+    });
+
+    it('should fail if no https options are specified', function() {
+      const api = new API({ info: { version: '3.2.1' }});
+      api.listen(0, 1).then(() => should.fail(), err => true);
+    });
+
+    it('should create an api server listening to http on the requested port', function() {
+      const api = new API({ info: { version: '3.2.1' }});
+      return api.listen(port).then(server => {
+        server1 = server;
+        return request
+          .get('/swagger.json')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({body: data}) => {
+            should.exist(data);
+            data.swagger.should.equal('2.0');
+            data.host.should.equal(host);
+            data.basePath.should.equal('');
+            data.id.should.equal('http://' + host + '/swagger.json#');
+            data.schemes.should.deep.equal([ 'http' ]);
+          });
+      });
+    });
+
+    it('should create an api server listening to https on the requested port', function() {
+      return new Promise((resolve, reject) => {
+        pem.createCertificate({ days: 1, selfSigned: true }, function(err, keys) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(keys);
+          }
+        });
+      }).then(keys => {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        const api = new API({ info: { version: '3.2.1' }});
+        return api.listen(0, port, { key: keys.serviceKey, cert: keys.certificate }).then(server => {
+          server1 = server;
+          return supertest('https://' + host)
+            .get('/swagger.json')
+            .expect(200)
+            .expect('Content-Type', /json/)
+            .then(({body: data}) => {
+              should.exist(data);
+              data.swagger.should.equal('2.0');
+              data.host.should.equal(host);
+              data.basePath.should.equal('');
+              data.id.should.equal('https://' + host + '/swagger.json#');
+              data.schemes.should.deep.equal([ 'https' ]);
+            });
+        });
+      });
+
+
+    });
+
+    it('should create an api server listening to both http and https on the requested ports', function() {
+      return new Promise((resolve, reject) => {
+        pem.createCertificate({ days: 1, selfSigned: true }, function(err, keys) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(keys);
+          }
+        });
+      }).then(keys => {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        const api = new API({ info: { version: '3.2.1' }});
+        return api.listen(port, port + 2, { key: keys.serviceKey, cert: keys.certificate }).then(servers => {
+          server1 = servers[0];
+          server2 = servers[1];
+          return Promise.all([
+            request
+              .get('/swagger.json')
+              .expect(200)
+              .expect('Content-Type', /json/)
+              .then(({body: data}) => {
+                should.exist(data);
+                data.swagger.should.equal('2.0');
+                data.host.should.equal(host);
+                data.basePath.should.equal('');
+                data.id.should.equal('https://' + host + '/swagger.json#');
+                data.schemes.should.deep.equal([ 'https', 'http' ]);
+              }),
+            supertest('https://localhost:' + (port + 2))
+              .get('/swagger.json')
+              .expect(200)
+              .expect('Content-Type', /json/)
+              .then(({body: data}) => {
+                should.exist(data);
+                data.swagger.should.equal('2.0');
+                data.host.should.equal('localhost:' + (port + 2));
+                data.basePath.should.equal('');
+                data.id.should.equal('https://localhost:' + (port + 2) + '/swagger.json#');
+                data.schemes.should.deep.equal([ 'https', 'http' ]);
+              })
+          ]);
+        });
+      });
+
+
     });
 
   });
@@ -357,11 +532,28 @@ describe('API', function() {
     });
   });
 
-  describe('security validators', function() {
+  describe('Scopes', function() {
 
-    it('should create and execute security validators for all security descriptors');
+    it('should return all the scopes as an array', function() {
+      let s = new Scopes([ 'a.x', '-a.z' ]);
+      s.toArray().should.have.length(2);
+    });
+
+    it('should create an empty scopes descriptor', function() {
+      let s = new Scopes();
+      s.match('a.x').should.equal(false);
+      s.match(['a.x']).should.equal(false);
+      s.match(new Scopes('+a.x')).should.equal(false);
+      s.match('-a.x').should.equal(true);
+      s.match(new Scopes('-a.x')).should.equal(true);
+    });
+
+    it('should throw if bad scopes are passed', function() {
+      should.throw(function() { let s = new Scopes(['']); }, RangeError);
+    });
 
   });
+
 
   describe('schema', function() {
 

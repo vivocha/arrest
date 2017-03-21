@@ -1,15 +1,20 @@
+import * as http from 'http';
+import * as https from 'https';
 import * as _ from 'lodash';
 import * as semver from 'semver';
 import * as jr from 'jsonref';
+import * as express from 'express';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
-import { Logger, contextLogger } from './debug';
+import debug, { Logger } from './debug';
 import { RESTError } from './error';
 import { SchemaRegistry } from './schema';
 import { Swagger } from './swagger';
 import { Scopes } from './scopes';
 import { Resource } from './resource';
+import {escape} from "querystring";
 
+const logger = debug('arrest');
 const __schemas = Symbol();
 const __registry = Symbol();
 const __resources = Symbol();
@@ -140,6 +145,8 @@ const __default_schema_tag: Swagger.Tag = {
   "x-name-plural": "Schemas"
 };
 
+let reqId: number = 0;
+
 export interface APIRequest extends Request {
   scopes: Scopes;
   logger: Logger;
@@ -187,20 +194,26 @@ export class API implements Swagger {
     return this[__resources];
   }
 
+  protected getDebugContext(): string {
+    return `#${++reqId}`;
+  }
+
   addResource(resource:Resource): this {
     this.resources.push(resource);
     resource.attach(this);
     return this;
   }
 
-  registerSchema(id:string, schema:Swagger.Schema) {
+  registerSchema(id: string, schema: Swagger.Schema | APIRequestHandler) {
     if (!this[__schemas]) {
       this[__schemas] = {};
       this.registerTag(_.cloneDeep(__default_schema_tag));
       this.registerOperation('/schemas/{id}', 'get', _.cloneDeep(__default_schema_operation));
     }
     this[__schemas][id] = schema;
-    this.registry.register(`schemas/${id}`, schema);
+    if (typeof schema !== 'function') {
+      this.registry.register(`schemas/${id}`, schema);
+    }
   }
   registerOperation(path:string, method:string, operation:Swagger.Operation) {
     if (!this.paths) {
@@ -232,13 +245,39 @@ export class API implements Swagger {
     }
   }
 
+  listen(httpPort: number, httpsPort?: number, httpsOptions?: https.ServerOptions): Promise<any> {
+    if (!httpPort && !httpsPort) {
+      throw new Error('no listen ports specified');
+    } else if (httpPort && !httpsPort) {
+      this.schemes = [ 'http' ];
+    } else if (!httpPort && httpsPort) {
+      this.schemes = [ 'https' ];
+    }
+    return this.router().then(router => {
+      let app = express();
+      app.use(router);
+      let out: any[] = [];
+      if (httpsPort) {
+        if (!httpsOptions) {
+          throw new Error('no https options');
+        } else {
+          out.push(https.createServer(httpsOptions, app).listen(httpsPort));
+        }
+      }
+      if (httpPort) {
+        out.push(http.createServer(app).listen(httpPort));
+      }
+      return out.length == 1 ? out[0] : out;
+    });
+  }
+
   router(options?: RouterOptions): Promise<Router> {
     if (!this[__router]) {
       let r = Router(options);
-      r.use(function(_req: Request, res: Response, next: NextFunction) {
+      r.use((_req: Request, res: Response, next: NextFunction) => {
         let req: APIRequest = _req as APIRequest;
         if (!req.logger) {
-          req.logger = contextLogger('arrest');
+          req.logger = debug('arrest', this.getDebugContext());
         }
         next();
       });
@@ -270,8 +309,13 @@ export class API implements Swagger {
       });
       if (this[__schemas]) {
         r.get('/schemas/:id', (req: APIRequest, res: APIResponse, next: NextFunction) => {
-          if (this[__schemas][req.params.id]) {
-            res.json(this[__schemas][req.params.id]);
+          let s = this[__schemas][req.params.id];
+          if (s) {
+            if (typeof s === 'function') {
+              (s as APIRequestHandler)(req, res, next);
+            } else {
+              res.json(this[__schemas][req.params.id]);
+            }
           } else {
             next();
           }
@@ -279,8 +323,10 @@ export class API implements Swagger {
       }
       let p:Promise<any> = Promise.resolve(true);
       for (let i in this[__schemas]) {
-        p = p.then(() => this.registry.create(this[__schemas][i]));
-      };
+        if (typeof this[__schemas][i] !== 'function') {
+          p = p.then(() => this.registry.create(this[__schemas][i]));
+        }
+      }
       p = p.then(() => this.registry.resolve(this)).then(() => {
         let promises: Promise<Router>[] = [];
         this.resources.forEach((resource: Resource) => {

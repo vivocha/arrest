@@ -3,6 +3,7 @@ var chai = require('chai')
   , should = chai.should()
   , supertest = require('supertest')
   , express = require('express')
+  , Scopes = require('../dist/scopes').Scopes
   , API = require('../dist/api').API
   , Resource = require('../dist/resource').Resource
   , Operation = require('../dist/operation').Operation
@@ -633,7 +634,164 @@ describe('Operation', function() {
 
   });
 
-  describe('registered schemas', function() {
+  describe('scopes', function() {
+
+    describe('no scopes supplied', function() {
+
+      const port = 9876;
+      const host = 'localhost:' + port;
+      const basePath = 'http://' + host;
+      const request = supertest(basePath);
+      const app = express();
+      let server;
+
+      class API1 extends API {
+        securityValidator(req, res, next) {
+          next();
+        }
+      }
+      const api = new API1({ info: { version: '1.0.0' }});
+      const spy = chai.spy(function(req, res) {
+        res.send({});
+      });
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super('op1', resource, path, method);
+        }
+        get swaggerScopes() {
+          return [];
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      let r = new Resource({ name: 'Test' }, { '/1': { get: Op1 }, '/2': { get: spy }});
+      api.addResource(r);
+
+      before(function() {
+        return api.router().then(router => {
+          app.use(router);
+          server = app.listen(port);
+        });
+      });
+
+      after(function() {
+        server.close();
+      });
+
+      it('should not perform any scope validation, if the resource does not define scopes', function() {
+        return request
+          .get('/tests/1')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(() => {
+            spy.should.have.been.called.once();
+          });
+      });
+
+      it('should fail if scopes are required and none are supplied', function() {
+        return request
+          .get('/tests/2')
+          .expect(401)
+          .expect('Content-Type', /json/)
+          .then(() => {
+            spy.should.have.been.called.once();
+          });
+      });
+
+    });
+
+    describe('scopes supplied', function() {
+
+      const port = 9876;
+      const host = 'localhost:' + port;
+      const basePath = 'http://' + host;
+      const request = supertest(basePath);
+      const app = express();
+      let server;
+
+      class API1 extends API {
+        securityValidator(req, res, next) {
+          req.scopes = new Scopes([ 'a.*', '*.x', '-a.x', 'c.y' ]);
+          next();
+        }
+      }
+      const api = new API1({ info: { version: '1.0.0' }});
+      const spy = chai.spy(function(req, res) {
+        res.send({});
+      });
+      api.addResource(new Resource({ name: 'a', namePlural: 'a' }, {
+        '/x': {
+          get: spy
+        },
+        '/y': {
+          get: spy
+        }
+      }));
+      api.addResource(new Resource({ name: 'b', namePlural: 'b' }, {
+        '/x': {
+          get: spy
+        },
+        '/y': {
+          get: spy
+        }
+      }));
+      api.addResource(new Resource({ name: 'c', namePlural: 'c' }, {
+        '/x': {
+          get: spy
+        },
+        '/y': {
+          get: spy
+        }
+      }));
+
+      before(function() {
+        return api.router().then(router => {
+          app.use(router);
+          server = app.listen(port);
+        });
+      });
+
+      after(function() {
+        server.close();
+      });
+
+      it('should fail if a required scope is missing', function() {
+        return Promise.all([
+          request
+            .get('/a/x')
+            .expect(403)
+            .expect('Content-Type', /json/),
+          request
+            .get('/b/y')
+            .expect(403)
+            .expect('Content-Type', /json/)
+        ]);
+      });
+
+      it('should succeed if required scopes are present', function() {
+        return Promise.all([
+          request
+            .get('/a/y')
+            .expect(200)
+            .expect('Content-Type', /json/),
+          request
+            .get('/b/x')
+            .expect(200)
+            .expect('Content-Type', /json/),
+          request
+            .get('/c/x')
+            .expect(200)
+            .expect('Content-Type', /json/),
+          request
+            .get('/c/y')
+            .expect(200)
+            .expect('Content-Type', /json/)
+        ]);
+      });
+
+    });
 
   });
 

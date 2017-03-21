@@ -80,8 +80,8 @@ export class Resource implements ResourceDefinition {
   }
 
   addOperation(op: Operation): this;
-  addOperation(path: string, method: Method, handler: OperationFactory | APIRequestHandler): this;
-  addOperation(pathOrOp: any, method?: Method, handler?: OperationFactory | APIRequestHandler): this {
+  addOperation(path: string, method: Method, handler: OperationFactory | APIRequestHandler, id?: string): this;
+  addOperation(pathOrOp: any, method?: Method, handler?: OperationFactory | APIRequestHandler, id?: string): this {
     let op:Operation;
     if (typeof pathOrOp === 'string') {
       if (!method) {
@@ -91,7 +91,7 @@ export class Resource implements ResourceDefinition {
       } else if (Operation.prototype === handler.prototype || Operation.prototype.isPrototypeOf(handler.prototype)) {
         op = new (handler as OperationFactory)(this, pathOrOp as string, method);
       } else {
-        op = new SimpleOperation(this, pathOrOp as string, method, handler as APIRequestHandler);
+        op = new SimpleOperation(this, pathOrOp as string, method, handler as APIRequestHandler, id);
       }
     } else {
       op = pathOrOp as Operation;
