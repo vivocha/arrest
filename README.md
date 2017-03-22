@@ -40,6 +40,8 @@ api.addResource(new arrest.MongoResource('mongodb://localhost:27017', { name: 'T
 api.listen(3000);
 ```
 
+The Swagger specification of the API you just created is available at `http://localhost:3000/swagger.json`
+
 Now you can query your *data* collection like this:
 
 ```bash
