@@ -591,6 +591,13 @@ describe('API', function() {
       should.throw(function() { let s = new Scopes(['']); }, RangeError);
     });
 
+    it('should filter scopes', function() {
+      let ref = new Scopes([ 'a.*', '-a.x', '*.z' ]);
+      ref.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['a.y', 'c.z']);
+      ref.filter([ 'a.x', 'a.y', 'c.x', 'c.y', 'c.z' ]).toArray().should.deep.equal(['a.y', 'c.z']);
+      ref.filter(new Scopes([ 'a.x', 'a.y', 'c.x', 'c.y', 'c.z' ])).toArray().should.deep.equal(['a.y', 'c.z']);
+    });
+
   });
 
 

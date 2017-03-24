@@ -79,7 +79,6 @@ export class Scopes {
     }
     return true;
   }
-  /* TODO currently not used
   filter(_scopes: string | string[] | Scopes): Scopes {
     let scopes: Scopes;
     if (typeof _scopes === 'string' || Array.isArray(_scopes)) {
@@ -97,5 +96,4 @@ export class Scopes {
     }
     return out;
   }
-  */
 }
