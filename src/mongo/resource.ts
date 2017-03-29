@@ -14,7 +14,7 @@ export class MongoResource extends Resource {
   collection: string;
   idIsObjectId?: boolean;
 
-  constructor(db: string | Db, info:MongoResourceDefinition, routes:Routes = MongoResource.defaultRoutes()) {
+  constructor(db: string | Db | Promise<Db>, info:MongoResourceDefinition, routes:Routes = MongoResource.defaultRoutes()) {
     super(info, routes);
     if (!this.collection) {
       this.collection = decamelize('' + this.namePlural, '_');
