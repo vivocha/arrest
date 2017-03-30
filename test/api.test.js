@@ -166,45 +166,13 @@ describe('API', function() {
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
             data.basePath.should.equal('');
-            data.id.should.equal('https://' + host + '/swagger.json#');
+            should.not.exist(data.id);
             should.not.exist(data.tags);
           });
       });
 
-      it('should return a swagger with an http basePath if that\'s the only scheme', function() {
-        api.schemes = [ 'http' ];
-        return request
-          .get('/swagger.json')
-          .expect(200)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            data.id.should.equal('http://' + host + '/swagger.json#');
-          });
-      });
-
-      it('should return a swagger with an http basePath if no scheme is defined (empty array)', function() {
-        api.schemes = [ ];
-        return request
-          .get('/swagger.json')
-          .expect(200)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            data.id.should.equal('http://' + host + '/swagger.json#');
-          });
-      });
-
-      it('should return a swagger with an http basePath if no scheme is defined (no array)', function() {
-        delete api.schemes;
-        return request
-          .get('/swagger.json')
-          .expect(200)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            data.id.should.equal('http://' + host + '/swagger.json#');
-          });
-      });
-
       it('should normalize oauth2 urls in security definitions', function() {
+        delete api.schemes;
         return request
           .get('/swagger.json')
           .expect(200)
@@ -304,7 +272,6 @@ describe('API', function() {
           data.swagger.should.equal('2.0');
           data.host.should.equal(host);
           data.basePath.should.equal('/v3');
-          data.id.should.equal('https://' + host + '/v3/swagger.json#');
         });
     });
 
@@ -321,7 +288,6 @@ describe('API', function() {
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
             data.basePath.should.equal('/v4');
-            data.id.should.equal('https://' + host + '/v4/swagger.json#');
           });
       });
     });
@@ -386,7 +352,6 @@ describe('API', function() {
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
             data.basePath.should.equal('');
-            data.id.should.equal('http://' + host + '/swagger.json#');
             data.schemes.should.deep.equal([ 'http' ]);
           });
       });
@@ -415,7 +380,6 @@ describe('API', function() {
               data.swagger.should.equal('2.0');
               data.host.should.equal(host);
               data.basePath.should.equal('');
-              data.id.should.equal('https://' + host + '/swagger.json#');
               data.schemes.should.deep.equal([ 'https' ]);
             });
         });
@@ -449,7 +413,6 @@ describe('API', function() {
                 data.swagger.should.equal('2.0');
                 data.host.should.equal(host);
                 data.basePath.should.equal('');
-                data.id.should.equal('https://' + host + '/swagger.json#');
                 data.schemes.should.deep.equal([ 'https', 'http' ]);
               }),
             supertest('https://localhost:' + (port + 2))
@@ -461,7 +424,6 @@ describe('API', function() {
                 data.swagger.should.equal('2.0');
                 data.host.should.equal('localhost:' + (port + 2));
                 data.basePath.should.equal('');
-                data.id.should.equal('https://localhost:' + (port + 2) + '/swagger.json#');
                 data.schemes.should.deep.equal([ 'https', 'http' ]);
               })
           ]);

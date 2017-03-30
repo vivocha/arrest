@@ -314,15 +314,15 @@ export class API implements Swagger {
             out.host = req.headers['host'];
             out.basePath = req.baseUrl;
             let proto = this.schemes && this.schemes.length ? this.schemes[0] : 'http';
-            out.id = proto + '://' + out.host + out.basePath + '/swagger.json#';
+            let id = proto + '://' + out.host + out.basePath + '/swagger.json#';
             if (originalSwagger.securityDefinitions) {
               _.each(originalSwagger.securityDefinitions, (i:any, k) => {
                 if (k) {
                   if (i.authorizationUrl) {
-                    out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, out.id, true);
+                    out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, id, true);
                   }
                   if (i.tokenUrl) {
-                    out.securityDefinitions[k].tokenUrl = jr.normalizeUri(i.tokenUrl, out.id, true);
+                    out.securityDefinitions[k].tokenUrl = jr.normalizeUri(i.tokenUrl, id, true);
                   }
                 }
               });
