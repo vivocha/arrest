@@ -156,7 +156,7 @@ export namespace Swagger {
     type?: FullTypes;
     title?: string;
     description?: string;
-    required?: boolean;
+    required?: string[];
     additionalProperties?: FullSchema | boolean;
     items?: FullSchema | FullSchema[];
     allOf?: FullSchema[];
