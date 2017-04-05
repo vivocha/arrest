@@ -136,62 +136,59 @@ export abstract class Operation implements Swagger.Operation {
       this[__scopes] = new Scopes(scopeNames);
     }
   }
-  router(router:Router): Promise<Router> {
-    return new Promise(resolve => {
-      let middlewares:Promise<APIRequestHandler>[] = [];
-      if (this.scopes) {
-        middlewares.push(Promise.resolve((req: APIRequest, res: APIResponse, next: NextFunction) => {
-          req.logger.debug(`checking scope, required: ${this.scopes}`);
-          if (!req.scopes) {
-            req.logger.warn('no scope');
-            next(API.newError(401, 'no scope'));
-          } else if (!req.scopes.match(this.scopes)) {
-            req.logger.warn('insufficient scope', req.scopes);
-            next(API.newError(403, 'insufficient privileges'));
-          } else {
-            req.logger.debug('scope ok');
-            next();
-          }
-        }));
-      }
-      let params = _.groupBy(this.parameters || [], 'in') as {
-        header: Swagger.HeaderParameter[];
-        path: Swagger.PathParameter[];
-        query: Swagger.QueryParameter[];
-        body: Swagger.BodyParameter[];
-      };
-      if (params.header) {
-        middlewares.push(this.createValidators('headers', params.header));
-      }
-      if (params.path) {
-        _.each(params.path, function (i) {
-          i.required = true;
-        });
-        middlewares.push(this.createValidators('params', params.path));
-      }
-      if (params.query) {
-        middlewares.push(this.createValidators('query', params.query));
-      }
-      if (params.body) {
-        middlewares.push(Promise.resolve(jsonParser()));
-        middlewares.push(this.api.registry.create(params.body[0].schema).then((schema:jp.Schema) => {
-          return (req:APIRequest, res:APIResponse, next:NextFunction) => {
-            if (_.isEqual(req.body, {}) && (!parseInt(req.headers['content-length']))) {
-              if (params.body[0].required === true) {
-                throw new jp.ValidationError('body', schema.scope, 'required');
-              }
-            } else {
-              schema.validate(req.body, 'body');
-            }
-            next();
-          }
-        }));
-      }
-      resolve(Promise.all(middlewares).then((middlewares:APIRequestHandler[]) => {
-        router[this.method](this.path, ...middlewares, this.handler.bind(this));
-        return router;
+  async router(router:Router): Promise<Router> {
+    let promises:Promise<APIRequestHandler>[] = [];
+    if (this.scopes) {
+      promises.push(Promise.resolve((req: APIRequest, res: APIResponse, next: NextFunction) => {
+        req.logger.debug(`checking scope, required: ${this.scopes}`);
+        if (!req.scopes) {
+          req.logger.warn('no scope');
+          next(API.newError(401, 'no scope'));
+        } else if (!req.scopes.match(this.scopes)) {
+          req.logger.warn('insufficient scope', req.scopes);
+          next(API.newError(403, 'insufficient privileges'));
+        } else {
+          req.logger.debug('scope ok');
+          next();
+        }
       }));
-    });
+    }
+    let params = _.groupBy(this.parameters || [], 'in') as {
+      header: Swagger.HeaderParameter[];
+      path: Swagger.PathParameter[];
+      query: Swagger.QueryParameter[];
+      body: Swagger.BodyParameter[];
+    };
+    if (params.header) {
+      promises.push(this.createValidators('headers', params.header));
+    }
+    if (params.path) {
+      _.each(params.path, function (i) {
+        i.required = true;
+      });
+      promises.push(this.createValidators('params', params.path));
+    }
+    if (params.query) {
+      promises.push(this.createValidators('query', params.query));
+    }
+    if (params.body) {
+      promises.push(Promise.resolve(jsonParser()));
+      promises.push(this.api.registry.create(params.body[0].schema).then((schema:jp.Schema) => {
+        return (req:APIRequest, res:APIResponse, next:NextFunction) => {
+          if (_.isEqual(req.body, {}) && (!parseInt(req.headers['content-length']))) {
+            if (params.body[0].required === true) {
+              throw new jp.ValidationError('body', schema.scope, 'required');
+            }
+          } else {
+            schema.validate(req.body, 'body');
+          }
+          next();
+        }
+      }));
+    }
+    let middlewares:APIRequestHandler[] = await Promise.all(promises);
+    router[this.method](this.path, ...middlewares, this.handler.bind(this));
+    return router;
   }
 
   abstract handler(req: APIRequest, res: APIResponse, next?: NextFunction);

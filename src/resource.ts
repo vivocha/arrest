@@ -118,25 +118,22 @@ export class Resource implements ResourceDefinition {
 
     this.operations.forEach((op:Operation) => op.attach(api));
   }
-  router(base:Router, options?: RouterOptions): Promise<Router> {
-    return new Promise(resolve => {
-      let r = Router(options);
-      let knownPaths = new Set();
-      let promises: Promise<Router>[] = [];
-      this.operations.forEach((operation: Operation) => {
-        knownPaths.add(operation.path);
-        promises.push(operation.router(r));
-      });
-      resolve(Promise.all(promises).then(() => {
-        knownPaths.forEach(path => {
-          r.all(path, (req: APIRequest, res: APIResponse, next: NextFunction) => {
-            next(API.newError(405, 'Method Not Allowed', "The API Endpoint doesn't support the specified HTTP method for the given resource"));
-          });
-        });
-        base.use(this.basePath, r);
-        return r;
-      }));
+  async router(base:Router, options?: RouterOptions): Promise<Router> {
+    let r = Router(options);
+    let knownPaths = new Set();
+    let promises: Promise<Router>[] = [];
+    this.operations.forEach((operation: Operation) => {
+      knownPaths.add(operation.path);
+      promises.push(operation.router(r));
     });
+    await Promise.all(promises);
+    knownPaths.forEach(path => {
+      r.all(path, (req: APIRequest, res: APIResponse, next: NextFunction) => {
+        next(API.newError(405, 'Method Not Allowed', "The API Endpoint doesn't support the specified HTTP method for the given resource"));
+      });
+    });
+    base.use(this.basePath, r);
+    return r;
   }
 
   static capitalize(s) {

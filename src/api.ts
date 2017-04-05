@@ -266,7 +266,7 @@ export class API implements Swagger {
     }
   }
 
-  listen(httpPort: number, httpsPort?: number, httpsOptions?: https.ServerOptions): Promise<any> {
+  async listen(httpPort: number, httpsPort?: number, httpsOptions?: https.ServerOptions): Promise<any> {
     if (!httpPort && !httpsPort) {
       throw new Error('no listen ports specified');
     } else if (httpPort && !httpsPort) {
@@ -274,25 +274,24 @@ export class API implements Swagger {
     } else if (!httpPort && httpsPort) {
       this.schemes = [ 'https' ];
     }
-    return this.router().then(router => {
-      let app = express();
-      app.use(router);
-      let out: any[] = [];
-      if (httpsPort) {
-        if (!httpsOptions) {
-          throw new Error('no https options');
-        } else {
-          out.push(https.createServer(httpsOptions, app).listen(httpsPort));
-        }
+    let router = await this.router();
+    let app = express();
+    app.use(router);
+    let out: any[] = [];
+    if (httpsPort) {
+      if (!httpsOptions) {
+        throw new Error('no https options');
+      } else {
+        out.push(https.createServer(httpsOptions, app).listen(httpsPort));
       }
-      if (httpPort) {
-        out.push(http.createServer(app).listen(httpPort));
-      }
-      return out.length == 1 ? out[0] : out;
-    });
+    }
+    if (httpPort) {
+      out.push(http.createServer(app).listen(httpPort));
+    }
+    return out.length == 1 ? out[0] : out;
   }
 
-  router(options?: RouterOptions): Promise<Router> {
+  async router(options?: RouterOptions): Promise<Router> {
     if (!this[__router]) {
       this.logger.info('creating router');
       let r = Router(options);
@@ -345,31 +344,26 @@ export class API implements Swagger {
           }
         });
       }
-      let p:Promise<any> = Promise.resolve(true);
       for (let i in this[__schemas]) {
         if (typeof this[__schemas][i] !== 'function') {
-          p = p.then(() => this.registry.create(this[__schemas][i]));
+          await this.registry.create(this[__schemas][i]);
         }
       }
-      p = p.then(() => this.registry.resolve(this)).then(() => {
-        let promises: Promise<Router>[] = [];
-        this.resources.forEach((resource: Resource) => {
-          promises.push(resource.router(r, options));
-        });
-        return Promise.all(promises).then(() => {
-          r.use(API.handleError);
-          return r;
-        });
+      await this.registry.resolve(this)
+      let promises: Promise<Router>[] = [];
+      this.resources.forEach((resource: Resource) => {
+        promises.push(resource.router(r, options));
       });
-      this[__router] = p.then(() => r);
+      await Promise.all(promises);
+      r.use(API.handleError);
+      this[__router] = Promise.resolve(r);
     }
     return this[__router];
   }
-  attach(base:Router, options?: RouterOptions): Promise<Router> {
-    return this.router(options).then(router => {
-      base.use('/v' + semver.major(this.info.version), router);
-      return base;
-    });
+  async attach(base:Router, options?: RouterOptions): Promise<Router> {
+    let router = await this.router(options)
+    base.use('/v' + semver.major(this.info.version), router);
+    return base;
   }
   securityValidator(req:APIRequest, res:APIResponse, next:NextFunction) {
     req.logger.warn('using default security validator');

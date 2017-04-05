@@ -331,7 +331,12 @@ describe('API', function() {
 
     it('should fail if no ports are specified', function() {
       const api = new API({ info: { version: '3.2.1' }});
-      should.throw(function() { api.listen() }, Error, /no listen ports specified/);
+      return api.listen().then(() => {
+        should.fail();
+      }, err => {
+        err.should.be.instanceOf(Error);
+        err.message.should.match(/no listen ports specified/);
+      });
     });
 
     it('should fail if no https options are specified', function() {

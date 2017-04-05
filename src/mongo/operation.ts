@@ -33,18 +33,7 @@ export abstract class MongoOperation extends Operation {
     return super.resource as MongoResource;
   }
   get collection(): Promise<mongo.Collection> {
-    return this.resource.db.then((db:mongo.Db) => {
-      let p: Promise<mongo.Collection> = new Promise((resolve, reject) => {
-        db.collection(this.resource.collection, this.getCollectionOptions(), (err: any, collection?: mongo.Collection) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(collection);
-          }
-        });
-      });
-      return p;
-    });
+    return this.getCollection();
   }
   get requestSchema(): any {
     return this.resource.requestSchema;
@@ -53,6 +42,10 @@ export abstract class MongoOperation extends Operation {
     return this.resource.responseSchema;
   }
 
+  async getCollection(): Promise<mongo.Collection> {
+    let db:mongo.Db = await this.resource.db;
+    return db.collection(this.resource.collection, this.getCollectionOptions())
+  }
   protected getCollectionOptions(): mongo.DbCollectionOptions {
     return {};
   }
@@ -86,20 +79,20 @@ export abstract class MongoOperation extends Operation {
     return out;
   }
 
-  prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareQuery(job:MongoJob): Promise<MongoJob> {
     return job;
   }
-  prepareDoc(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareDoc(job:MongoJob): Promise<MongoJob> {
     return job;
   }
-  prepareOpts(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareOpts(job:MongoJob): Promise<MongoJob> {
     return job;
   }
-  abstract runOperation(job:MongoJob): MongoJob | Promise<MongoJob>;
-  redactResult(job:MongoJob): MongoJob | Promise<MongoJob> {
+  abstract async runOperation(job:MongoJob): Promise<MongoJob>;
+  async redactResult(job:MongoJob): Promise<MongoJob> {
     return job;
   }
-  processResult(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async processResult(job:MongoJob): Promise<MongoJob> {
     if (job.data) {
       job.res.jsonp(job.data);
     } else {
@@ -108,18 +101,19 @@ export abstract class MongoOperation extends Operation {
     return job;
   }
 
-  handler(req:APIRequest, res:APIResponse) {
-    this.collection.then((coll: mongo.Collection) => {
-      return Promise.resolve({ req, res, coll, query: {}, opts: {} } as MongoJob)
-        .then(job => this.prepareQuery(job))
-        .then(job => this.prepareDoc(job))
-        .then(job => this.prepareOpts(job))
-        .then(job => this.runOperation(job))
-        .then(job => this.redactResult(job))
-        .then(job => this.processResult(job));
-    }).catch(err => {
+  async handler(req:APIRequest, res:APIResponse) {
+    try {
+      let coll:mongo.Collection = await this.collection;
+      let job:MongoJob = { req, res, coll, query: {}, opts: {} };
+      await this.prepareQuery(job);
+      await this.prepareDoc(job);
+      await this.prepareOpts(job);
+      await this.runOperation(job);
+      await this.redactResult(job);
+      await this.processResult(job);
+    } catch(err) {
       API.handleError(err, req, res);
-    });
+    }
   }
 }
 
@@ -174,7 +168,7 @@ export class QueryMongoOperation extends MongoOperation {
       }
     });
   }
-  prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = {};
     job.opts = {};
     if (job.req.query.q) {
@@ -182,7 +176,7 @@ export class QueryMongoOperation extends MongoOperation {
     }
     return job;
   }
-  prepareOpts(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareOpts(job:MongoJob): Promise<MongoJob> {
     if (typeof job.req.query.limit !== 'undefined') {
       job.opts.limit = job.req.query.limit;
     }
@@ -207,39 +201,31 @@ export class QueryMongoOperation extends MongoOperation {
     }
     return job;
   }
-  runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async runOperation(job:MongoJob): Promise<MongoJob> {
     let cursor = job.coll.find(job.query);
-
     cursor.maxScan(this.maxScan);
-
-    // false = ignore limit and skip when counting
-    return cursor.count(false, {
+    let matching = await cursor.count(false, { // false = ignore limit and skip when counting
       maxTimeMS: this.maxCountMs
-    }).then(matching => {
-      job.res.set('Results-Matching', matching + '');
-      return matching;
-    }).then(matching => {
-      if (job.opts.fields) cursor.project(job.opts.fields);
-      if (job.opts.sort) cursor.sort(job.opts.sort);
-      if (job.opts.limit) cursor.limit(job.opts.limit);
-      if (job.opts.skip) cursor.skip(job.opts.skip);
-      return cursor.toArray().then(data => {
-        job.data = data;
-        if (job.opts.skip) {
-          job.res.set('Results-Skipped', job.opts.skip);
-        }
-        if (job.opts.skip + job.opts.limit < matching) {
-          let q = Object.assign({}, url.parse(job.req.originalUrl, true).query);
-          q.limit = job.opts.limit;
-          q.skip = job.opts.skip + job.opts.limit;
-          const fullURL = `${job.req.protocol}://${job.req.headers['host']}${job.req.baseUrl}${job.req.path}/?${qs.stringify(q)}`;
-          job.res.set('Link', '<' + fullURL + '>; rel="next"');
-        }
-        return job;
-      });
     });
+    job.res.set('Results-Matching', matching + '');
+    if (job.opts.fields) cursor.project(job.opts.fields);
+    if (job.opts.sort) cursor.sort(job.opts.sort);
+    if (job.opts.limit) cursor.limit(job.opts.limit);
+    if (job.opts.skip) cursor.skip(job.opts.skip);
+    job.data = await cursor.toArray();
+    if (job.opts.skip) {
+      job.res.set('Results-Skipped', job.opts.skip);
+    }
+    if (job.opts.skip + job.opts.limit < matching) {
+      let q = Object.assign({}, url.parse(job.req.originalUrl, true).query);
+      q.limit = job.opts.limit;
+      q.skip = job.opts.skip + job.opts.limit;
+      const fullURL = `${job.req.protocol}://${job.req.headers['host']}${job.req.baseUrl}${job.req.path}/?${qs.stringify(q)}`;
+      job.res.set('Link', '<' + fullURL + '>; rel="next"');
+    }
+    return job;
   }
-  redactResult(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async redactResult(job:MongoJob): Promise<MongoJob> {
     job.data = (job.data as any[]).filter((i: any) => Object.keys(i).length > 0);
     return job;
   }
@@ -271,23 +257,20 @@ export class ReadMongoOperation extends MongoOperation {
       }
     });
   }
-  prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
     return job;
   }
-  prepareOpts(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareOpts(job:MongoJob): Promise<MongoJob> {
     job.opts.fields = this.parseFields(job.req.query.fields);
     return job;
   }
-  runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
-    return job.coll.findOne(job.query, job.opts as mongo.FindOneOptions).then(data => {
-      if (data) {
-        job.data = data;
-        return job;
-      } else {
-        API.fireError(404, 'not_found');
-      }
-    });
+  async runOperation(job:MongoJob): Promise<MongoJob> {
+    job.data = await job.coll.findOne(job.query, job.opts as mongo.FindOneOptions);
+    if (!job.data) {
+      API.fireError(404, 'not_found');
+    }
+    return job;
   }
 }
 
@@ -324,7 +307,7 @@ export class CreateMongoOperation extends MongoOperation {
       }
     });
   }
-  prepareDoc(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareDoc(job:MongoJob): Promise<MongoJob> {
     job.doc = _.cloneDeep(job.req.body);
     let idIsObjectId = this.resource.idIsObjectId || this.resource.id === '_id';
     if (this.resource.id === '_id' && idIsObjectId) {
@@ -333,14 +316,14 @@ export class CreateMongoOperation extends MongoOperation {
     delete job.doc._metadata;
     return job;
   }
-  runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
-    return job.coll.insertOne(job.doc, job.opts as mongo.CollectionInsertOneOptions).then(result => {
+  async runOperation(job:MongoJob): Promise<MongoJob> {
+    try {
+      let result = await job.coll.insertOne(job.doc, job.opts as mongo.CollectionInsertOneOptions);
       job.data = result.ops[0];
       const fullURL = `${job.req.protocol}://${job.req.headers['host']}${job.req.baseUrl}${job.req.path}${job.data['' + this.resource.id]}`;
       job.res.set('Location', fullURL);
       job.res.status(201);
-      return job;
-    }, err => {
+    } catch(err) {
       if (err && err.name === 'MongoError' && err.code === 11000) {
         job.req.logger.error('duplicate key', err);
         API.fireError(400, 'duplicate key');
@@ -348,9 +331,10 @@ export class CreateMongoOperation extends MongoOperation {
         job.req.logger.error('bad result', err);
         API.fireError(500, 'internal');
       }
-    });
+    }
+    return job;
   }
-  redactResult(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async redactResult(job:MongoJob): Promise<MongoJob> {
     if (this.resource.id !== '_id') {
       delete job.data._id;
     }
@@ -389,11 +373,11 @@ export class UpdateMongoOperation extends MongoOperation {
       }
     });
   }
-  prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
     return job;
   }
-  prepareDoc(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareDoc(job:MongoJob): Promise<MongoJob> {
     let out = _.cloneDeep(job.req.body);
     let idIsObjectId = this.resource.idIsObjectId || this.resource.id === '_id';
     if(this.resource.id === '_id' && idIsObjectId) {
@@ -408,22 +392,20 @@ export class UpdateMongoOperation extends MongoOperation {
     };
     return job;
   }
-  prepareOpts(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareOpts(job:MongoJob): Promise<MongoJob> {
     job.opts = { returnOriginal: false };
     return job;
   }
-  runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
-    return job.coll.findOneAndUpdate(job.query, job.doc, job.opts as mongo.FindOneAndReplaceOption).then(result => {
-      if (!result.ok || !result.value) {
-        job.req.logger.error('update failed', result);
-        API.fireError(404, 'not_found');
-      } else {
-        job.data = result.value;
-        return job;
-      }
-    });
+  async runOperation(job:MongoJob): Promise<MongoJob> {
+    let result = await job.coll.findOneAndUpdate(job.query, job.doc, job.opts as mongo.FindOneAndReplaceOption);
+    if (!result.ok || !result.value) {
+      job.req.logger.error('update failed', result);
+      API.fireError(404, 'not_found');
+    }
+    job.data = result.value;
+    return job;
   }
-  redactResult(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async redactResult(job:MongoJob): Promise<MongoJob> {
     if (this.resource.id !== '_id') {
       delete job.data['_id'];
     }
@@ -457,19 +439,17 @@ export class RemoveMongoOperation extends MongoOperation {
       }
     });
   }
-  prepareQuery(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
     return job;
   }
-  runOperation(job:MongoJob): MongoJob | Promise<MongoJob> {
+  async runOperation(job:MongoJob): Promise<MongoJob> {
     let opts = job.opts as { w?: number | string, wtimmeout?: number, j?: boolean, bypassDocumentValidation?: boolean };
-    return job.coll.deleteOne(job.query, opts).then(result => {
-      if (result.deletedCount != 1) {
-        job.req.logger.error('delete failed', result);
-        API.fireError(404, 'not_found');
-      } else {
-        return job;
-      }
-    });
+    let result = await job.coll.deleteOne(job.query, opts);
+    if (result.deletedCount != 1) {
+      job.req.logger.error('delete failed', result);
+      API.fireError(404, 'not_found');
+    }
+    return job;
   }
 }

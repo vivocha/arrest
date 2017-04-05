@@ -167,7 +167,7 @@ export class SchemaRegistry {
     }
   }
 
-  private retriever(url: string): Promise<any> {
+  private async retriever(url: string): Promise<any> {
     return new Promise(function(resolve, reject) {
       request({
         url: url,
@@ -184,10 +184,10 @@ export class SchemaRegistry {
       });
     });
   }
-  resolve(dataOrUri:any): Promise<any> {
+  async resolve(dataOrUri:any): Promise<any> {
     return jr.parse(dataOrUri, this.opts);
   }
-  create(dataOrUri:any): Promise<jp.Schema> {
+  async create(dataOrUri:any): Promise<jp.Schema> {
     return jp.create(dataOrUri, this.opts);
   }
   register(id, data:any) {
