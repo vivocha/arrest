@@ -165,7 +165,7 @@ describe('API', function() {
             should.exist(data);
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
-            data.basePath.should.equal('');
+            data.basePath.should.equal('/');
             should.not.exist(data.id);
             should.not.exist(data.tags);
           });
@@ -271,7 +271,7 @@ describe('API', function() {
           should.exist(data);
           data.swagger.should.equal('2.0');
           data.host.should.equal(host);
-          data.basePath.should.equal('/v3');
+          data.basePath.should.equal('/v3/');
         });
     });
 
@@ -287,7 +287,7 @@ describe('API', function() {
             should.exist(data);
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
-            data.basePath.should.equal('/v4');
+            data.basePath.should.equal('/v4/');
           });
       });
     });
@@ -356,7 +356,7 @@ describe('API', function() {
             should.exist(data);
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
-            data.basePath.should.equal('');
+            data.basePath.should.equal('/');
             data.schemes.should.deep.equal([ 'http' ]);
           });
       });
@@ -384,7 +384,7 @@ describe('API', function() {
               should.exist(data);
               data.swagger.should.equal('2.0');
               data.host.should.equal(host);
-              data.basePath.should.equal('');
+              data.basePath.should.equal('/');
               data.schemes.should.deep.equal([ 'https' ]);
             });
         });
@@ -417,7 +417,7 @@ describe('API', function() {
                 should.exist(data);
                 data.swagger.should.equal('2.0');
                 data.host.should.equal(host);
-                data.basePath.should.equal('');
+                data.basePath.should.equal('/');
                 data.schemes.should.deep.equal([ 'https', 'http' ]);
               }),
             supertest('https://localhost:' + (port + 2))
@@ -428,7 +428,7 @@ describe('API', function() {
                 should.exist(data);
                 data.swagger.should.equal('2.0');
                 data.host.should.equal('localhost:' + (port + 2));
-                data.basePath.should.equal('');
+                data.basePath.should.equal('/');
                 data.schemes.should.deep.equal([ 'https', 'http' ]);
               })
           ]);

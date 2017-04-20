@@ -1,5 +1,6 @@
 import * as http from 'http';
 import * as https from 'https';
+import * as url from 'url';
 import * as _ from 'lodash';
 import * as semver from 'semver';
 import * as jr from 'jsonref';
@@ -311,9 +312,12 @@ export class API implements Swagger {
             next(API.newError(400, 'Bad Request', 'Missing Host header in the request'));
           } else {
             out.host = req.headers['host'];
-            out.basePath = req.baseUrl;
+            out.basePath = req.baseUrl || '/';
+            if (!out.basePath.endsWith('/')) {
+              out.basePath += '/';
+            }
             let proto = this.schemes && this.schemes.length ? this.schemes[0] : 'http';
-            let id = proto + '://' + out.host + out.basePath + '/swagger.json#';
+            let id = url.resolve(proto + '://' + out.host + out.basePath, 'swagger.json#');
             if (originalSwagger.securityDefinitions) {
               _.each(originalSwagger.securityDefinitions, (i:any, k) => {
                 if (k) {
