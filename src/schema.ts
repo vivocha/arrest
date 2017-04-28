@@ -1,6 +1,7 @@
 import * as request from 'request';
-import * as jr from 'jsonref';
-import * as jp from 'jsonpolice';
+import { parse as parseRefs, normalizeUri, ParseOptions } from 'jsonref';
+import { create as createSchema, Schema } from 'jsonpolice';
+import { Swagger } from './swagger';
 import { RESTError } from './error'
 
 const json_schema_draft_04 = {
@@ -155,7 +156,7 @@ const json_schema_draft_04 = {
 }
 
 export class SchemaRegistry {
-  private opts:jr.ParseOptions;
+  private opts:ParseOptions;
 
   constructor(scope?:string) {
     this.opts = {
@@ -185,13 +186,13 @@ export class SchemaRegistry {
     });
   }
   async resolve(dataOrUri:any): Promise<any> {
-    return jr.parse(dataOrUri, this.opts);
+    return parseRefs(dataOrUri, this.opts);
   }
-  async create(dataOrUri:any): Promise<jp.Schema> {
-    return jp.create(dataOrUri, this.opts);
+  async create(dataOrUri:any): Promise<Schema> {
+    return createSchema(dataOrUri, this.opts);
   }
-  register(id, data:any) {
-    data.id = jr.normalizeUri(id);
-    Object.assign(this.opts.store, { [data.id]: data });
+  register(id, schema: Swagger.FullSchema) {
+    schema.id = normalizeUri(id);
+    Object.assign(this.opts.store, { [schema.id]: schema });
   }
 }

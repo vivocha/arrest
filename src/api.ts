@@ -3,8 +3,9 @@ import * as https from 'https';
 import * as url from 'url';
 import * as _ from 'lodash';
 import * as semver from 'semver';
-import * as jr from 'jsonref';
 import * as express from 'express';
+import { normalizeUri } from 'jsonref';
+import { Schema } from 'jsonpolice';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
 import debug, { Logger } from './debug';
@@ -148,7 +149,7 @@ const __default_schema_tag: Swagger.Tag = {
 };
 const __default_options: APIOptions = {
   swagger: true
-}
+};
 
 let reqId: number = 0;
 
@@ -226,16 +227,23 @@ export class API implements Swagger {
     return this;
   }
 
-  registerSchema(id: string, schema: Swagger.Schema | APIRequestHandler) {
+  registerSchema(id: string, schema: Swagger.Schema | Schema) {
     if (!this[__schemas]) {
       this[__schemas] = {};
       this.registerTag(_.cloneDeep(__default_schema_tag));
       this.registerOperation('/schemas/{id}', 'get', _.cloneDeep(__default_schema_operation));
     }
-    this[__schemas][id] = schema;
-    if (typeof schema !== 'function') {
-      this.registry.register(`schemas/${id}`, schema);
+
+    let _schema: Swagger.FullSchema;
+    if (schema instanceof Schema) {
+      _schema = {};
+      Schema.attach(_schema, schema as Schema);
+    } else {
+      _schema = schema as Swagger.FullSchema;
     }
+
+    this[__schemas][id] = _schema;
+    this.registry.register(`schemas/${id}`, _schema);
   }
   registerOperation(path:string, method:string, operation:Swagger.Operation) {
     if (!this.paths) {
@@ -322,10 +330,10 @@ export class API implements Swagger {
               _.each(originalSwagger.securityDefinitions, (i:any, k) => {
                 if (k) {
                   if (i.authorizationUrl) {
-                    out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, id, true);
+                    out.securityDefinitions[k].authorizationUrl = normalizeUri(i.authorizationUrl, id, true);
                   }
                   if (i.tokenUrl) {
-                    out.securityDefinitions[k].tokenUrl = jr.normalizeUri(i.tokenUrl, id, true);
+                    out.securityDefinitions[k].tokenUrl = normalizeUri(i.tokenUrl, id, true);
                   }
                 }
               });
@@ -338,20 +346,14 @@ export class API implements Swagger {
         r.get('/schemas/:id', (req: APIRequest, res: APIResponse, next: NextFunction) => {
           let s = this[__schemas][req.params.id];
           if (s) {
-            if (typeof s === 'function') {
-              (s as APIRequestHandler)(req, res, next);
-            } else {
-              res.json(this[__schemas][req.params.id]);
-            }
+            Schema.get(s as Schema).schema().then(data => res.json(data));
           } else {
             next();
           }
         });
       }
       for (let i in this[__schemas]) {
-        if (typeof this[__schemas][i] !== 'function') {
-          await this.registry.create(this[__schemas][i]);
-        }
+        await this.registry.create(this[__schemas][i]);
       }
       await this.registry.resolve(this)
       let promises: Promise<Router>[] = [];

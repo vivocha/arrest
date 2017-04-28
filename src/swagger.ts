@@ -131,6 +131,7 @@ export namespace Swagger {
   }
 
   export interface BasicSchema {
+    id?: string;
     format?: string;
     ["default"]?: any;
     maximum?: number;

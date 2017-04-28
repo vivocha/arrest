@@ -4,6 +4,7 @@ var chai = require('chai')
   , supertest = require('supertest')
   , pem = require('pem')
   , express = require('express')
+  , Schema = require('jsonpolice').Schema
   , Scopes = require('../dist/scopes').Scopes
   , API = require('../dist/api').API
   , Resource = require('../dist/resource').Resource
@@ -195,11 +196,28 @@ describe('API', function() {
       const app = express();
       const schema1 = { a: true, b: 2 };
       const schema2 = { c: 'd', e: [] };
+
+      class TestSchema extends Schema {
+        constructor(scope, opts) {
+          super(scope, opts);
+        }
+        async schema() {
+          return schema2;
+        }
+        async validate(data, path) {
+          return data;
+        }
+        init() {
+        }
+        default(data) {
+          return data;
+        }
+      }
       let server;
 
       before(function() {
         api.registerSchema('abc', schema1);
-        api.registerSchema('def', (req, res) => res.json(schema2));
+        api.registerSchema('def', new TestSchema());
         return api.router().then(router => {
           app.use(router);
           server = app.listen(port);
@@ -566,7 +584,6 @@ describe('API', function() {
     });
 
   });
-
 
   describe('schema', function() {
 

@@ -1,11 +1,12 @@
 let chai = require('chai')
   , spies = require('chai-spies')
+  , chaiAsPromised = require('chai-as-promised')
   , should = chai.should()
   , express = require('express')
   , SchemaRegistry = require('../dist/schema').SchemaRegistry
 
-
 chai.use(spies);
+chai.use(chaiAsPromised);
 
 describe('SchemaRegistry', function() {
 
@@ -97,9 +98,11 @@ describe('SchemaRegistry', function() {
         additionalProperties: false,
         required: [ 'a' ]
       }).then(function(schema) {
-        (function() { schema.validate({ a: true }) }).should.not.throw();
-        (function() { schema.validate({ a: 1 }) }).should.throw();
-        (function() { schema.validate({ a: true, b: 1 }) }).should.throw();
+        return Promise.all([
+          schema.validate({ a: true }).should.be.fulfilled,
+          schema.validate({ a: 1 }).should.be.rejected,
+          schema.validate({ a: true, b: 1 }).should.be.rejected
+        ]);
       });
     });
 
@@ -124,9 +127,11 @@ describe('SchemaRegistry', function() {
       return registry.create('c').then(function(schema) {
         server.close();
         spy.should.have.been.called.once();
-        (function() { schema.validate({ a: true }) }).should.not.throw();
-        (function() { schema.validate({ a: 1 }) }).should.throw();
-        (function() { schema.validate({ a: true, b: 1 }) }).should.throw();
+        return Promise.all([
+          schema.validate({ a: true }).should.be.fulfilled,
+          schema.validate({ a: 1 }).should.be.rejected,
+          schema.validate({ a: true, b: 1 }).should.be.rejected
+        ]);
       }, function(err) {
         server.close();
         throw err;

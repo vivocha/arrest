@@ -75,37 +75,36 @@ export abstract class Operation implements Swagger.Operation {
     Object.assign(this, info);
     return this;
   }
-  protected createValidators(key: string, parameters: Swagger.Parameter[]): Promise<APIRequestHandler> {
-    return new Promise(resolve => {
-      let validators: Promise<(req: APIRequest) => void>[] = [];
-      parameters.forEach((parameter: Swagger.Parameter) => {
-        let required = parameter.required;
-        delete parameter.required;
-        validators.push(this.api.registry.create(parameter).then((schema: jp.Schema) => {
-          return function (req: APIRequest) {
-            req.logger.debug(`validator ${key}.${parameter.name}`);
-            if (typeof req[key][parameter.name] === 'undefined' && required === true) {
-              throw new jp.ValidationError(key + '.' + parameter.name, (schema as any).scope, 'required');
-            } else {
-              let out = schema.validate(req[key][parameter.name], key + '.' + parameter.name);
-              if (typeof out !== 'undefined') {
-                req[key][parameter.name] = out;
-              } else {
-                delete req[key][parameter.name];
-              }
-            }
+  protected async createValidators(key: string, parameters: Swagger.Parameter[]): Promise<APIRequestHandler> {
+    let validatorFactories: Promise<(req: APIRequest) => Promise<void>>[] = parameters.map(async (parameter: Swagger.Parameter) => {
+      let required = parameter.required;
+      delete parameter.required;
+      let schema:jp.Schema = await this.api.registry.create(parameter);
+
+      return async function(req: APIRequest) {
+        req.logger.debug(`validator ${key}.${parameter.name}, required ${required}, value ${req[key][parameter.name]}`);
+        if (typeof req[key][parameter.name] === 'undefined') {
+          if (required === true) {
+            throw new jp.ValidationError(key + '.' + parameter.name, (schema as any).scope, 'required');
           }
-        }));
-      });
-      resolve(Promise.all(validators).then((validators:((req: APIRequest) => void)[]) => {
-        return function(req:APIRequest, res:APIResponse, next:NextFunction) {
-          req.logger.debug('validating');
-          validators.forEach(v => v(req));
-          req.logger.debug('validated');
-          next();
+        } else {
+          req[key][parameter.name] = await schema.validate(req[key][parameter.name], key + '.' + parameter.name);
         }
-      }));
+      }
     });
+
+    let validators:((req: APIRequest) => Promise<void>)[] = await Promise.all(validatorFactories);
+
+    return async function(req:APIRequest, res:APIResponse, next:NextFunction) {
+      try {
+        for (let v of validators) {
+          await v(req);
+        }
+        next();
+      } catch(err) {
+        next(err);
+      }
+    }
   }
 
   attach(api:API) {
@@ -177,12 +176,13 @@ export abstract class Operation implements Swagger.Operation {
         return (req:APIRequest, res:APIResponse, next:NextFunction) => {
           if (_.isEqual(req.body, {}) && (!parseInt(req.headers['content-length']))) {
             if (params.body[0].required === true) {
-              throw new jp.ValidationError('body', schema.scope, 'required');
+              next(new jp.ValidationError('body', schema.scope, 'required'));
+            } else {
+              next();
             }
           } else {
-            schema.validate(req.body, 'body');
+            schema.validate(req.body, 'body').then(() => next(), err => next(err));
           }
-          next();
         }
       }));
     }
