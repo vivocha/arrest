@@ -5,6 +5,7 @@ var chai = require('chai')
   , pem = require('pem')
   , express = require('express')
   , Schema = require('jsonpolice').Schema
+  , DynamicSchema = require('jsonpolice').DynamicSchema
   , Scopes = require('../dist/scopes').Scopes
   , API = require('../dist/api').API
   , Resource = require('../dist/resource').Resource
@@ -197,20 +198,9 @@ describe('API', function() {
       const schema1 = { a: true, b: 2 };
       const schema2 = { c: 'd', e: [] };
 
-      class TestSchema extends Schema {
-        constructor(scope, opts) {
-          super(scope, opts);
-        }
+      class TestSchema extends DynamicSchema {
         async schema() {
           return schema2;
-        }
-        async validate(data, path) {
-          return data;
-        }
-        init() {
-        }
-        default(data) {
-          return data;
         }
       }
       let server;

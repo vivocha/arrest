@@ -5,7 +5,7 @@ import * as _ from 'lodash';
 import * as semver from 'semver';
 import * as express from 'express';
 import { normalizeUri } from 'jsonref';
-import { Schema } from 'jsonpolice';
+import { Schema, DynamicSchema } from 'jsonpolice';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
 import debug, { Logger } from './debug';
@@ -227,7 +227,7 @@ export class API implements Swagger {
     return this;
   }
 
-  registerSchema(id: string, schema: Swagger.Schema | Schema) {
+  registerSchema(id: string, schema: Swagger.Schema | DynamicSchema) {
     if (!this[__schemas]) {
       this[__schemas] = {};
       this.registerTag(_.cloneDeep(__default_schema_tag));
@@ -235,9 +235,9 @@ export class API implements Swagger {
     }
 
     let _schema: Swagger.FullSchema;
-    if (schema instanceof Schema) {
+    if (schema instanceof DynamicSchema) {
       _schema = {};
-      Schema.attach(_schema, schema as Schema);
+      Schema.attach(_schema, schema as DynamicSchema);
     } else {
       _schema = schema as Swagger.FullSchema;
     }
