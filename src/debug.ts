@@ -8,7 +8,7 @@ export interface Logger {
   debug: debug.IDebugger;
 }
 
-export default function(label: string, context?: string): Logger {
+export function createLogger(label: string, context?: string): Logger {
   let d = context ? function(label:string): debug.IDebugger {
     let origDebugger:debug.IDebugger = debug(label);
     let wrappedDebugger:debug.IDebugger = <debug.IDebugger>function(formatter: string, ...args: any[]) {
