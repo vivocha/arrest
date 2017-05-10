@@ -235,7 +235,7 @@ export class API implements Swagger {
     }
 
     let _schema: Swagger.FullSchema;
-    if (schema instanceof DynamicSchema) {
+    if (schema && typeof (<any>schema).validate === 'function') {
       _schema = {};
       Schema.attach(_schema, schema as DynamicSchema);
     } else {
@@ -346,7 +346,7 @@ export class API implements Swagger {
         r.get('/schemas/:id', (req: APIRequest, res: APIResponse, next: NextFunction) => {
           let s = this[__schemas][req.params.id];
           if (s) {
-            Schema.get(s as Schema).schema().then(data => res.json(data));
+            Schema.get(s).schema().then(data => res.json(data));
           } else {
             next();
           }

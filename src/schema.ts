@@ -189,7 +189,11 @@ export class SchemaRegistry {
     return parseRefs(dataOrUri, this.opts);
   }
   async create(dataOrUri:any): Promise<Schema> {
-    return createSchema(dataOrUri, this.opts);
+    if (typeof dataOrUri === 'object' && Schema.get(dataOrUri)) {
+      return Promise.resolve(Schema.get(dataOrUri));
+    } else {
+      return createSchema(dataOrUri, this.opts);
+    }
   }
   register(id, schema: Swagger.FullSchema) {
     schema.id = normalizeUri(id);
