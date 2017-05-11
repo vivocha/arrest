@@ -154,7 +154,7 @@ export namespace Swagger {
   }
 
   export interface FullSchema extends BasicSchema {
-    type?: FullTypes;
+    type?: FullTypes | FullTypes[];
     title?: string;
     description?: string;
     required?: string[];
