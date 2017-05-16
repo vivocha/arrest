@@ -6,6 +6,7 @@ export interface Logger {
   warn: debug.IDebugger;
   error: debug.IDebugger;
   debug: debug.IDebugger;
+  trace: debug.IDebugger;
 }
 
 export function createLogger(label: string, context?: string): Logger {
@@ -24,6 +25,7 @@ export function createLogger(label: string, context?: string): Logger {
     info: d(label + ':info'),
     warn: d(label + ':warn'),
     error: d(label + ':error'),
-    debug: d(label + ':debug')
+    debug: d(label + ':debug'),
+    trace: d(label + ':trace')
   }
 }
