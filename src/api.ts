@@ -8,7 +8,7 @@ import { normalizeUri } from 'jsonref';
 import { Schema, DynamicSchema } from 'jsonpolice';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
-import { createLogger, Logger } from './debug';
+import { createLogger, Logger } from 'debuggo';
 import { RESTError } from './error';
 import { SchemaRegistry } from './schema';
 import { Swagger } from './swagger';

@@ -1,5 +1,4 @@
 export * from './error';
-export * from './debug';
 export * from './scopes';
 export * from './schema';
 export * from './api';
