@@ -8,7 +8,7 @@ import { normalizeUri } from 'jsonref';
 import { Schema, DynamicSchema } from 'jsonpolice';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
-import { createLogger, Logger } from 'debuggo';
+import { getLogger, Logger } from 'debuggo';
 import { RESTError } from './error';
 import { SchemaRegistry } from './schema';
 import { Swagger } from './swagger';
@@ -187,7 +187,7 @@ export class API implements Swagger {
   externalDocs?: Swagger.ExternalDocs;
 
   constructor(info?:Swagger, options?:APIOptions) {
-    this[__logger] = createLogger(this.getDebugLabel());
+    this[__logger] = getLogger(this.getDebugLabel());
     Object.assign(this, (new Eredita(info || {}, new Eredita(_.cloneDeep(__default_swagger)))).mergePath());
     delete this.paths;
     delete this.tags;
@@ -307,7 +307,7 @@ export class API implements Swagger {
       r.use((_req: Request, res: Response, next: NextFunction) => {
         let req: APIRequest = _req as APIRequest;
         if (!req.logger) {
-          req.logger = createLogger(this.getDebugLabel(), this.getDebugContext());
+          req.logger = getLogger(this.getDebugLabel(), this.getDebugContext());
         }
         next();
       });

@@ -96,7 +96,7 @@
     "body-parser": "^1.17.1",
     "camelcase": "^4.1.0",
     "debug": "^2.6.6",
-    "debuggo": "^1.0.0",
+    "debuggo": "^1.1.1",
     "decamelize": "^1.2.0",
     "eredita": "^1.0.1",
     "express": "^4.15.2",
