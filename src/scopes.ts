@@ -47,7 +47,7 @@ export class Scopes {
     }
     return s;
   }
-  get [Symbol.toStringTag]() {
+  toString(): string {
     return this.toArray().join(' ');
   }
   bestMatch(category: string, operation: string, value: boolean): boolean {
