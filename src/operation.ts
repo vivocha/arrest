@@ -174,7 +174,7 @@ export abstract class Operation implements Swagger.Operation {
       promises.push(Promise.resolve(jsonParser()));
       promises.push(this.api.registry.create(params.body[0].schema).then((schema:jp.Schema) => {
         return (req:APIRequest, res:APIResponse, next:NextFunction) => {
-          if (_.isEqual(req.body, {}) && (!parseInt(req.headers['content-length']))) {
+          if (_.isEqual(req.body, {}) && (!parseInt('' + req.header('content-length')))) {
             if (params.body[0].required === true) {
               next(new jp.ValidationError('body', schema.scope, 'required'));
             } else {

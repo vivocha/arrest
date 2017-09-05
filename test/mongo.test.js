@@ -1,7 +1,7 @@
-let chai = require('chai')
+const chai = require('chai')
   , spies = require('chai-spies')
   , should = chai.should()
-  , mongo = require('mongodb')
+  , mongo = require('mongodoki')
   , supertest = require('supertest')
   , express = require('express')
   , arrest = require('../dist/index')
@@ -10,10 +10,21 @@ let chai = require('chai')
   , MongoOperation = arrest.MongoOperation
   , QueryMongoOperation = arrest.QueryMongoOperation
 
-
 chai.use(spies);
 
 describe('mongo', function() {
+
+  const md = new mongo.Mongodoki();
+
+  before(async function() {
+    this.timeout(0);
+    let db = await md.getDB('local');
+    return db.close();
+  });
+
+  after(async function() {
+    return md.stopAndRemove();
+  });
 
   describe('MongoResource', function() {
 
@@ -26,7 +37,7 @@ describe('mongo', function() {
       });
 
       it('should connect to a mongodb via a connection uri', function() {
-        let r = new MongoResource('mongodb://localhost:27017', { name: 'Test' });
+        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test' });
         r.collection.should.equal('tests');
         r.id.should.equal('_id');
         r.idIsObjectId.should.equal(true);
@@ -35,7 +46,7 @@ describe('mongo', function() {
       });
 
       it('should fail to connect to a wrong connection uri', function() {
-        let r = new MongoResource('mongodb://localhost:57017', { name: 'Test' });
+        let r = new MongoResource('mongodb://localhost:57017/local', { name: 'Test' });
         db = r.db;
         return r.db.then(() => {
           should.fail();
@@ -43,14 +54,14 @@ describe('mongo', function() {
       });
 
       it('should use an existing valid db connection', function() {
-        let c = (new mongo.MongoClient()).connect('mongodb://localhost:27017');
+        let c = mongo.MongoClient.connect('mongodb://localhost:27017/local');
         let r = new MongoResource(c, { name: 'Test' });
         db = r.db;
         return r.db;
       });
 
       it('should fail with an existing failed db connection', function() {
-        let c = (new mongo.MongoClient()).connect('mongodb://localhost:57017');
+        let c = mongo.MongoClient.connect('mongodb://localhost:57017/local');
         let r = new MongoResource(c, { name: 'Test' });
         db = r.db;
         return r.db.then(() => {
@@ -59,7 +70,7 @@ describe('mongo', function() {
       });
 
       it('should use the specified collection and id parameters', function() {
-        let r = new MongoResource('mongodb://localhost:27017', { name: 'Test', collection: 'a', id: 'b', idIsObjectId: false });
+        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: 'a', id: 'b', idIsObjectId: false });
         r.collection.should.equal('a');
         r.id.should.equal('b');
         r.idIsObjectId.should.equal(false);
@@ -71,13 +82,12 @@ describe('mongo', function() {
 
   });
 
-  describe('MongoOperation', function() {
+  describe('MongoOperation', async function() {
 
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
-    const db = (new mongo.MongoClient()).connect('mongodb://localhost:27017');
     const app = express();
     const api = new API();
     const collectionName = 'arrest_test';
@@ -96,31 +106,27 @@ describe('mongo', function() {
       }
     }
 
-    let id;
-    let coll;
-    let r1 = new MongoResource(db, { name: 'Test', collection: collectionName });
-    let r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false });
-    let r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 },  '/2': { get: FakeOp2 }});
-    api.addResource(r1);
-    api.addResource(r2);
-    api.addResource(r3);
+    let db, id, coll, r1, r2, r3;
 
-    before(function() {
-      return api.router().then(router => {
-        app.use(router);
-        server = app.listen(port);
-        return db.then(db => {
-          coll = db.collection(collectionName)
-          return coll.createIndex({ myid: 1}, { unique: true });
-        });
-      });
+    before(async function() {
+      db = await mongo.MongoClient.connect('mongodb://localhost:27017/local');
+      r1 = new MongoResource(db, { name: 'Test', collection: collectionName });
+      r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false });
+      r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 },  '/2': { get: FakeOp2 }});
+      api.addResource(r1);
+      api.addResource(r2);
+      api.addResource(r3);
+
+      let router = await api.router();
+      app.use(router);
+      server = app.listen(port);
+      coll = db.collection(collectionName)
+      return coll.createIndex({ myid: 1}, { unique: true });
     });
 
     after(function() {
       server.close();
-      return db.then(db => {
-        return db.dropCollection(collectionName).then(() => {}, () => {}).then(() => { db.close() });
-      });
+      return db.dropCollection(collectionName).then(() => {}, () => {}).then(() => { db.close() });
     });
 
     it('should install default operation handlers', function() {
