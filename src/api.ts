@@ -179,7 +179,7 @@ export class API implements Swagger {
   consumes?: string[];
   produces?: string[];
   definitions?: Swagger.Definitions;
-  parameters?: Swagger.Parameters;
+  parameters?: Swagger.ParameterDefinitionObject;
   responses?: Swagger.Responses;
   security?: Swagger.Security[];
   securityDefinitions?: Swagger.SecurityDefinitions;

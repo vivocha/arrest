@@ -8,7 +8,7 @@ export interface Swagger {
   consumes?: string[];
   produces?: string[];
   definitions?: Swagger.Definitions;
-  parameters?: Swagger.Parameters;
+  parameters?: Swagger.ParameterDefinitionObject;
   responses?: Swagger.Responses;
   security?: Swagger.Security[];
   securityDefinitions?: Swagger.SecurityDefinitions;
@@ -44,6 +44,10 @@ export namespace Swagger {
 
   export interface Definitions {
     [key:string]: Swagger.Schema
+  }
+
+  export interface ParameterDefinitionObject {
+    [id: string]: Parameter;
   }
 
   export type Parameters = (Parameter | Reference)[];
