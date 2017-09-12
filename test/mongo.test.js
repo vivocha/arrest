@@ -14,7 +14,7 @@ chai.use(spies);
 
 describe('mongo', function() {
 
-  const md = new mongo.Mongodoki();
+  const md = new mongo.Mongodoki({ containerName: 'arrest-test', reuse: true });
 
   before(async function() {
     this.timeout(0);
@@ -30,10 +30,22 @@ describe('mongo', function() {
 
     describe('constructor', function() {
 
+      const collectionName = 'arrest_test';
       let db;
 
-      afterEach(function() {
-        db.then(db => db.close());
+      afterEach(async function() {
+        let _db;
+        if (db) {
+          try {
+            _db = await db;
+            await _db.dropCollection(collectionName);
+          } catch (err) {
+
+          } finally {
+            await _db.close();
+            db = undefined;
+          }
+        }
       });
 
       it('should connect to a mongodb via a connection uri', function() {
@@ -47,10 +59,7 @@ describe('mongo', function() {
 
       it('should fail to connect to a wrong connection uri', function() {
         let r = new MongoResource('mongodb://localhost:57017/local', { name: 'Test' });
-        db = r.db;
-        return r.db.then(() => {
-          should.fail();
-        }, err => true);
+        return r.db.should.be.rejected;
       });
 
       it('should use an existing valid db connection', function() {
@@ -63,10 +72,7 @@ describe('mongo', function() {
       it('should fail with an existing failed db connection', function() {
         let c = mongo.MongoClient.connect('mongodb://localhost:57017/local');
         let r = new MongoResource(c, { name: 'Test' });
-        db = r.db;
-        return r.db.then(() => {
-          should.fail();
-        }, err => true);
+        return r.db.should.be.rejected;
       });
 
       it('should use the specified collection and id parameters', function() {
@@ -76,6 +82,57 @@ describe('mongo', function() {
         r.idIsObjectId.should.equal(false);
         db = r.db;
         return r.db;
+      });
+
+      it('should create the required indexes', async function() {
+        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: collectionName, id: 'b', idIsObjectId: false });
+        r.getIndexes = () => [
+          {
+            key: { a: 1 },
+            unique: true,
+            name: 'test1'
+          }
+        ];
+
+        db = r.db;
+        let coll = await r.getCollection();
+        let indexes = await coll.indexes();
+        return indexes.length.should.equal(2);
+      });
+
+      it('should detect existing indexes matching the required ones', async function() {
+        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: collectionName, id: 'b', idIsObjectId: false });
+        r.getIndexes = () => [
+          {
+            key: { a: 1 },
+            unique: true,
+            name: 'test2'
+          }
+        ];
+
+        db = r.db;
+        let coll = (await db).collection(r.collection);
+        await coll.createIndex({ a: 1 }, { unique: true, name: 'test2' });
+
+        coll = await r.getCollection();
+        let indexes = await coll.indexes();
+        return indexes.length.should.equal(2);
+      });
+
+      it('should fail if an existing index has different options', async function() {
+        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: collectionName, id: 'b', idIsObjectId: false });
+        r.getIndexes = () => [
+          {
+            key: { a: 1 },
+            unique: true,
+            name: 'test3'
+          }
+        ];
+
+        db = r.db;
+        let coll = (await db).collection(r.collection);
+        await coll.createIndex({ a: 1 }, { name: 'test3' });
+        await r.getCollection().should.be.rejected;
       });
 
     });

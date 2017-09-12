@@ -75,6 +75,7 @@
     "@types/decamelize": "^1.2.0",
     "@types/express": "^4.0.37",
     "@types/lodash": "^4.14.74",
+    "@types/mongodb": "^2.2.11",
     "@types/node": "^8.0.26",
     "@types/request": "^2.0.3",
     "@types/semver": "^5.4.0",

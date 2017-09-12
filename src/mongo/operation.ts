@@ -33,7 +33,7 @@ export abstract class MongoOperation extends Operation {
     return super.resource as MongoResource;
   }
   get collection(): Promise<mongo.Collection> {
-    return this.getCollection();
+    return this.resource.getCollection(this.getCollectionOptions());
   }
   get requestSchema(): any {
     return this.resource.requestSchema;
@@ -42,12 +42,8 @@ export abstract class MongoOperation extends Operation {
     return this.resource.responseSchema;
   }
 
-  async getCollection(): Promise<mongo.Collection> {
-    let db:mongo.Db = await this.resource.db;
-    return db.collection(this.resource.collection, this.getCollectionOptions())
-  }
-  protected getCollectionOptions(): mongo.DbCollectionOptions {
-    return {};
+  protected getCollectionOptions(): mongo.DbCollectionOptions | undefined {
+    return undefined;
   }
   protected getItemQuery(_id) {
     let idIsObjectId = this.resource.idIsObjectId || this.resource.id === '_id';

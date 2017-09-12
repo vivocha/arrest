@@ -1,9 +1,13 @@
+import * as _ from 'lodash';
 import * as decamelize from 'decamelize';
-import { MongoClient, Db } from 'mongodb';
+import { getLogger } from 'debuggo';
+import { MongoClient, Db, Collection, DbCollectionOptions } from 'mongodb';
 import { Routes, Resource, ResourceDefinition } from '../resource';
 import { QueryMongoOperation, ReadMongoOperation, CreateMongoOperation, UpdateMongoOperation, RemoveMongoOperation } from './operation';
 
+const logger = getLogger('arrest');
 const __db = Symbol();
+const __indexesChecked = Symbol();
 
 export interface MongoResourceDefinition extends ResourceDefinition {
   collection?: string;
@@ -30,6 +34,7 @@ export class MongoResource extends Resource {
     if (typeof this.idIsObjectId !== 'boolean') {
       this.idIsObjectId = (this.id === '_id');
     }
+    this[__indexesChecked] = false;
   }
 
   get db(): Promise<Db> {
@@ -43,6 +48,53 @@ export class MongoResource extends Resource {
   }
   get responseSchema(): any {
     return this.schema;
+  }
+
+  async checkCollectionIndexes(coll:Collection): Promise<any> {
+    const indexes = this.getIndexes();
+    if (indexes && indexes.length) {
+      let currIndexes;
+      try {
+        currIndexes = await coll.indexes();
+      } catch(e) {
+        currIndexes = [];
+      }
+      for (let i of indexes) {
+        const props = [ 'unique', 'sparse', 'min', 'max', 'expireAfterSeconds', 'key' ];
+
+        let c_i = currIndexes.find(t => {
+          return (typeof i.name === 'undefined' || i.name === t.name) && _.isEqual(_.pick(i, props), _.pick(t, props));
+        });
+        if (!c_i) {
+          logger.info(this.name, 'creating missing index', i);
+          await coll.createIndex(i.key, _.omit(i, 'key'));
+        }
+      }
+    }
+    this[__indexesChecked] = true;
+  }
+  async getCollection(opts?: DbCollectionOptions): Promise<Collection> {
+    let db: Db = await this.db;
+    let coll: Collection = await new Promise<Collection>((resolve, reject) => {
+      // TODO change this as soon as mongodb typings are fixed. Current version does not let you get a promise if you pass options
+      db.collection(this.collection, opts || this.getCollectionOptions(), (err: any, coll?: Collection) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(coll);
+        }
+      });
+    });
+    if (!this[__indexesChecked]) {
+      await this.checkCollectionIndexes(coll);
+    }
+    return coll;
+  }
+  protected getCollectionOptions(): DbCollectionOptions {
+    return { };
+  }
+  protected getIndexes(): any[] | undefined {
+    return undefined;
   }
 
   static defaultRoutes():Routes {
