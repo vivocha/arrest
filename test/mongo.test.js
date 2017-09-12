@@ -14,16 +14,12 @@ chai.use(spies);
 
 describe('mongo', function() {
 
-  const md = new mongo.Mongodoki({ containerName: 'arrest-test', reuse: true });
+  const md = new mongo.Mongodoki({ reuse: true });
 
   before(async function() {
     this.timeout(0);
     let db = await md.getDB('local');
     return db.close();
-  });
-
-  after(async function() {
-    return md.stopAndRemove();
   });
 
   describe('MongoResource', function() {
