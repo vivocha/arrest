@@ -80,15 +80,26 @@ describe('mongo', function() {
         return r.db;
       });
 
+      it('should not fail if a required index is missing and createIndexes is false', async function() {
+        let r = new MongoResource('mongodb://localhost:27017/local', {
+          name: 'Test',
+          collection: collectionName,
+          id: 'b',
+          idIsObjectId: false
+        });
+
+        db = r.db;
+        return r.getCollection();
+      });
+
       it('should create the required indexes', async function() {
-        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: collectionName, id: 'b', idIsObjectId: false });
-        r.getIndexes = () => [
-          {
-            key: { a: 1 },
-            unique: true,
-            name: 'test1'
-          }
-        ];
+        let r = new MongoResource('mongodb://localhost:27017/local', {
+          name: 'Test',
+          collection: collectionName,
+          id: 'b',
+          idIsObjectId: false,
+          createIndexes: true
+        });
 
         db = r.db;
         let coll = await r.getCollection();
@@ -97,18 +108,23 @@ describe('mongo', function() {
       });
 
       it('should detect existing indexes matching the required ones', async function() {
-        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: collectionName, id: 'b', idIsObjectId: false });
+        let r = new MongoResource('mongodb://localhost:27017/local', {
+          name: 'Test',
+          collection: collectionName,
+          id: 'b',
+          idIsObjectId: false,
+          createIndexes: true
+        });
         r.getIndexes = () => [
           {
-            key: { a: 1 },
+            key: { b: 1 },
             unique: true,
-            name: 'test2'
+            name: 'a_1'
           }
         ];
-
         db = r.db;
         let coll = (await db).collection(r.collection);
-        await coll.createIndex({ a: 1 }, { unique: true, name: 'test2' });
+        await coll.createIndex({ b: 1 }, { unique: true });
 
         coll = await r.getCollection();
         let indexes = await coll.indexes();
@@ -116,18 +132,17 @@ describe('mongo', function() {
       });
 
       it('should fail if an existing index has different options', async function() {
-        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: collectionName, id: 'b', idIsObjectId: false });
-        r.getIndexes = () => [
-          {
-            key: { a: 1 },
-            unique: true,
-            name: 'test3'
-          }
-        ];
+        let r = new MongoResource('mongodb://localhost:27017/local', {
+          name: 'Test',
+          collection: collectionName,
+          id: 'b',
+          idIsObjectId: false,
+          createIndexes: true
+        });
 
         db = r.db;
         let coll = (await db).collection(r.collection);
-        await coll.createIndex({ a: 1 }, { name: 'test3' });
+        await coll.createIndex({ b: 1 }, { });
         await r.getCollection().should.be.rejected;
       });
 

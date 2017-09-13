@@ -12,11 +12,13 @@ const __indexesChecked = Symbol();
 export interface MongoResourceDefinition extends ResourceDefinition {
   collection?: string;
   idIsObjectId?: boolean;
+  createIndexes?: boolean;
 }
 
 export class MongoResource extends Resource {
   collection: string;
   idIsObjectId?: boolean;
+  createIndexes?: boolean;
 
   constructor(db: string | Db | Promise<Db>, info:MongoResourceDefinition, routes:Routes = MongoResource.defaultRoutes()) {
     super(info, routes);
@@ -66,8 +68,12 @@ export class MongoResource extends Resource {
           return (typeof i.name === 'undefined' || i.name === t.name) && _.isEqual(_.pick(i, props), _.pick(t, props));
         });
         if (!c_i) {
-          logger.info(this.name, 'creating missing index', i);
-          await coll.createIndex(i.key, _.omit(i, 'key'));
+          if (this.createIndexes) {
+            logger.info(this.name, 'creating missing index', i);
+            await coll.createIndex(i.key, _.omit(i, 'key'));
+          } else {
+            logger.warn(this.name, 'missing index', i);
+          }
         }
       }
     }
@@ -94,7 +100,14 @@ export class MongoResource extends Resource {
     return { };
   }
   protected getIndexes(): any[] | undefined {
-    return undefined;
+    return this.id && this.id !== '_id' ? [
+      {
+        key: {
+          [this.id]: 1
+        },
+        unique: true
+      }
+    ] : undefined;
   }
 
   static defaultRoutes():Routes {
