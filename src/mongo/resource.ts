@@ -21,6 +21,12 @@ export class MongoResource extends Resource {
   createIndexes?: boolean;
 
   constructor(db: string | Db | Promise<Db>, info:MongoResourceDefinition, routes:Routes = MongoResource.defaultRoutes()) {
+    if (typeof info.id !== 'string') {
+      info.id = '_id';
+    }
+    if (typeof info.idIsObjectId !== 'boolean') {
+      info.idIsObjectId = (info.id === '_id');
+    }
     super(info, routes);
     if (!this.collection) {
       this.collection = decamelize('' + this.namePlural, '_');
@@ -29,12 +35,6 @@ export class MongoResource extends Resource {
       this[__db] = MongoClient.connect(db as string);
     } else {
       this[__db] = Promise.resolve(db as Db | Promise<Db>);
-    }
-    if (typeof this.id !== 'string') {
-      this.id = '_id';
-    }
-    if (typeof this.idIsObjectId !== 'boolean') {
-      this.idIsObjectId = (this.id === '_id');
     }
     this[__indexesChecked] = false;
   }
@@ -79,11 +79,11 @@ export class MongoResource extends Resource {
     }
     this[__indexesChecked] = true;
   }
-  async getCollection(opts?: DbCollectionOptions): Promise<Collection> {
+  async getCollection(opts: DbCollectionOptions = this.getCollectionOptions()): Promise<Collection> {
     let db: Db = await this.db;
     let coll: Collection = await new Promise<Collection>((resolve, reject) => {
       // TODO change this as soon as mongodb typings are fixed. Current version does not let you get a promise if you pass options
-      db.collection(this.collection, opts || this.getCollectionOptions(), (err: any, coll?: Collection) => {
+      db.collection(this.collection, opts, (err: any, coll?: Collection) => {
         if (err) {
           reject(err);
         } else {

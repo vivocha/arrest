@@ -355,7 +355,7 @@ export class API implements Swagger {
       for (let i in this[__schemas]) {
         await this.registry.create(this[__schemas][i]);
       }
-      await this.registry.resolve(this)
+      await this.registry.resolve(this);
       let promises: Promise<Router>[] = [];
       this.resources.forEach((resource: Resource) => {
         promises.push(resource.router(r, options));
