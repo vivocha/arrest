@@ -161,8 +161,8 @@ describe('mongo', function() {
     const collectionName = 'arrest_test';
 
     class FakeOp1 extends QueryMongoOperation {
-      getDefaultInfo(id) {
-        let out = super.getDefaultInfo(id);
+      getDefaultInfo() {
+        let out = super.getDefaultInfo();
         delete out.parameters;
         return out;
       }
@@ -308,7 +308,7 @@ describe('mongo', function() {
         };
 
         let r = new MongoResource(db, { name: 'Test', collection: 'aaa' });
-        let c = new TestOperation('x', r, '/', 'get');
+        let c = new TestOperation(r, '/', 'get', 'x');
         c.collection.then(() => should.fail(), err => true);
       });
 

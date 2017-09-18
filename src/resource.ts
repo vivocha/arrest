@@ -94,7 +94,7 @@ export class Resource implements ResourceDefinition {
       } else if (Operation.prototype === handler.prototype || Operation.prototype.isPrototypeOf(handler.prototype)) {
         op = new (handler as OperationFactory)(this, pathOrOp as string, method);
       } else {
-        op = new SimpleOperation(this, pathOrOp as string, method, handler as APIRequestHandler, id);
+        op = new SimpleOperation(handler as APIRequestHandler, this, pathOrOp as string, method, id);
       }
     } else {
       op = pathOrOp as Operation;

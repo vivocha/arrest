@@ -113,11 +113,11 @@ export abstract class MongoOperation extends Operation {
 }
 
 export class QueryMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method) {
-    super('query', resource, path, method);
+  constructor(resource:Resource, path:string, method:Method, id: string = 'query') {
+    super(resource, path, method, id);
   }
-  getDefaultInfo(id: string): Swagger.Operation {
-    return Object.assign(super.getDefaultInfo(id), {
+  protected getDefaultInfo(): Swagger.Operation {
+    return Object.assign(super.getDefaultInfo(), {
       "summary": `Retrieve a list of ${this.resource.namePlural}`,
       "parameters": [
         {
@@ -227,11 +227,11 @@ export class QueryMongoOperation extends MongoOperation {
 }
 
 export class ReadMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method) {
-    super('read', resource, path, method);
+  constructor(resource:Resource, path:string, method:Method, id: string = 'read') {
+    super(resource, path, method, id);
   }
-  getDefaultInfo(id: string): Swagger.Operation {
-    return Object.assign(super.getDefaultInfo(id), {
+  getDefaultInfo(): Swagger.Operation {
+    return Object.assign(super.getDefaultInfo(), {
       "summary": `Retrieve a ${this.resource.name} by id`,
       "parameters": [
         {
@@ -270,12 +270,12 @@ export class ReadMongoOperation extends MongoOperation {
 }
 
 export class CreateMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method) {
-    super('create', resource, path, method);
+  constructor(resource:Resource, path:string, method:Method, id: string = 'create') {
+    super(resource, path, method, id);
   }
-  getDefaultInfo(id: string): Swagger.Operation {
+  getDefaultInfo(): Swagger.Operation {
     let resourceId = '' + this.resource.id;
-    return Object.assign(super.getDefaultInfo(id), {
+    return Object.assign(super.getDefaultInfo(), {
       "summary": `Create a new ${this.resource.name}`,
       "parameters": [
         {
@@ -339,11 +339,11 @@ export class CreateMongoOperation extends MongoOperation {
 }
 
 export class UpdateMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method) {
-    super('update', resource, path, method);
+  constructor(resource:Resource, path:string, method:Method, id: string = 'update') {
+    super(resource, path, method, id);
   }
-  getDefaultInfo(id: string): Swagger.Operation {
-    return Object.assign(super.getDefaultInfo(id), {
+  getDefaultInfo(): Swagger.Operation {
+    return Object.assign(super.getDefaultInfo(), {
       "summary": `Update a ${this.resource.name}`,
       "parameters": [
         {
@@ -409,11 +409,11 @@ export class UpdateMongoOperation extends MongoOperation {
 }
 
 export class RemoveMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method) {
-    super('remove', resource, path, method);
+  constructor(resource:Resource, path:string, method:Method, id: string = 'remove') {
+    super(resource, path, method, id);
   }
-  getDefaultInfo(id: string): Swagger.Operation {
-    return Object.assign(super.getDefaultInfo(id), {
+  getDefaultInfo(): Swagger.Operation {
+    return Object.assign(super.getDefaultInfo(), {
       "summary": `Delete a ${this.resource.name} by id`,
       "parameters": [
         {

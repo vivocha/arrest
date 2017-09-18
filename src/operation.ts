@@ -10,6 +10,7 @@ import { Resource } from './resource';
 const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
 const __api = Symbol();
 const __resource = Symbol();
+const __id = Symbol();
 const __path = Symbol();
 const __method = Symbol();
 const __scopes = Symbol();
@@ -29,11 +30,23 @@ export abstract class Operation implements Swagger.Operation {
   deprecated?: boolean;
   security?: Swagger.Security[];
 
-  constructor(id: string, resource: Resource, path: string, method: Method) {
+  constructor(resource: Resource, path: string, method: Method, id?: string) {
+    if (!id) {
+      id = path;
+      if (id.length && id[0] === '/') {
+        id = id.substr(1);
+      }
+      if (!id.length) {
+        id = method;
+      } else if (method !== 'get') {
+        id += '-' + method;
+      }
+    }
     this[__resource] = resource;
+    this[__id] = id;
     this[__path] = path;
     this[__method] = method;
-    this.setInfo(this.getDefaultInfo(id));
+    this.setInfo(this.getDefaultInfo());
   }
 
   get api():API {
@@ -60,9 +73,9 @@ export abstract class Operation implements Swagger.Operation {
     return this[__scopes];
   }
 
-  protected getDefaultInfo(id: string): Swagger.Operation {
+  protected getDefaultInfo(): Swagger.Operation {
     return {
-      "operationId": `${this.resource.name}.${id}`,
+      "operationId": `${this.resource.name}.${this[__id]}`,
       "tags": [ '' + this.resource.name ],
       "responses": {
         "default": {
@@ -195,19 +208,8 @@ export abstract class Operation implements Swagger.Operation {
 }
 
 export class SimpleOperation extends Operation {
-  constructor(resource: Resource, path: string, method: Method, handler: APIRequestHandler, id?: string) {
-    if (!id) {
-      id = path;
-      if (id.length && id[0] === '/') {
-        id = id.substr(1);
-      }
-      if (!id.length) {
-        id = method;
-      } else if (method !== 'get') {
-        id += '-' + method;
-      }
-    }
-    super(id, resource, path, method);
+  constructor(handler: APIRequestHandler, resource: Resource, path: string, method: Method, id?: string) {
+    super(resource, path, method, id);
     this.handler = handler;
   }
   handler(req: APIRequest, res: APIResponse, next?: NextFunction) {

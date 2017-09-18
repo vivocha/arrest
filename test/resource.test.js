@@ -45,7 +45,7 @@ describe('Resource', function() {
     it('should instantiate the operations specified in the routes, with the routes property', function () {
       class TestOp extends Operation {
         constructor(resource, path, method) {
-          super('aaa', resource, path, method);
+          super(resource, path, method, 'aaa');
         }
       }
       let r = new Resource({name: 'Test', routes: {'/': {get: TestOp}}});
@@ -57,7 +57,7 @@ describe('Resource', function() {
     it('should instantiate the operations specified in the routes, with the routes argument', function () {
       class TestOp extends Operation {
         constructor(resource, path, method) {
-          super('aaa', resource, path, method);
+          super(resource, path, method, 'aaa');
         }
       }
       let r = new Resource({name: 'Test'}, {'/': {get: TestOp}});
@@ -81,7 +81,7 @@ describe('Resource', function() {
     it('should throw if routes are specified twice', function () {
       class TestOp extends Operation {
         constructor(resource, path, method) {
-          super('aaa', resource, path, method);
+          super(resource, path, method, 'aaa');
         }
       }
       should.throw(function () {
@@ -166,7 +166,7 @@ describe('Resource', function() {
       const api = new API({info: {version: '1.0.0'}});
       class TestOp extends Operation {
         constructor(resource, path, method) {
-          super('aaa', resource, path, method);
+          super(resource, path, method, 'aaa');
         }
       }
       let r1 = new Resource({name: 'Test'}, {'/': {get: TestOp}});
@@ -189,7 +189,7 @@ describe('Resource', function() {
 
       class TestOp extends Operation {
         constructor(resource, path, method) {
-          super('aaa', resource, path, method);
+          super(resource, path, method, 'aaa');
         }
       }
       let r = new Resource();
@@ -231,7 +231,7 @@ describe('Resource', function() {
 
     it('should throw if a no handler is specified', function () {
       let r = new Resource();
-      let op = new SimpleOperation(r, '/', 'get', SimpleOperation.prototype.handler);
+      let op = new SimpleOperation(SimpleOperation.prototype.handler, r, '/', 'get');
       should.throw(function () {
         op.handler()
       }, Error, /handler not defined/);

@@ -460,7 +460,7 @@ describe('API', function() {
     const api = new API();
     class Op1 extends Operation {
       constructor(resource, path, method) {
-        super('op1', resource, path, method);
+        super(resource, path, method, 'op1');
       }
       handler(req, res) {
         spy(req, res);
@@ -592,7 +592,7 @@ describe('API', function() {
       const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -695,7 +695,7 @@ describe('API', function() {
       const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {

@@ -38,12 +38,12 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
         }
       }
       class Op2 extends Operation {
         constructor(resource, path, method) {
-          super('op2', resource, path, method);
+          super(resource, path, method, 'op2');
         }
       }
       let r = new Resource({ name: 'Test' }, { '/': { get: Op1, post: Op2 }});
@@ -88,7 +88,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
         }
         handler(req, res) {
           spy(req, res);
@@ -140,7 +140,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -271,7 +271,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -372,7 +372,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -494,7 +494,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -524,7 +524,7 @@ describe('Operation', function() {
       }
       class Op2 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -656,7 +656,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
         }
         get swaggerScopes() {
           return [];
