@@ -377,12 +377,10 @@ export class UpdateMongoOperation extends MongoOperation {
   }
   async prepareDoc(job:MongoJob): Promise<MongoJob> {
     let out = _.cloneDeep(job.req.body);
-    if(this.resource.id === '_id' && this.resource.idIsObjectId) {
-      out['' + this.resource.id] = new mongo.ObjectID(job.req.params.id);
-    } else {
+    if(this.resource.id !== '_id') {
       delete out._id;
-      out['' + this.resource.id] = job.req.params.id;
     }
+    out['' + this.resource.id] = this.resource.idIsObjectId ? new mongo.ObjectID(job.req.params.id) : job.req.params.id;
     delete out._metadata;
     job.doc = {
       $set: out
