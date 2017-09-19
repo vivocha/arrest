@@ -103,6 +103,9 @@ export abstract class MongoOperation extends Operation {
       await this.prepareQuery(job);
       await this.prepareDoc(job);
       await this.prepareOpts(job);
+      req.logger.debug(this.operationId, 'query', job.query);
+      req.logger.debug(this.operationId, 'doc', job.doc);
+      req.logger.debug(this.operationId, 'opts', job.opts);
       await this.runOperation(job);
       await this.redactResult(job);
       await this.processResult(job);
