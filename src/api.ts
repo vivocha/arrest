@@ -244,6 +244,7 @@ export class API implements Swagger {
 
     this[__schemas][id] = _schema;
     this.registry.register(`schemas/${id}`, _schema);
+    this.registry.register(id, _schema);
   }
   registerOperation(path:string, method:string, operation:Swagger.Operation) {
     if (!this.paths) {
