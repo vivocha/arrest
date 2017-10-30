@@ -22,9 +22,9 @@ const __router = Symbol();
 const __default_swagger = {
   swagger: '2.0',
   info: { version: '1.0.0' },
-  schemes: [ "https", "http" ],
-  consumes: [ "application/json" ],
-  produces: [ "application/json" ],
+  schemes: ["https", "http"],
+  consumes: ["application/json"],
+  produces: ["application/json"],
   definitions: {
     "metadata": {
       "description": "Metadata associated with the resource",
@@ -48,7 +48,7 @@ const __default_swagger = {
           "type": "string"
         }
       },
-      "required": [ "error", "message" ]
+      "required": ["error", "message"]
     }
   },
   parameters: {
@@ -184,7 +184,7 @@ export class API implements Swagger {
   tags?: Swagger.Tag[];
   externalDocs?: Swagger.ExternalDocs;
 
-  constructor(info?:Swagger, options?:APIOptions) {
+  constructor(info?: Swagger, options?: APIOptions) {
     this[__logger] = debug(this.getDebugLabel());
     Object.assign(this, (new Eredita(info || {}, new Eredita(_.cloneDeep(__default_swagger)))).mergePath());
     delete this.paths;
@@ -198,10 +198,10 @@ export class API implements Swagger {
     this[__resources] = [];
   }
 
-  get registry():SchemaRegistry {
+  get registry(): SchemaRegistry {
     return this[__registry];
   }
-  get resources():Resource[] {
+  get resources(): Resource[] {
     return this[__resources];
   }
 
@@ -219,7 +219,7 @@ export class API implements Swagger {
     return `#${++reqId}`;
   }
 
-  addResource(resource:Resource): this {
+  addResource(resource: Resource): this {
     this.resources.push(resource);
     resource.attach(this);
     return this;
@@ -236,7 +236,7 @@ export class API implements Swagger {
       this.registry.register(`schemas/${id}`, schema);
     }
   }
-  registerOperation(path:string, method:string, operation:Swagger.Operation) {
+  registerOperation(path: string, method: string, operation: Swagger.Operation) {
     if (!this.paths) {
       this.paths = {};
     }
@@ -249,15 +249,15 @@ export class API implements Swagger {
     }
     this.paths[_path][method] = operation;
   }
-  registerTag(tag:Swagger.Tag) {
+  registerTag(tag: Swagger.Tag) {
     if (!this.tags) {
       this.tags = [];
     }
     this.tags.push(tag);
   }
-  registerOauth2Scope(name:string, description:string): void {
+  registerOauth2Scope(name: string, description: string): void {
     if (this.securityDefinitions) {
-      _.each(_.filter(this.securityDefinitions, { type: 'oauth2' }), (i:Swagger.SecurityOAuth2) => {
+      _.each(_.filter(this.securityDefinitions, { type: 'oauth2' }), (i: Swagger.SecurityOAuth2) => {
         if (!i.scopes) {
           i.scopes = {};
         }
@@ -270,13 +270,14 @@ export class API implements Swagger {
     if (!httpPort && !httpsPort) {
       throw new Error('no listen ports specified');
     } else if (httpPort && !httpsPort) {
-      this.schemes = [ 'http' ];
+      this.schemes = ['http'];
     } else if (!httpPort && httpsPort) {
-      this.schemes = [ 'https' ];
+      this.schemes = ['https'];
     }
     return this.router().then(router => {
-      let app = express();
-      app.use(router);
+      let app = express();      
+      app.use(router); 
+      app.use(API.handle404Error);    
       let out: any[] = [];
       if (httpsPort) {
         if (!httpsOptions) {
@@ -305,9 +306,9 @@ export class API implements Swagger {
       });
       r.use(this.securityValidator.bind(this));
       if (this.options.swagger) {
-        let originalSwagger:Swagger = _.cloneDeep(this) as Swagger;
+        let originalSwagger: Swagger = _.cloneDeep(this) as Swagger;
         r.get('/swagger.json', (req: APIRequest, res: APIResponse, next: NextFunction) => {
-          let out:any = _.cloneDeep(originalSwagger);
+          let out: any = _.cloneDeep(originalSwagger);
           if (!req.headers['host']) {
             next(API.newError(400, 'Bad Request', 'Missing Host header in the request'));
           } else {
@@ -316,7 +317,7 @@ export class API implements Swagger {
             let proto = this.schemes && this.schemes.length ? this.schemes[0] : 'http';
             out.id = proto + '://' + out.host + out.basePath + '/swagger.json#';
             if (originalSwagger.securityDefinitions) {
-              _.each(originalSwagger.securityDefinitions, (i:any, k) => {
+              _.each(originalSwagger.securityDefinitions, (i: any, k) => {
                 if (k) {
                   if (i.authorizationUrl) {
                     out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, out.id, true);
@@ -345,7 +346,7 @@ export class API implements Swagger {
           }
         });
       }
-      let p:Promise<any> = Promise.resolve(true);
+      let p: Promise<any> = Promise.resolve(true);
       for (let i in this[__schemas]) {
         if (typeof this[__schemas][i] !== 'function') {
           p = p.then(() => this.registry.create(this[__schemas][i]));
@@ -365,13 +366,13 @@ export class API implements Swagger {
     }
     return this[__router];
   }
-  attach(base:Router, options?: RouterOptions): Promise<Router> {
+  attach(base: Router, options?: RouterOptions): Promise<Router> {
     return this.router(options).then(router => {
       base.use('/v' + semver.major(this.info.version), router);
       return base;
     });
   }
-  securityValidator(req:APIRequest, res:APIResponse, next:NextFunction) {
+  securityValidator(req: APIRequest, res: APIResponse, next: NextFunction) {
     req.logger.warn('using default security validator');
     if (!req.scopes) {
       req.logger.warn('scopes not set, setting default to *');
@@ -392,10 +393,14 @@ export class API implements Swagger {
       RESTError.send(res, err.code, err.message, err.info);
     } else if (err.name === 'ValidationError') {
       req.logger.error('DATA ERROR', err);
-      RESTError.send(res, 400, err.message, err.path);    
+      RESTError.send(res, 400, err.message, err.path);
     } else {
       req.logger.error('GENERIC ERROR', err, err.stack);
       RESTError.send(res, 500, 'internal');
-    }    
+    }
+  }
+  static handle404Error(req, res, next) {
+    req.logger.warn('404 Resource Not Found');
+    RESTError.send(res, 404, 'Not Found', 'the requested resource cannot be found, check the endpoint URL');
   }
 }

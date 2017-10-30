@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "2.3.0-beta.40",
+  "version": "0.0.0-development",
   "description": "REST framework for Node.js, Express and MongoDB",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -11,7 +11,7 @@
     "check-coverage": "nyc check-coverage --statements 100 --branches 100 --functions 100 --lines 100",
     "report-coverage": "cat ./coverage/lcov.info | codecov",
     "watch:test": "npm t -- -w",
-    "test": "mocha --recursive test/",
+    "test": "mocha --no-timeouts --recursive test/",
     "cover": "nyc --reporter=lcov --reporter=text npm t",
     "semantic-release": "semantic-release pre && npm publish && semantic-release post"
   },
@@ -79,7 +79,7 @@
     "ghooks": "2.0.0",
     "mocha": "3.2.0",
     "nyc": "10.1.2",
-    "pem": "1.9.4",
+    "pem": "^1.12.3",
     "rimraf": "2.5.4",
     "semantic-release": "^6.3.2",
     "supertest": "3.0.0",
