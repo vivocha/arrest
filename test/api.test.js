@@ -14,36 +14,36 @@ var chai = require('chai')
 
 chai.use(spies);
 
-describe('API', function() {
+describe('API', function () {
 
-  describe('constructor', function() {
+  describe('constructor', function () {
 
-    it('should fail to create an API instance if an invalid version is specified', function() {
-      (function() { new API({ info: { version: true }}) }).should.throw(Error, 'invalid_version');
-      (function() { new API({ info: { version: 'a' }}) }).should.throw(Error, 'invalid_version');
-      (function() { new API({ info: { version: 1 }}) }).should.throw(Error, 'invalid_version');
-      (function() { new API({ info: { version: '1' }}) }).should.throw(Error, 'invalid_version');
-      (function() { new API({ info: { version: '1.0' }}) }).should.throw(Error, 'invalid_version');
-      (function() { new API() }).should.not.throw();
+    it('should fail to create an API instance if an invalid version is specified', function () {
+      (function () { new API({ info: { version: true } }) }).should.throw(Error, 'invalid_version');
+      (function () { new API({ info: { version: 'a' } }) }).should.throw(Error, 'invalid_version');
+      (function () { new API({ info: { version: 1 } }) }).should.throw(Error, 'invalid_version');
+      (function () { new API({ info: { version: '1' } }) }).should.throw(Error, 'invalid_version');
+      (function () { new API({ info: { version: '1.0' } }) }).should.throw(Error, 'invalid_version');
+      (function () { new API() }).should.not.throw();
     });
 
-    it('should create an API instance', function() {
+    it('should create an API instance', function () {
       let api = new API();
       api.swagger.should.equal('2.0')
       api.info.version.should.equal('1.0.0')
     });
   });
 
-  describe('router', function() {
+  describe('router', function () {
 
-    it('should return an Expressjs router', function() {
+    it('should return an Expressjs router', function () {
       let api = new API();
       return api.router().then(router => {
         router.should.be.a('function');
       });
     });
 
-    it('should return the same object when called twice', function() {
+    it('should return the same object when called twice', function () {
       let api = new API();
       return api.router().then(router1 => {
         return api.router().then(router2 => {
@@ -54,9 +54,9 @@ describe('API', function() {
 
   });
 
-  describe('plain api (no resources)', function() {
+  describe('plain api (no resources)', function () {
 
-    describe('swagger disabled', function() {
+    describe('swagger disabled', function () {
 
       const port = 9876;
       const host = 'localhost:' + port;
@@ -66,7 +66,7 @@ describe('API', function() {
       const app = express();
       let server;
 
-      before(function() {
+      before(function () {
         api.securityDefinitions = {
           "access_code": {
             "type": "oauth2",
@@ -86,11 +86,11 @@ describe('API', function() {
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should return a the default swagger file', function() {
+      it('should return a the default swagger file', function () {
         return request
           .get('/swagger.json')
           .expect(404);
@@ -98,7 +98,7 @@ describe('API', function() {
 
     });
 
-    describe('/swagger.json', function() {
+    describe('/swagger.json', function () {
 
       const port = 9876;
       const host = 'localhost:' + port;
@@ -108,7 +108,7 @@ describe('API', function() {
       const app = express();
       let server;
 
-      before(function() {
+      before(function () {
         api.securityDefinitions = {
           "access_code": {
             "type": "oauth2",
@@ -128,11 +128,11 @@ describe('API', function() {
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should fail if the request is missing the Host header', function() {
+      it('should fail if the request is missing the Host header', function () {
         let app2 = express();
         let server2;
         return api.router().then(router => {
@@ -158,7 +158,7 @@ describe('API', function() {
         });
       });
 
-      it('should return a the default swagger file', function() {
+      it('should return a the default swagger file', function () {
         return request
           .get('/swagger.json')
           .expect(200)
@@ -173,7 +173,7 @@ describe('API', function() {
           });
       });
 
-      it('should normalize oauth2 urls in security definitions', function() {
+      it('should normalize oauth2 urls in security definitions', function () {
         delete api.schemes;
         return request
           .get('/swagger.json')
@@ -187,7 +187,7 @@ describe('API', function() {
 
     });
 
-    describe('/schemas/{id}', function() {
+    describe('/schemas/{id}', function () {
 
       const port = 9876;
       const host = 'localhost:' + port;
@@ -205,7 +205,7 @@ describe('API', function() {
       }
       let server;
 
-      before(function() {
+      before(function () {
         api.registerSchema('abc', schema1);
         api.registerSchema('def', new TestSchema());
         return api.router().then(router => {
@@ -214,17 +214,17 @@ describe('API', function() {
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should return 404 when an unknown schema is requested', function() {
+      it('should return 404 when an unknown schema is requested', function () {
         return request
           .get('/schemas/aaa')
           .expect(404);
       });
 
-      it('should return the requested static schema', function() {
+      it('should return the requested static schema', function () {
         return request
           .get('/schemas/abc')
           .expect(200)
@@ -234,7 +234,7 @@ describe('API', function() {
           });
       });
 
-      it('should return the requested dynamic schema', function() {
+      it('should return the requested dynamic schema', function () {
         return request
           .get('/schemas/def')
           .expect(200)
@@ -247,18 +247,18 @@ describe('API', function() {
 
   });
 
-  describe('attach', function() {
+  describe('attach', function () {
 
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
-    const api = new API({ info: { version: '3.2.1' }});
+    const api = new API({ info: { version: '3.2.1' } });
     const app = express();
     const r = express.Router();
     let server;
 
-    before(function() {
+    before(function () {
       app.use(r);
       return api.attach(r).then(router => {
         app.use(router);
@@ -266,11 +266,11 @@ describe('API', function() {
       });
     });
 
-    after(function() {
+    after(function () {
       server.close();
     });
 
-    it('should attach the api on /v{major version} and reflect that in the swagger', function() {
+    it('should attach the api on /v{major version} and reflect that in the swagger', function () {
       return request
         .get('/v3/swagger.json')
         .expect(200)
@@ -283,15 +283,15 @@ describe('API', function() {
         });
     });
 
-    it('should attach another api version and reflect that in the swagger', function() {
-      const api2 = new API({ info: { version: '4.0.0' }});
+    it('should attach another api version and reflect that in the swagger', function () {
+      const api2 = new API({ info: { version: '4.0.0' } });
 
       return api2.attach(r).then(() => {
         return request
           .get('/v4/swagger.json')
           .expect(200)
           .expect('Content-Type', /json/)
-          .then(({body: data}) => {
+          .then(({ body: data }) => {
             should.exist(data);
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
@@ -300,16 +300,16 @@ describe('API', function() {
       });
     });
 
-    it('should attach another api with the same version which will handle resources to handled by the fist one', function() {
-      const api3 = new API({ info: { version: '3.2.2' }});
-      api3.addResource(new Resource({ routes: { '/': { get: (req, res) => res.json({ result: 10 }) } } } ));
+    it('should attach another api with the same version which will handle resources to handled by the fist one', function () {
+      const api3 = new API({ info: { version: '3.2.2' } });
+      api3.addResource(new Resource({ routes: { '/': { get: (req, res) => res.json({ result: 10 }) } } }));
 
       return api3.attach(r).then(() => {
         return request
           .get('/v3/resources')
           .expect(200)
           .expect('Content-Type', /json/)
-          .then(({body: data}) => {
+          .then(({ body: data }) => {
             should.exist(data);
             data.result.should.equal(10);
           });
@@ -318,7 +318,7 @@ describe('API', function() {
 
   });
 
-  describe('listen', function() {
+  describe('listen', function () {
 
     const port = 9876;
     const host = 'localhost:' + port;
@@ -327,7 +327,7 @@ describe('API', function() {
     let server1;
     let server2;
 
-    afterEach(function() {
+    afterEach(function () {
       delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
       if (server1) {
         server1.close();
@@ -337,8 +337,8 @@ describe('API', function() {
       }
     });
 
-    it('should fail if no ports are specified', function() {
-      const api = new API({ info: { version: '3.2.1' }});
+    it('should fail if no ports are specified', function () {
+      const api = new API({ info: { version: '3.2.1' } });
       return api.listen().then(() => {
         should.fail();
       }, err => {
@@ -347,32 +347,32 @@ describe('API', function() {
       });
     });
 
-    it('should fail if no https options are specified', function() {
-      const api = new API({ info: { version: '3.2.1' }});
+    it('should fail if no https options are specified', function () {
+      const api = new API({ info: { version: '3.2.1' } });
       api.listen(0, 1).then(() => should.fail(), err => true);
     });
 
-    it('should create an api server listening to http on the requested port', function() {
-      const api = new API({ info: { version: '3.2.1' }});
+    it('should create an api server listening to http on the requested port', function () {
+      const api = new API({ info: { version: '3.2.1' } });
       return api.listen(port).then(server => {
         server1 = server;
         return request
           .get('/swagger.json')
           .expect(200)
           .expect('Content-Type', /json/)
-          .then(({body: data}) => {
+          .then(({ body: data }) => {
             should.exist(data);
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
             data.basePath.should.equal('/');
-            data.schemes.should.deep.equal([ 'http' ]);
+            data.schemes.should.deep.equal(['http']);
           });
       });
     });
 
-    it('should create an api server listening to https on the requested port', function() {
+    it('should create an api server listening to https on the requested port', function () {
       return new Promise((resolve, reject) => {
-        pem.createCertificate({ days: 1, selfSigned: true }, function(err, keys) {
+        pem.createCertificate({ days: 1, selfSigned: true }, function (err, keys) {
           if (err) {
             reject(err);
           } else {
@@ -381,19 +381,19 @@ describe('API', function() {
         });
       }).then(keys => {
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        const api = new API({ info: { version: '3.2.1' }});
+        const api = new API({ info: { version: '3.2.1' } });
         return api.listen(0, port, { key: keys.serviceKey, cert: keys.certificate }).then(server => {
           server1 = server;
           return supertest('https://' + host)
             .get('/swagger.json')
             .expect(200)
             .expect('Content-Type', /json/)
-            .then(({body: data}) => {
+            .then(({ body: data }) => {
               should.exist(data);
               data.swagger.should.equal('2.0');
               data.host.should.equal(host);
               data.basePath.should.equal('/');
-              data.schemes.should.deep.equal([ 'https' ]);
+              data.schemes.should.deep.equal(['https']);
             });
         });
       });
@@ -401,9 +401,9 @@ describe('API', function() {
 
     });
 
-    it('should create an api server listening to both http and https on the requested ports', function() {
+    it('should create an api server listening to both http and https on the requested ports', function () {
       return new Promise((resolve, reject) => {
-        pem.createCertificate({ days: 1, selfSigned: true }, function(err, keys) {
+        pem.createCertificate({ days: 1, selfSigned: true }, function (err, keys) {
           if (err) {
             reject(err);
           } else {
@@ -412,7 +412,7 @@ describe('API', function() {
         });
       }).then(keys => {
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        const api = new API({ info: { version: '3.2.1' }});
+        const api = new API({ info: { version: '3.2.1' } });
         return api.listen(port, port + 2, { key: keys.serviceKey, cert: keys.certificate }).then(servers => {
           server1 = servers[0];
           server2 = servers[1];
@@ -421,23 +421,23 @@ describe('API', function() {
               .get('/swagger.json')
               .expect(200)
               .expect('Content-Type', /json/)
-              .then(({body: data}) => {
+              .then(({ body: data }) => {
                 should.exist(data);
                 data.swagger.should.equal('2.0');
                 data.host.should.equal(host);
                 data.basePath.should.equal('/');
-                data.schemes.should.deep.equal([ 'https', 'http' ]);
+                data.schemes.should.deep.equal(['https', 'http']);
               }),
             supertest('https://localhost:' + (port + 2))
               .get('/swagger.json')
               .expect(200)
               .expect('Content-Type', /json/)
-              .then(({body: data}) => {
+              .then(({ body: data }) => {
                 should.exist(data);
                 data.swagger.should.equal('2.0');
                 data.host.should.equal('localhost:' + (port + 2));
                 data.basePath.should.equal('/');
-                data.schemes.should.deep.equal([ 'https', 'http' ]);
+                data.schemes.should.deep.equal(['https', 'http']);
               })
           ]);
         });
@@ -448,7 +448,7 @@ describe('API', function() {
 
   });
 
-  describe('error handling', function() {
+  describe('error handling', function () {
 
     const port = 9876;
     const host = 'localhost:' + port;
@@ -470,19 +470,19 @@ describe('API', function() {
     let r = new Resource({ name: 'Test' }, { '/a': { get: Op1 } });
     api.addResource(r);
 
-    before(function() {
+    before(function () {
       return api.router().then(router => {
         app.use(router);
         server = app.listen(port);
       });
     });
 
-    after(function() {
+    after(function () {
       server.close();
     });
 
-    it('should return the specified rest error', function() {
-      spy = chai.spy(function(req, res) {
+    it('should return the specified rest error', function () {
+      spy = chai.spy(function (req, res) {
         API.fireError(418);
       });
       return request
@@ -497,8 +497,8 @@ describe('API', function() {
 
     });
 
-    it('should return the specified rest error', function() {
-      spy = chai.spy(function(req, res) {
+    it('should return the specified rest error', function () {
+      spy = chai.spy(function (req, res) {
         API.fireError(418);
       });
       return request
@@ -513,8 +513,8 @@ describe('API', function() {
 
     });
 
-    it('should return 500 as the default error', function() {
-      spy = chai.spy(function(req, res) {
+    it('should return 500 as the default error', function () {
+      spy = chai.spy(function (req, res) {
         throw new Error('bla bla bla');
       });
       return request
@@ -529,8 +529,8 @@ describe('API', function() {
 
     });
 
-    it('should return 405 if an unsupported method is called on a known path', function() {
-      spy = chai.spy(function(req, res) {
+    it('should return 405 if an unsupported method is called on a known path', function () {
+      spy = chai.spy(function (req, res) {
         throw new Error('bla bla bla');
       });
       return request
@@ -542,18 +542,55 @@ describe('API', function() {
           data.info.should.be.a('string');
           spy.should.not.have.been.called();
         });
-
     });
   });
 
-  describe('Scopes', function() {
+  describe('404 Error handling', function () {
+    const port = 9999;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    const api = new API();
+    let spy, server;
+    class Op1 extends Operation {
+      constructor(resource, path, method) {
+        super(resource, path, method, 'op1');
+      }
+      handler(req, res) {
+        spy(req, res);
+      }
+    }
+    let r = new Resource({ name: 'Test' }, { '/a': { get: Op1 } });
+    api.addResource(r);
 
-    it('should return all the scopes as an array', function() {
-      let s = new Scopes([ 'a.x', '-a.z' ]);
+    before(async function () {
+      server = await api.listen(port);
+      return;
+    });
+    after(function(){
+      server.close();
+    })
+
+    it('should return 404 if endpoint refers to an unknown path', function () {
+      return request
+        .get('/tests/unknown')
+        .expect(404)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.message.should.equal('Not Found');
+          data.info.should.be.a('string');
+          data.info.should.contain('the requested resource cannot be found, check the endpoint URL');
+        });
+    });
+  });
+  describe('Scopes', function () {
+
+    it('should return all the scopes as an array', function () {
+      let s = new Scopes(['a.x', '-a.z']);
       s.toArray().should.have.length(2);
     });
 
-    it('should create an empty scopes descriptor', function() {
+    it('should create an empty scopes descriptor', function () {
       let s = new Scopes();
       s.match('a.x').should.equal(false);
       s.match(['a.x']).should.equal(false);
@@ -562,20 +599,20 @@ describe('API', function() {
       s.match(new Scopes('-a.x')).should.equal(true);
     });
 
-    it('should throw if bad scopes are passed', function() {
-      should.throw(function() { let s = new Scopes(['']); }, RangeError);
+    it('should throw if bad scopes are passed', function () {
+      should.throw(function () { let s = new Scopes(['']); }, RangeError);
     });
 
-    it('should filter scopes', function() {
-      let ref = new Scopes([ 'a.*', '-a.x', '*.z' ]);
+    it('should filter scopes', function () {
+      let ref = new Scopes(['a.*', '-a.x', '*.z']);
       ref.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['a.y', 'c.z']);
-      ref.filter([ 'a.x', 'a.y', 'c.x', 'c.y', 'c.z' ]).toArray().should.deep.equal(['a.y', 'c.z']);
-      ref.filter(new Scopes([ 'a.x', 'a.y', 'c.x', 'c.y', 'c.z' ])).toArray().should.deep.equal(['a.y', 'c.z']);
+      ref.filter(['a.x', 'a.y', 'c.x', 'c.y', 'c.z']).toArray().should.deep.equal(['a.y', 'c.z']);
+      ref.filter(new Scopes(['a.x', 'a.y', 'c.x', 'c.y', 'c.z'])).toArray().should.deep.equal(['a.y', 'c.z']);
     });
 
   });
 
-  describe('schema', function() {
+  describe('schema', function () {
 
     const port = 9876;
     const host = 'localhost:' + port;
@@ -583,13 +620,13 @@ describe('API', function() {
     const request = supertest(basePath);
     let server;
 
-    afterEach(function() {
+    afterEach(function () {
       server.close();
     });
 
-    it('should be able to resolve an internal schema', function() {
+    it('should be able to resolve an internal schema', function () {
       debugger;
-      const spy = chai.spy((req, res) => { res.json({})});
+      const spy = chai.spy((req, res) => { res.json({}) });
       const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
@@ -629,7 +666,7 @@ describe('API', function() {
               "e": { $ref: 'op1_schema1#/properties/b' }
             },
             "additionalProperties": false,
-            "required": [ "d" ]
+            "required": ["d"]
           });
           super.attach(api);
         }
@@ -691,8 +728,8 @@ describe('API', function() {
 
     });
 
-    it('should be able to resolve an external schema', function() {
-      const spy = chai.spy((req, res) => { res.json({})});
+    it('should be able to resolve an external schema', function () {
+      const spy = chai.spy((req, res) => { res.json({}) });
       const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {

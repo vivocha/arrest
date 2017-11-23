@@ -287,6 +287,7 @@ export class API implements Swagger {
     let router = await this.router();
     let app = express();
     app.use(router);
+    app.use(API.handle404Error);
     let out: any[] = [];
     if (httpsPort) {
       if (!httpsOptions) {
@@ -398,5 +399,9 @@ export class API implements Swagger {
   }
   static fireError(code: number, message?: string, info?: any, err?: any): never {
     throw API.newError(code, message, info, err);
+  }
+  static handle404Error(req: APIRequest, res: APIResponse, next: NextFunction) {
+    req.logger.warn('404 Resource Not Found');
+    RESTError.send(res, 404, 'Not Found', 'the requested resource cannot be found, check the endpoint URL');
   }
 }
