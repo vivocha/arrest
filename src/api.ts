@@ -362,7 +362,7 @@ export class API implements Swagger {
         promises.push(resource.router(r, options));
       });
       await Promise.all(promises);
-      r.use(API.handleError);
+      r.use(this.handleError);
       this[__router] = Promise.resolve(r);
     }
     return this[__router];
@@ -380,23 +380,23 @@ export class API implements Swagger {
     }
     next();
   }
+  handleError(err: any, req: APIRequest, res: APIResponse, next?: NextFunction) {
+    if (err.name === 'RESTError') {
+      req.logger.error('REST ERROR', err);
+      RESTError.send(res, err.code, err.message, err.info);
+    } else if (err.name === 'ValidationError') {
+      req.logger.error('DATA ERROR', err);
+      RESTError.send(res, 400, err.message, err.path);
+    } else {
+      req.logger.error('GENERIC ERROR', err, err.stack);
+      RESTError.send(res, 500, 'internal');
+    }
+  }
 
   static newError(code: number, message?: string, info?: any, err?: any): RESTError {
     return new RESTError(code, message, info, err);
   }
   static fireError(code: number, message?: string, info?: any, err?: any): never {
     throw API.newError(code, message, info, err);
-  }
-  static handleError(err: any, req: APIRequest, res: APIResponse, next?: NextFunction) {
-    if (err.name === 'RESTError') {
-      req.logger.error('REST ERROR', err);
-      RESTError.send(res, err.code, err.message, err.info);
-    } else if (err.name === 'ValidationError') {
-      req.logger.error('DATA ERROR', err);
-      RESTError.send(res, 400, err.message, err.path);    
-    } else {
-      req.logger.error('GENERIC ERROR', err, err.stack);
-      RESTError.send(res, 500, 'internal');
-    }    
   }
 }

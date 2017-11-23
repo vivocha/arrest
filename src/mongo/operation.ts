@@ -110,7 +110,7 @@ export abstract class MongoOperation extends Operation {
       await this.redactResult(job);
       await this.processResult(job);
     } catch(err) {
-      API.handleError(err, req, res);
+      this.api.handleError(err, req, res);
     }
   }
 }
