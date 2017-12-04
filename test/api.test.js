@@ -599,6 +599,20 @@ describe('API', function () {
       s.match(new Scopes('-a.x')).should.equal(true);
     });
 
+    it('should use a negative wildcard scope when defined', function () {
+      let s = new Scopes([ 'a', '-*.x']);
+      s.match('a.x').should.equal(false);
+      s.match('b.x').should.equal(false);
+      s.match('a.y').should.equal(true);
+      s.match('b.y').should.equal(false);
+
+      s = new Scopes([ '-a', '*.x']);
+      s.match('a.x').should.equal(false);
+      s.match('b.x').should.equal(true);
+      s.match('a.y').should.equal(false);
+      s.match('b.y').should.equal(false);
+    });
+
     it('should throw if bad scopes are passed', function () {
       should.throw(function () { let s = new Scopes(['']); }, RangeError);
     });

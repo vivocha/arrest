@@ -56,6 +56,9 @@ export class Scopes {
       v = this[category][operation];
     } else if (_defined(this[category]) && _defined(this[category]['*'])) {
       v = this[category]['*'];
+      if (v && _defined(this['*']) && _defined(this['*'][operation])) {
+        v = this['*'][operation];
+      }
     } else if (_defined(this['*']) && _defined(this['*'][operation])) {
       v = this['*'][operation];
     } else if (_defined(this['*']) && _defined(this['*']['*'])) {
