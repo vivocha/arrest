@@ -267,7 +267,8 @@ export class API implements Swagger {
   }
   registerOauth2Scope(name:string, description:string): void {
     if (this.securityDefinitions) {
-      _.each(_.filter(this.securityDefinitions, { type: 'oauth2' }), (i:Swagger.SecurityOAuth2) => {
+      const oath2Defs: Swagger.SecurityOAuth2[] = _.filter(this.securityDefinitions, i => i.type === 'oauth2') as Swagger.SecurityOAuth2[];
+      oath2Defs.forEach(i => {
         if (!i.scopes) {
           i.scopes = {};
         }
