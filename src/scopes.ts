@@ -89,11 +89,85 @@ export class Scopes {
     } else {
       scopes = _scopes as Scopes;
     }
-    let out = new Scopes;
-    for (let i in scopes) {
-      for (let j in scopes[i]) {
-        if (this.bestMatch(i, j, scopes[i][j])) {
-          out.set(i, j, scopes[i][j]);
+    const out = new Scopes();
+
+    for (let category in this) {
+      for (let operation in this[category]) {
+        if (!this[category][operation]) {
+          out.set(category, operation, false);
+        }
+      }
+    }
+
+    for (let category in scopes) {
+      for (let operation in scopes[category]) {
+        let value = scopes[category][operation];
+        if (value) {
+          if (category === '*') {
+            if (operation === '*') {
+              if (this['*'] && this['*']['*']) {
+                out.set('*', '*', true);
+              } else {
+                for (let c in this) {
+                  for (let o in this[c]) {
+                    if (this[c][o]) {
+                      out.set(c, o, true);
+                    }
+                  }
+                }
+              }
+            } else if (this['*']) {
+              if (this['*'][operation] || (this['*'][operation] !== false && this['*']['*'])) {
+                out.set('*', operation, true);
+              }
+            } else {
+              for (let c in this) {
+                if (this[c][operation] || this[c]['*']) {
+                  out.set(c, operation, true);
+                }
+              }
+            }
+          } else {
+            if (operation === '*') {
+              if (this[category]) {
+                for (let o in this[category]) {
+                  out.set(category, o, this[category][o]);
+                }
+              } else if (this['*']) {
+                if (this['*']['*']) {
+                  out.set(category, '*', true);
+                } else {
+                  for (let o in this['*']) {
+                    if (this['*'][o]) {
+                      out.set(category, o, true);
+                    }
+                  }
+                }
+              }
+            } else if (this.bestMatch(category, operation, true)) {
+              out.set(category, operation, true);
+            }
+          }
+        } else {
+          out.set(category, operation, false);
+        }
+      }
+    }
+
+    if (!out['*'] || !out['*']['*']) {
+      for (let category in out) {
+        if (category !== '*') {
+          let found = false;
+          for (let operation in out[category]) {
+            if (out[category][operation]) {
+              found = true;
+            } else if (!out[category]['*'] && (!out['*'] || out['*'][operation] === false)) {
+              delete out[category][operation];
+            }
+          }
+          if (!found) {
+            delete out[category];
+          }
         }
       }
     }

@@ -618,10 +618,30 @@ describe('API', function () {
     });
 
     it('should filter scopes', function () {
-      let ref = new Scopes(['a.*', '-a.x', '*.z']);
-      ref.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['a.y', 'c.z']);
-      ref.filter(['a.x', 'a.y', 'c.x', 'c.y', 'c.z']).toArray().should.deep.equal(['a.y', 'c.z']);
-      ref.filter(new Scopes(['a.x', 'a.y', 'c.x', 'c.y', 'c.z'])).toArray().should.deep.equal(['a.y', 'c.z']);
+      let ref1 = new Scopes(['a.*', '-a.x', '*.z']);
+      ref1.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['a.y', 'c.z']);
+      ref1.filter(['a.x', 'a.y', 'c.x', 'c.y', 'c.z']).toArray().should.deep.equal(['a.y', 'c.z']);
+      ref1.filter(new Scopes(['a.x', 'a.y', 'c.x', 'c.y', 'c.z'])).toArray().should.deep.equal(['a.y', 'c.z']);
+
+      let ref2 = new Scopes(['*', '-*.x', '-c']);
+      ref2.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['-*.x','a.y']);
+      ref2.filter(['a.x', 'a.y', 'b.x', 'b.y', 'b.z']).toArray().should.deep.equal(['-*.x', 'a.y', 'b.y', 'b.z']);
+      ref2.filter(new Scopes(['a', 'c'])).toArray().should.deep.equal(['-*.x', 'a.*']);
+      ref2.filter(new Scopes(['*'])).toArray().should.deep.equal(['-*.x', '*.*', '-c.*']);
+      ref2.filter(new Scopes(['*.x', '*.y'])).toArray().should.deep.equal(['-*.x','*.y']);
+      ref2.filter('d.*').toArray().should.deep.equal(['-*.x', 'd.*']);
+
+      let ref3 = new Scopes(['a', 'b', '-c']);
+      ref3.filter('*.x').toArray().should.deep.equal(['a.x', 'b.x']);
+      ref3.filter('*').toArray().should.deep.equal(['a.*', 'b.*']);
+      ref3.filter('* -*.x').toArray().should.deep.equal(['a.*', 'b.*', '-*.x']);
+      ref3.filter('d.*').toArray().should.deep.equal([]);
+
+      let ref4 = new Scopes(['*.x', '-*.y']);
+      ref4.filter('d.*').toArray().should.deep.equal(['-*.y','d.x']);
+
+      let ref5 = new Scopes(['a']);
+      ref5.filter('a.* -a.y').toArray().should.deep.equal(['a.*','-a.y']);
     });
 
   });
