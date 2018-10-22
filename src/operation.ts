@@ -1,11 +1,11 @@
-import * as _ from 'lodash';
-import { Router, RouterOptions, NextFunction } from 'express';
-import * as jp from 'jsonpolice';
 import { json as jsonParser } from 'body-parser';
-import { Swagger } from './swagger';
-import { Scopes } from './scopes';
-import { API, APIRequest, APIResponse, APIRequestHandler } from './api';
+import { NextFunction, Router } from 'express';
+import * as jp from 'jsonpolice';
+import * as _ from 'lodash';
+import { API, APIRequest, APIRequestHandler, APIResponse } from './api';
 import { Resource } from './resource';
+import { Scopes } from './scopes';
+import { Swagger } from './swagger';
 
 const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
 const __api = Symbol();
@@ -119,6 +119,22 @@ export abstract class Operation implements Swagger.Operation {
       }
     }
   }
+  protected useSecurityValidator(): boolean {
+    return !!this.scopes;
+  }
+  protected async securityValidator(req: APIRequest, res: APIResponse): Promise<boolean> {
+    req.logger.debug(`checking scope, required: ${this.scopes}`);
+    if (!req.scopes) {
+      req.logger.warn('no scope');
+      throw API.newError(401, 'no scope');
+    } else if (!req.scopes.match(this.scopes)) {
+      req.logger.warn('insufficient scope', req.scopes);
+      throw API.newError(403, 'insufficient privileges');
+    } else {
+      req.logger.debug('scope ok');
+      return true;
+    }
+  }
 
   attach(api:API) {
     this[__api] = api;
@@ -150,18 +166,13 @@ export abstract class Operation implements Swagger.Operation {
   }
   async router(router:Router): Promise<Router> {
     let promises:Promise<APIRequestHandler>[] = [];
-    if (this.scopes) {
-      promises.push(Promise.resolve((req: APIRequest, res: APIResponse, next: NextFunction) => {
-        req.logger.debug(`checking scope, required: ${this.scopes}`);
-        if (!req.scopes) {
-          req.logger.warn('no scope');
-          next(API.newError(401, 'no scope'));
-        } else if (!req.scopes.match(this.scopes)) {
-          req.logger.warn('insufficient scope', req.scopes);
-          next(API.newError(403, 'insufficient privileges'));
-        } else {
-          req.logger.debug('scope ok');
+    if (this.useSecurityValidator()) {
+      promises.push(Promise.resolve(async (req: APIRequest, res: APIResponse, next: NextFunction) => {
+        try {
+          await this.securityValidator(req, res);
           next();
+        } catch(err) {
+          next(err);
         }
       }));
     }
