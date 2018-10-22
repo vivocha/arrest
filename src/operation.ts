@@ -30,6 +30,13 @@ export abstract class Operation implements Swagger.Operation {
   deprecated?: boolean;
   security?: Swagger.Security[];
 
+  protected [__api]: API;
+  protected [__resource]: Resource;
+  protected [__id]: string;
+  protected [__path]: string;
+  protected [__method]: Method;
+  protected [__scopes]: Scopes;
+
   constructor(resource: Resource, path: string, method: Method, id?: string) {
     if (!id) {
       id = path;

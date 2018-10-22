@@ -1,9 +1,9 @@
 import * as camelcase from 'camelcase';
 import * as decamelize from 'decamelize';
-import { Router, RouterOptions, NextFunction } from 'express';
-import { Swagger } from './swagger';
-import { API, APIRequest, APIResponse, APIRequestHandler } from './api';
+import { NextFunction, Router, RouterOptions } from 'express';
+import { API, APIRequest, APIRequestHandler, APIResponse } from './api';
 import { Method, Operation, SimpleOperation } from './operation';
+import { Swagger } from './swagger';
 
 const __operations = Symbol();
 
@@ -44,6 +44,7 @@ export class Resource implements ResourceDefinition {
   id?: string;
   title?: string;
   summaryFields?: string[];
+  [__operations]: Operation[];
   [ext: string]: any;
 
   constructor(info?: ResourceDefinition, routes?: Routes) {

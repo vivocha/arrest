@@ -1,9 +1,9 @@
-import * as _ from 'lodash';
+import { getLogger } from 'debuggo';
 import * as decamelize from 'decamelize';
-import { getLogger } from 'debuggo';
-import { MongoClient, Db, Collection, DbCollectionOptions } from 'mongodb';
-import { Routes, Resource, ResourceDefinition } from '../resource';
-import { QueryMongoOperation, ReadMongoOperation, CreateMongoOperation, UpdateMongoOperation, RemoveMongoOperation } from './operation';
+import * as _ from 'lodash';
+import { Collection, Db, DbCollectionOptions, MongoClient } from 'mongodb';
+import { Resource, ResourceDefinition, Routes } from '../resource';
+import { CreateMongoOperation, QueryMongoOperation, ReadMongoOperation, RemoveMongoOperation, UpdateMongoOperation } from './operation';
 
 const logger = getLogger('arrest');
 const __db = Symbol();
@@ -19,6 +19,8 @@ export class MongoResource extends Resource {
   collection: string;
   idIsObjectId?: boolean;
   createIndexes?: boolean;
+  [__db]: Promise<Db>;
+  [__indexesChecked]: boolean;
 
   constructor(db: string | Db | Promise<Db>, info:MongoResourceDefinition, routes:Routes = MongoResource.defaultRoutes()) {
     if (typeof info.id !== 'string') {
