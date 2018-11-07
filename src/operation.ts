@@ -56,19 +56,22 @@ export abstract class Operation implements Swagger.Operation {
     this.setInfo(this.getDefaultInfo());
   }
 
-  get api():API {
+  get api(): API {
     return this[__api];
   }
-  get resource():Resource {
+  get resource(): Resource {
     return this[__resource];
   }
-  get path():string {
+  get opId(): string {
+    return this[__id];
+  }
+  get path(): string {
     return this[__path];
   }
   get swaggerPath(): string {
     return this.path.replace(swaggerPathRegExp, "/{$1}");
   }
-  get method():Method {
+  get method(): Method {
     return this[__method];
   }
   get swaggerScopes(): Swagger.Scopes {
@@ -82,7 +85,7 @@ export abstract class Operation implements Swagger.Operation {
 
   protected getDefaultInfo(): Swagger.Operation {
     return {
-      "operationId": `${this.resource.name}.${this[__id]}`,
+      "operationId": `${this.resource.name}.${this.opId}`,
       "tags": [ '' + this.resource.name ],
       "responses": {
         "default": {
