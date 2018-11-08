@@ -207,7 +207,7 @@ export abstract class Operation implements Swagger.Operation {
     if (params.body) {
       promises.push(Promise.resolve(jsonParser()));
       if (this.consumes && this.consumes.find(i => i === 'application/x-www-form-urlencoded')) {
-        promises.push(Promise.resolve(urlencodedParser()));
+        promises.push(Promise.resolve(urlencodedParser({ extended: true })));
       }
       promises.push(this.api.registry.create(params.body[0].schema).then((schema:jp.Schema) => {
         return (req:APIRequest, res:APIResponse, next:NextFunction) => {
