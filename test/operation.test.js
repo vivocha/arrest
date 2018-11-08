@@ -524,7 +524,7 @@ describe('Operation', function() {
       }
       class Op2 extends Operation {
         constructor(resource, path, method) {
-          super(resource, path, method, 'op1');
+          super(resource, path, method, 'op2');
           this.setInfo({
             parameters: [
               {
@@ -541,8 +541,35 @@ describe('Operation', function() {
           res.send({});
         }
       }
+      class Op3 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op3');
+          this.setInfo({
+            consumes: [ 'application/x-www-form-urlencoded' ],
+            parameters: [
+              {
+                "name": "bbb",
+                "in": "body",
+                "schema": {
+                  "type": "object",
+                  "required": [ "test" ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "test": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            ]
+          });
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
 
-      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }});
+      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }, '/c': { post: Op3 }});
       api.addResource(r);
 
       before(function() {
@@ -627,6 +654,17 @@ describe('Operation', function() {
             data.body.a.should.equal(true);
             data.body.b.should.equal(5);
             spy.should.have.been.called.once();
+          });
+      });
+
+      it('should accept and parse urlencoded bodies', function() {
+        return request
+          .post('/tests/c')
+          .send('test=5')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.body.test.should.equal(5);
           });
       });
 

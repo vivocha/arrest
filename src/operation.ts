@@ -1,4 +1,4 @@
-import { json as jsonParser } from 'body-parser';
+import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser';
 import { NextFunction, Router } from 'express';
 import * as jp from 'jsonpolice';
 import * as _ from 'lodash';
@@ -62,7 +62,7 @@ export abstract class Operation implements Swagger.Operation {
   get resource(): Resource {
     return this[__resource];
   }
-  get opId(): string {
+  get internalId(): string {
     return this[__id];
   }
   get path(): string {
@@ -85,7 +85,7 @@ export abstract class Operation implements Swagger.Operation {
 
   protected getDefaultInfo(): Swagger.Operation {
     return {
-      "operationId": `${this.resource.name}.${this.opId}`,
+      "operationId": `${this.resource.name}.${this.internalId}`,
       "tags": [ '' + this.resource.name ],
       "responses": {
         "default": {
@@ -206,6 +206,9 @@ export abstract class Operation implements Swagger.Operation {
     }
     if (params.body) {
       promises.push(Promise.resolve(jsonParser()));
+      if (this.consumes && this.consumes.find(i => i === 'application/x-www-form-urlencoded')) {
+        promises.push(Promise.resolve(urlencodedParser()));
+      }
       promises.push(this.api.registry.create(params.body[0].schema).then((schema:jp.Schema) => {
         return (req:APIRequest, res:APIResponse, next:NextFunction) => {
           if (_.isEqual(req.body, {}) && (!parseInt('' + req.header('content-length')))) {
