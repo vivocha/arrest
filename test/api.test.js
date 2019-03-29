@@ -4,6 +4,8 @@ var chai = require('chai')
   , supertest = require('supertest')
   , pem = require('pem')
   , express = require('express')
+  , Schema = require('jsonpolice').Schema
+  , DynamicSchema = require('jsonpolice').DynamicSchema
   , Scopes = require('../dist/scopes').Scopes
   , API = require('../dist/api').API
   , Resource = require('../dist/resource').Resource
@@ -165,46 +167,14 @@ describe('API', function () {
             should.exist(data);
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
-            data.basePath.should.equal('');
-            data.id.should.equal('https://' + host + '/swagger.json#');
+            data.basePath.should.equal('/');
+            should.not.exist(data.id);
             should.not.exist(data.tags);
           });
       });
 
-      it('should return a swagger with an http basePath if that\'s the only scheme', function () {
-        api.schemes = ['http'];
-        return request
-          .get('/swagger.json')
-          .expect(200)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            data.id.should.equal('http://' + host + '/swagger.json#');
-          });
-      });
-
-      it('should return a swagger with an http basePath if no scheme is defined (empty array)', function () {
-        api.schemes = [];
-        return request
-          .get('/swagger.json')
-          .expect(200)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            data.id.should.equal('http://' + host + '/swagger.json#');
-          });
-      });
-
-      it('should return a swagger with an http basePath if no scheme is defined (no array)', function () {
-        delete api.schemes;
-        return request
-          .get('/swagger.json')
-          .expect(200)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            data.id.should.equal('http://' + host + '/swagger.json#');
-          });
-      });
-
       it('should normalize oauth2 urls in security definitions', function () {
+        delete api.schemes;
         return request
           .get('/swagger.json')
           .expect(200)
@@ -227,11 +197,17 @@ describe('API', function () {
       const app = express();
       const schema1 = { a: true, b: 2 };
       const schema2 = { c: 'd', e: [] };
+
+      class TestSchema extends DynamicSchema {
+        async schema() {
+          return schema2;
+        }
+      }
       let server;
 
       before(function () {
         api.registerSchema('abc', schema1);
-        api.registerSchema('def', (req, res) => res.json(schema2));
+        api.registerSchema('def', new TestSchema());
         return api.router().then(router => {
           app.use(router);
           server = app.listen(port);
@@ -303,8 +279,7 @@ describe('API', function () {
           should.exist(data);
           data.swagger.should.equal('2.0');
           data.host.should.equal(host);
-          data.basePath.should.equal('/v3');
-          data.id.should.equal('https://' + host + '/v3/swagger.json#');
+          data.basePath.should.equal('/v3/');
         });
     });
 
@@ -320,8 +295,7 @@ describe('API', function () {
             should.exist(data);
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
-            data.basePath.should.equal('/v4');
-            data.id.should.equal('https://' + host + '/v4/swagger.json#');
+            data.basePath.should.equal('/v4/');
           });
       });
     });
@@ -365,7 +339,12 @@ describe('API', function () {
 
     it('should fail if no ports are specified', function () {
       const api = new API({ info: { version: '3.2.1' } });
-      should.throw(function () { api.listen() }, Error, /no listen ports specified/);
+      return api.listen().then(() => {
+        should.fail();
+      }, err => {
+        err.should.be.instanceOf(Error);
+        err.message.should.match(/no listen ports specified/);
+      });
     });
 
     it('should fail if no https options are specified', function () {
@@ -385,8 +364,7 @@ describe('API', function () {
             should.exist(data);
             data.swagger.should.equal('2.0');
             data.host.should.equal(host);
-            data.basePath.should.equal('');
-            data.id.should.equal('http://' + host + '/swagger.json#');
+            data.basePath.should.equal('/');
             data.schemes.should.deep.equal(['http']);
           });
       });
@@ -414,8 +392,7 @@ describe('API', function () {
               should.exist(data);
               data.swagger.should.equal('2.0');
               data.host.should.equal(host);
-              data.basePath.should.equal('');
-              data.id.should.equal('https://' + host + '/swagger.json#');
+              data.basePath.should.equal('/');
               data.schemes.should.deep.equal(['https']);
             });
         });
@@ -448,8 +425,7 @@ describe('API', function () {
                 should.exist(data);
                 data.swagger.should.equal('2.0');
                 data.host.should.equal(host);
-                data.basePath.should.equal('');
-                data.id.should.equal('https://' + host + '/swagger.json#');
+                data.basePath.should.equal('/');
                 data.schemes.should.deep.equal(['https', 'http']);
               }),
             supertest('https://localhost:' + (port + 2))
@@ -460,8 +436,7 @@ describe('API', function () {
                 should.exist(data);
                 data.swagger.should.equal('2.0');
                 data.host.should.equal('localhost:' + (port + 2));
-                data.basePath.should.equal('');
-                data.id.should.equal('https://localhost:' + (port + 2) + '/swagger.json#');
+                data.basePath.should.equal('/');
                 data.schemes.should.deep.equal(['https', 'http']);
               })
           ]);
@@ -485,7 +460,7 @@ describe('API', function () {
     const api = new API();
     class Op1 extends Operation {
       constructor(resource, path, method) {
-        super('op1', resource, path, method);
+        super(resource, path, method, 'op1');
       }
       handler(req, res) {
         spy(req, res);
@@ -575,269 +550,306 @@ describe('API', function () {
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
-    
-    let server, spy;
     const api = new API();
+    let spy, server;
     class Op1 extends Operation {
       constructor(resource, path, method) {
-        super('op1', resource, path, method);
+        super(resource, path, method, 'op1');
       }
       handler(req, res) {
         spy(req, res);
       }
     }
-
     let r = new Resource({ name: 'Test' }, { '/a': { get: Op1 } });
     api.addResource(r);
 
-    before(function () {
-      return api.listen(port);
+    before(async function () {
+      server = await api.listen(port);
+      return;
     });
- 
-  it('should return 404 if endpoint refers to an unknown path', function () {
-    spy = chai.spy(function (req, res) {
-      throw new Error('bla bla bla');
+    after(function(){
+      server.close();
+    })
+
+    it('should return 404 if endpoint refers to an unknown path', function () {
+      return request
+        .get('/tests/unknown')
+        .expect(404)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.message.should.equal('Not Found');
+          data.info.should.be.a('string');
+          data.info.should.contain('the requested resource cannot be found, check the endpoint URL');
+        });
     });
-    return request
-      .post('/tests/unknown')
-      .expect(404)
-      .expect('Content-Type', /json/)
-      .then(({ body: data }) => {
-        data.message.should.equal('Not Found');
-        data.info.should.be.a('string');
-        data.info.should.contain('the requested resource cannot be found, check the endpoint URL');
-        spy.should.not.have.been.called();
+  });
+  describe('Scopes', function () {
+
+    it('should return all the scopes as an array', function () {
+      let s = new Scopes(['a.x', '-a.z']);
+      s.toArray().should.have.length(2);
+    });
+
+    it('should create an empty scopes descriptor', function () {
+      let s = new Scopes();
+      s.match('a.x').should.equal(false);
+      s.match(['a.x']).should.equal(false);
+      s.match(new Scopes('+a.x')).should.equal(false);
+      s.match('-a.x').should.equal(true);
+      s.match(new Scopes('-a.x')).should.equal(true);
+    });
+
+    it('should use a negative wildcard scope when defined', function () {
+      let s = new Scopes([ 'a', '-*.x']);
+      s.match('a.x').should.equal(false);
+      s.match('b.x').should.equal(false);
+      s.match('a.y').should.equal(true);
+      s.match('b.y').should.equal(false);
+
+      s = new Scopes([ '-a', '*.x']);
+      s.match('a.x').should.equal(false);
+      s.match('b.x').should.equal(true);
+      s.match('a.y').should.equal(false);
+      s.match('b.y').should.equal(false);
+    });
+
+    it('should throw if bad scopes are passed', function () {
+      should.throw(function () { let s = new Scopes(['']); }, RangeError);
+    });
+
+    it('should filter scopes', function () {
+      let ref1 = new Scopes(['a.*', '-a.x', '*.z']);
+      ref1.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['a.y', 'c.z']);
+      ref1.filter(['a.x', 'a.y', 'c.x', 'c.y', 'c.z']).toArray().should.deep.equal(['a.y', 'c.z']);
+      ref1.filter(new Scopes(['a.x', 'a.y', 'c.x', 'c.y', 'c.z'])).toArray().should.deep.equal(['a.y', 'c.z']);
+
+      let ref2 = new Scopes(['*', '-*.x', '-c']);
+      ref2.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['-*.x','a.y']);
+      ref2.filter(['a.x', 'a.y', 'b.x', 'b.y', 'b.z']).toArray().should.deep.equal(['-*.x', 'a.y', 'b.y', 'b.z']);
+      ref2.filter(new Scopes(['a', 'c'])).toArray().should.deep.equal(['-*.x', 'a.*']);
+      ref2.filter(new Scopes(['*'])).toArray().should.deep.equal(['-*.x', '*.*', '-c.*']);
+      ref2.filter(new Scopes(['*.x', '*.y'])).toArray().should.deep.equal(['-*.x','*.y']);
+      ref2.filter('d.*').toArray().should.deep.equal(['-*.x', 'd.*']);
+
+      let ref3 = new Scopes(['a', 'b', '-c']);
+      ref3.filter('*.x').toArray().should.deep.equal(['a.x', 'b.x']);
+      ref3.filter('*').toArray().should.deep.equal(['a.*', 'b.*']);
+      ref3.filter('* -*.x').toArray().should.deep.equal(['a.*', 'b.*', '-*.x']);
+      ref3.filter('d.*').toArray().should.deep.equal([]);
+
+      let ref4 = new Scopes(['*.x', '-*.y']);
+      ref4.filter('d.*').toArray().should.deep.equal(['-*.y','d.x']);
+
+      let ref5 = new Scopes(['a']);
+      ref5.filter('a.* -a.y').toArray().should.deep.equal(['a.*','-a.y']);
+    });
+
+  });
+
+  describe('schema', function () {
+
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    let server;
+
+    afterEach(function () {
+      server.close();
+    });
+
+    it('should be able to resolve an internal schema', function () {
+      debugger;
+      const spy = chai.spy((req, res) => { res.json({}) });
+      const api = new API();
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+          this.setInfo({
+            parameters: [
+              {
+                "name": "aaa",
+                "in": "body",
+                "schema": { $ref: 'schemas/op1_schema2' },
+                "required": true
+              }
+            ]
+          });
+        }
+        attach(api) {
+          api.registerSchema('op1_schema1', {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "boolean"
+              },
+              "b": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false,
+            "required": ["a"]
+          });
+          api.registerSchema('op1_schema2', {
+            "type": "object",
+            "properties": {
+              "c": {
+                "type": "string"
+              },
+              "d": { $ref: 'op1_schema1' },
+              "e": { $ref: 'op1_schema1#/properties/b' }
+            },
+            "additionalProperties": false,
+            "required": ["d"]
+          });
+          super.attach(api);
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
+
+      return api.router().then(router => {
+        const app = express();
+        app.use(router);
+        server = app.listen(port);
+
+        return Promise.all([
+          request
+            .post('/tests/a')
+            .send({})
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('required');
+              data.info.should.equal('body/d');
+            }),
+          request
+            .post('/tests/a')
+            .send({ d: {} })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('required');
+              data.info.should.equal('body/d/a');
+            }),
+          request
+            .post('/tests/a')
+            .send({ d: { a: true }, e: true })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('type');
+              data.info.should.equal('body/e');
+            }),
+          request
+            .post('/tests/a')
+            .send({ d: { a: true }, e: 1 })
+            .expect(200)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+            })
+        ]).then(() => {
+          spy.should.have.been.called.once();
+        });
       });
 
-  });
-});
+    });
 
-describe('Scopes', function () {
-
-  it('should return all the scopes as an array', function () {
-    let s = new Scopes(['a.x', '-a.z']);
-    s.toArray().should.have.length(2);
-  });
-
-  it('should create an empty scopes descriptor', function () {
-    let s = new Scopes();
-    s.match('a.x').should.equal(false);
-    s.match(['a.x']).should.equal(false);
-    s.match(new Scopes('+a.x')).should.equal(false);
-    s.match('-a.x').should.equal(true);
-    s.match(new Scopes('-a.x')).should.equal(true);
-  });
-
-  it('should throw if bad scopes are passed', function () {
-    should.throw(function () { let s = new Scopes(['']); }, RangeError);
-  });
-
-});
-
-
-describe('schema', function () {
-
-  const port = 9876;
-  const host = 'localhost:' + port;
-  const basePath = 'http://' + host;
-  const request = supertest(basePath);
-  let server;
-
-  afterEach(function () {
-    server.close();
-  });
-
-  it('should be able to resolve an internal schema', function () {
-    const spy = chai.spy((req, res) => { res.json({}) });
-    const api = new API();
-    class Op1 extends Operation {
-      constructor(resource, path, method) {
-        super('op1', resource, path, method);
-        this.setInfo({
-          parameters: [
-            {
-              "name": "aaa",
-              "in": "body",
-              "schema": { $ref: 'schemas/op1_schema2' },
-              "required": true
-            }
-          ]
-        });
+    it('should be able to resolve an external schema', function () {
+      const spy = chai.spy((req, res) => { res.json({}) });
+      const api = new API();
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+          this.setInfo({
+            parameters: [
+              {
+                "name": "aaa",
+                "in": "body",
+                "schema": { $ref: `${basePath}/aaa` },
+                "required": true
+              }
+            ]
+          });
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
       }
-      attach(api) {
-        api.registerSchema('op1_schema1', {
-          "type": "object",
-          "properties": {
-            "a": {
-              "type": "boolean"
-            },
-            "b": {
-              "type": "integer"
-            }
-          },
-          "additionalProperties": false,
-          "required": ["a"]
-        });
-        api.registerSchema('op1_schema2', {
-          "type": "object",
-          "properties": {
-            "c": {
-              "type": "string"
-            },
-            "d": { $ref: 'op1_schema1' },
-            "e": { $ref: 'op1_schema1#/properties/b' }
-          },
-          "additionalProperties": false,
-          "required": ["d"]
-        });
-        super.attach(api);
-      }
-      handler(req, res) {
-        spy(req, res);
-      }
-    }
 
-    api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
-
-    return api.router().then(router => {
       const app = express();
-      app.use(router);
+      app.get('/aaa', (req, res) => res.json({
+        "type": "object",
+        "properties": {
+          "h": {
+            "type": "boolean"
+          },
+          "i": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["h"]
+      }));
       server = app.listen(port);
 
-      return Promise.all([
-        request
-          .post('/tests/a')
-          .send({})
-          .expect(400)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            should.exist(data);
-            data.message.should.equal('required');
-            data.info.should.equal('body/d');
-          }),
-        request
-          .post('/tests/a')
-          .send({ d: {} })
-          .expect(400)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            should.exist(data);
-            data.message.should.equal('required');
-            data.info.should.equal('body/d/a');
-          }),
-        request
-          .post('/tests/a')
-          .send({ d: { a: true }, e: true })
-          .expect(400)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            should.exist(data);
-            data.message.should.equal('type');
-            data.info.should.equal('body/e');
-          }),
-        request
-          .post('/tests/a')
-          .send({ d: { a: true }, e: 1 })
-          .expect(200)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            should.exist(data);
-          })
-      ]).then(() => {
-        spy.should.have.been.called.once();
-      });
+      api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
+
+      return api.router().then(router => {
+        app.use(router);
+
+        return Promise.all([
+          request
+            .post('/tests/a')
+            .send({})
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('required');
+              data.info.should.equal('body/h');
+            }),
+          request
+            .post('/tests/a')
+            .send({ h: 1 })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('type');
+              data.info.should.equal('body/h');
+            }),
+          request
+            .post('/tests/a')
+            .send({ h: true, i: true })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('type');
+              data.info.should.equal('body/i');
+            }),
+          request
+            .post('/tests/a')
+            .send({ h: true, i: 1 })
+            .expect(200)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+            })
+        ]).then(() => {
+          spy.should.have.been.called.once();
+        });
+      })
     });
 
   });
-
-  it('should be able to resolve an external schema', function () {
-    const spy = chai.spy((req, res) => { res.json({}) });
-    const api = new API();
-    class Op1 extends Operation {
-      constructor(resource, path, method) {
-        super('op1', resource, path, method);
-        this.setInfo({
-          parameters: [
-            {
-              "name": "aaa",
-              "in": "body",
-              "schema": { $ref: `${basePath}/aaa` },
-              "required": true
-            }
-          ]
-        });
-      }
-      handler(req, res) {
-        spy(req, res);
-      }
-    }
-
-    const app = express();
-    app.get('/aaa', (req, res) => res.json({
-      "type": "object",
-      "properties": {
-        "h": {
-          "type": "boolean"
-        },
-        "i": {
-          "type": "integer"
-        }
-      },
-      "additionalProperties": false,
-      "required": ["h"]
-    }));
-    server = app.listen(port);
-
-    api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
-
-    return api.router().then(router => {
-      app.use(router);
-
-      return Promise.all([
-        request
-          .post('/tests/a')
-          .send({})
-          .expect(400)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            should.exist(data);
-            data.message.should.equal('required');
-            data.info.should.equal('body/h');
-          }),
-        request
-          .post('/tests/a')
-          .send({ h: 1 })
-          .expect(400)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            should.exist(data);
-            data.message.should.equal('type');
-            data.info.should.equal('body/h');
-          }),
-        request
-          .post('/tests/a')
-          .send({ h: true, i: true })
-          .expect(400)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            should.exist(data);
-            data.message.should.equal('type');
-            data.info.should.equal('body/i');
-          }),
-        request
-          .post('/tests/a')
-          .send({ h: true, i: 1 })
-          .expect(200)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            should.exist(data);
-          })
-      ]).then(() => {
-        spy.should.have.been.called.once();
-      });
-    })
-  });
-
-});
 
 });

@@ -8,7 +8,7 @@ export interface Swagger {
   consumes?: string[];
   produces?: string[];
   definitions?: Swagger.Definitions;
-  parameters?: Swagger.Parameters;
+  parameters?: Swagger.ParameterDefinitionObject;
   responses?: Swagger.Responses;
   security?: Swagger.Security[];
   securityDefinitions?: Swagger.SecurityDefinitions;
@@ -44,6 +44,10 @@ export namespace Swagger {
 
   export interface Definitions {
     [key:string]: Swagger.Schema
+  }
+
+  export interface ParameterDefinitionObject {
+    [id: string]: Parameter;
   }
 
   export type Parameters = (Parameter | Reference)[];
@@ -131,6 +135,7 @@ export namespace Swagger {
   }
 
   export interface BasicSchema {
+    id?: string;
     format?: string;
     ["default"]?: any;
     maximum?: number;
@@ -153,10 +158,10 @@ export namespace Swagger {
   }
 
   export interface FullSchema extends BasicSchema {
-    type?: FullTypes;
+    type?: FullTypes | FullTypes[];
     title?: string;
     description?: string;
-    required?: boolean;
+    required?: string[];
     additionalProperties?: FullSchema | boolean;
     items?: FullSchema | FullSchema[];
     allOf?: FullSchema[];

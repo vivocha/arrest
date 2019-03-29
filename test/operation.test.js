@@ -38,12 +38,12 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
         }
       }
       class Op2 extends Operation {
         constructor(resource, path, method) {
-          super('op2', resource, path, method);
+          super(resource, path, method, 'op2');
         }
       }
       let r = new Resource({ name: 'Test' }, { '/': { get: Op1, post: Op2 }});
@@ -88,7 +88,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
         }
         handler(req, res) {
           spy(req, res);
@@ -140,7 +140,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -271,7 +271,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -372,7 +372,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -494,7 +494,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
           this.setInfo({
             parameters: [
               {
@@ -524,7 +524,7 @@ describe('Operation', function() {
       }
       class Op2 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op2');
           this.setInfo({
             parameters: [
               {
@@ -541,8 +541,35 @@ describe('Operation', function() {
           res.send({});
         }
       }
+      class Op3 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op3');
+          this.setInfo({
+            consumes: [ 'application/x-www-form-urlencoded' ],
+            parameters: [
+              {
+                "name": "bbb",
+                "in": "body",
+                "schema": {
+                  "type": "object",
+                  "required": [ "test" ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "test": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            ]
+          });
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
 
-      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }});
+      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }, '/c': { post: Op3 }});
       api.addResource(r);
 
       before(function() {
@@ -630,6 +657,17 @@ describe('Operation', function() {
           });
       });
 
+      it('should accept and parse urlencoded bodies', function() {
+        return request
+          .post('/tests/c')
+          .send('test=5')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.body.test.should.equal(5);
+          });
+      });
+
     });
 
   });
@@ -656,7 +694,7 @@ describe('Operation', function() {
       });
       class Op1 extends Operation {
         constructor(resource, path, method) {
-          super('op1', resource, path, method);
+          super(resource, path, method, 'op1');
         }
         get swaggerScopes() {
           return [];

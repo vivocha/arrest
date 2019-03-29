@@ -3,6 +3,10 @@ arrest
 
 Swagger REST framework for Node.js, with support for MongoDB and [JSON-Schema](http://json-schema.org/)
 
+[![travis build](https://img.shields.io/travis/vivocha/arrest.svg)](https://travis-ci.org/vivocha/arrest)
+[![Coverage Status](https://coveralls.io/repos/github/vivocha/arrest/badge.svg?branch=master)](https://coveralls.io/github/vivocha/arrest?branch=master)
+[![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
+
 Arrest lets you write RESTful web services in minutes. It automatically generates a [Swagger](http://swagger.io/) description
 of the API and support input validation using JSON-Schemas.
 
@@ -35,6 +39,8 @@ api.addResource(new arrest.MongoResource('mongodb://localhost:27017', { name: 'T
 
 api.listen(3000);
 ```
+
+The Swagger specification of the API you just created is available at `http://localhost:3000/swagger.json`
 
 Now you can query your *data* collection like this:
 

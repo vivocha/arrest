@@ -1,6 +1,7 @@
 import * as request from 'request';
-import * as jr from 'jsonref';
-import * as jp from 'jsonpolice';
+import { parse as parseRefs, normalizeUri, ParseOptions } from 'jsonref';
+import { create as createSchema, Schema } from 'jsonpolice';
+import { Swagger } from './swagger';
 import { RESTError } from './error'
 
 const json_schema_draft_04 = {
@@ -155,7 +156,7 @@ const json_schema_draft_04 = {
 }
 
 export class SchemaRegistry {
-  private opts:jr.ParseOptions;
+  private opts:ParseOptions;
 
   constructor(scope?:string) {
     this.opts = {
@@ -167,7 +168,7 @@ export class SchemaRegistry {
     }
   }
 
-  private retriever(url: string): Promise<any> {
+  private async retriever(url: string): Promise<any> {
     return new Promise(function(resolve, reject) {
       request({
         url: url,
@@ -184,14 +185,18 @@ export class SchemaRegistry {
       });
     });
   }
-  resolve(dataOrUri:any): Promise<any> {
-    return jr.parse(dataOrUri, this.opts);
+  async resolve(dataOrUri:any): Promise<any> {
+    return parseRefs(dataOrUri, this.opts);
   }
-  create(dataOrUri:any): Promise<jp.Schema> {
-    return jp.create(dataOrUri, this.opts);
+  async create(dataOrUri:any): Promise<Schema> {
+    if (typeof dataOrUri === 'object' && Schema.get(dataOrUri)) {
+      return Promise.resolve(Schema.get(dataOrUri));
+    } else {
+      return createSchema(dataOrUri, this.opts);
+    }
   }
-  register(id, data:any) {
-    data.id = jr.normalizeUri(id);
-    Object.assign(this.opts.store, { [data.id]: data });
+  register(id, schema: Swagger.FullSchema) {
+    schema.id = normalizeUri(id);
+    Object.assign(this.opts.store, { [schema.id]: schema });
   }
 }

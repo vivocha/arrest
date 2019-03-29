@@ -1,12 +1,14 @@
 import * as http from 'http';
 import * as https from 'https';
+import * as url from 'url';
 import * as _ from 'lodash';
 import * as semver from 'semver';
-import * as jr from 'jsonref';
 import * as express from 'express';
+import { normalizeUri } from 'jsonref';
+import { Schema, DynamicSchema } from 'jsonpolice';
 import { Router, RouterOptions, RequestHandler, Request, Response, NextFunction } from 'express';
 import { Eredita } from 'eredita';
-import debug, { Logger } from './debug';
+import { getLogger, Logger } from 'debuggo';
 import { RESTError } from './error';
 import { SchemaRegistry } from './schema';
 import { Swagger } from './swagger';
@@ -22,9 +24,9 @@ const __router = Symbol();
 const __default_swagger = {
   swagger: '2.0',
   info: { version: '1.0.0' },
-  schemes: ["https", "http"],
-  consumes: ["application/json"],
-  produces: ["application/json"],
+  schemes: [ "https", "http" ],
+  consumes: [ "application/json" ],
+  produces: [ "application/json" ],
   definitions: {
     "metadata": {
       "description": "Metadata associated with the resource",
@@ -48,7 +50,7 @@ const __default_swagger = {
           "type": "string"
         }
       },
-      "required": ["error", "message"]
+      "required": [ "error", "message" ]
     }
   },
   parameters: {
@@ -147,7 +149,7 @@ const __default_schema_tag: Swagger.Tag = {
 };
 const __default_options: APIOptions = {
   swagger: true
-}
+};
 
 let reqId: number = 0;
 
@@ -177,15 +179,15 @@ export class API implements Swagger {
   consumes?: string[];
   produces?: string[];
   definitions?: Swagger.Definitions;
-  parameters?: Swagger.Parameters;
+  parameters?: Swagger.ParameterDefinitionObject;
   responses?: Swagger.Responses;
   security?: Swagger.Security[];
   securityDefinitions?: Swagger.SecurityDefinitions;
   tags?: Swagger.Tag[];
   externalDocs?: Swagger.ExternalDocs;
 
-  constructor(info?: Swagger, options?: APIOptions) {
-    this[__logger] = debug(this.getDebugLabel());
+  constructor(info?:Swagger, options?:APIOptions) {
+    this[__logger] = getLogger(this.getDebugLabel());
     Object.assign(this, (new Eredita(info || {}, new Eredita(_.cloneDeep(__default_swagger)))).mergePath());
     delete this.paths;
     delete this.tags;
@@ -198,10 +200,10 @@ export class API implements Swagger {
     this[__resources] = [];
   }
 
-  get registry(): SchemaRegistry {
+  get registry():SchemaRegistry {
     return this[__registry];
   }
-  get resources(): Resource[] {
+  get resources():Resource[] {
     return this[__resources];
   }
 
@@ -219,24 +221,32 @@ export class API implements Swagger {
     return `#${++reqId}`;
   }
 
-  addResource(resource: Resource): this {
+  addResource(resource:Resource): this {
     this.resources.push(resource);
     resource.attach(this);
     return this;
   }
 
-  registerSchema(id: string, schema: Swagger.Schema | APIRequestHandler) {
+  registerSchema(id: string, schema: Swagger.Schema | DynamicSchema) {
     if (!this[__schemas]) {
       this[__schemas] = {};
       this.registerTag(_.cloneDeep(__default_schema_tag));
       this.registerOperation('/schemas/{id}', 'get', _.cloneDeep(__default_schema_operation));
     }
-    this[__schemas][id] = schema;
-    if (typeof schema !== 'function') {
-      this.registry.register(`schemas/${id}`, schema);
+
+    let _schema: Swagger.FullSchema;
+    if (schema && typeof (<any>schema).validate === 'function') {
+      _schema = {};
+      Schema.attach(_schema, schema as DynamicSchema);
+    } else {
+      _schema = schema as Swagger.FullSchema;
     }
+
+    this[__schemas][id] = _schema;
+    this.registry.register(`schemas/${id}`, _schema);
+    this.registry.register(id, _schema);
   }
-  registerOperation(path: string, method: string, operation: Swagger.Operation) {
+  registerOperation(path:string, method:string, operation:Swagger.Operation) {
     if (!this.paths) {
       this.paths = {};
     }
@@ -249,15 +259,16 @@ export class API implements Swagger {
     }
     this.paths[_path][method] = operation;
   }
-  registerTag(tag: Swagger.Tag) {
+  registerTag(tag:Swagger.Tag) {
     if (!this.tags) {
       this.tags = [];
     }
     this.tags.push(tag);
   }
-  registerOauth2Scope(name: string, description: string): void {
+  registerOauth2Scope(name:string, description:string): void {
     if (this.securityDefinitions) {
-      _.each(_.filter(this.securityDefinitions, { type: 'oauth2' }), (i: Swagger.SecurityOAuth2) => {
+      const oath2Defs: Swagger.SecurityOAuth2[] = _.filter(this.securityDefinitions, i => i.type === 'oauth2') as Swagger.SecurityOAuth2[];
+      oath2Defs.forEach(i => {
         if (!i.scopes) {
           i.scopes = {};
         }
@@ -266,64 +277,66 @@ export class API implements Swagger {
     }
   }
 
-  listen(httpPort: number, httpsPort?: number, httpsOptions?: https.ServerOptions): Promise<any> {
+  async listen(httpPort: number, httpsPort?: number, httpsOptions?: https.ServerOptions): Promise<any> {
     if (!httpPort && !httpsPort) {
       throw new Error('no listen ports specified');
     } else if (httpPort && !httpsPort) {
-      this.schemes = ['http'];
+      this.schemes = [ 'http' ];
     } else if (!httpPort && httpsPort) {
-      this.schemes = ['https'];
+      this.schemes = [ 'https' ];
     }
-    return this.router().then(router => {
-      let app = express();      
-      app.use(router); 
-      app.use(API.handle404Error);    
-      let out: any[] = [];
-      if (httpsPort) {
-        if (!httpsOptions) {
-          throw new Error('no https options');
-        } else {
-          out.push(https.createServer(httpsOptions, app).listen(httpsPort));
-        }
+    let router = await this.router();
+    let app = express();
+    app.use(router);
+    app.use(API.handle404Error);
+    let out: any[] = [];
+    if (httpsPort) {
+      if (!httpsOptions) {
+        throw new Error('no https options');
+      } else {
+        out.push(https.createServer(httpsOptions, app).listen(httpsPort));
       }
-      if (httpPort) {
-        out.push(http.createServer(app).listen(httpPort));
-      }
-      return out.length == 1 ? out[0] : out;
-    });
+    }
+    if (httpPort) {
+      out.push(http.createServer(app).listen(httpPort));
+    }
+    return out.length == 1 ? out[0] : out;
   }
 
-  router(options?: RouterOptions): Promise<Router> {
+  async router(options?: RouterOptions): Promise<Router> {
     if (!this[__router]) {
       this.logger.info('creating router');
       let r = Router(options);
       r.use((_req: Request, res: Response, next: NextFunction) => {
         let req: APIRequest = _req as APIRequest;
         if (!req.logger) {
-          req.logger = debug(this.getDebugLabel(), this.getDebugContext());
+          req.logger = getLogger(this.getDebugLabel(), this.getDebugContext());
         }
         next();
       });
       r.use(this.securityValidator.bind(this));
       if (this.options.swagger) {
-        let originalSwagger: Swagger = _.cloneDeep(this) as Swagger;
+        let originalSwagger:Swagger = _.cloneDeep(this) as Swagger;
         r.get('/swagger.json', (req: APIRequest, res: APIResponse, next: NextFunction) => {
-          let out: any = _.cloneDeep(originalSwagger);
+          let out:any = _.cloneDeep(originalSwagger);
           if (!req.headers['host']) {
             next(API.newError(400, 'Bad Request', 'Missing Host header in the request'));
           } else {
             out.host = req.headers['host'];
-            out.basePath = req.baseUrl;
+            out.basePath = req.baseUrl || '/';
+            if (!out.basePath.endsWith('/')) {
+              out.basePath += '/';
+            }
             let proto = this.schemes && this.schemes.length ? this.schemes[0] : 'http';
-            out.id = proto + '://' + out.host + out.basePath + '/swagger.json#';
+            let id = url.resolve(proto + '://' + out.host + out.basePath, 'swagger.json#');
             if (originalSwagger.securityDefinitions) {
-              _.each(originalSwagger.securityDefinitions, (i: any, k) => {
+              _.each(originalSwagger.securityDefinitions, (i:any, k) => {
                 if (k) {
                   if (i.authorizationUrl) {
-                    out.securityDefinitions[k].authorizationUrl = jr.normalizeUri(i.authorizationUrl, out.id, true);
+                    out.securityDefinitions[k].authorizationUrl = normalizeUri(i.authorizationUrl, id, true);
                   }
                   if (i.tokenUrl) {
-                    out.securityDefinitions[k].tokenUrl = jr.normalizeUri(i.tokenUrl, out.id, true);
+                    out.securityDefinitions[k].tokenUrl = normalizeUri(i.tokenUrl, id, true);
                   }
                 }
               });
@@ -336,43 +349,32 @@ export class API implements Swagger {
         r.get('/schemas/:id', (req: APIRequest, res: APIResponse, next: NextFunction) => {
           let s = this[__schemas][req.params.id];
           if (s) {
-            if (typeof s === 'function') {
-              (s as APIRequestHandler)(req, res, next);
-            } else {
-              res.json(this[__schemas][req.params.id]);
-            }
+            Schema.get(s).schema().then(data => res.json(data));
           } else {
             next();
           }
         });
       }
-      let p: Promise<any> = Promise.resolve(true);
       for (let i in this[__schemas]) {
-        if (typeof this[__schemas][i] !== 'function') {
-          p = p.then(() => this.registry.create(this[__schemas][i]));
-        }
+        await this.registry.create(this[__schemas][i]);
       }
-      p = p.then(() => this.registry.resolve(this)).then(() => {
-        let promises: Promise<Router>[] = [];
-        this.resources.forEach((resource: Resource) => {
-          promises.push(resource.router(r, options));
-        });
-        return Promise.all(promises).then(() => {
-          r.use(API.handleError);
-          return r;
-        });
+      await this.registry.resolve(this);
+      let promises: Promise<Router>[] = [];
+      this.resources.forEach((resource: Resource) => {
+        promises.push(resource.router(r, options));
       });
-      this[__router] = p.then(() => r);
+      await Promise.all(promises);
+      r.use(this.handleError);
+      this[__router] = Promise.resolve(r);
     }
     return this[__router];
   }
-  attach(base: Router, options?: RouterOptions): Promise<Router> {
-    return this.router(options).then(router => {
-      base.use('/v' + semver.major(this.info.version), router);
-      return base;
-    });
+  async attach(base:Router, options?: RouterOptions): Promise<Router> {
+    let router = await this.router(options)
+    base.use('/v' + semver.major(this.info.version), router);
+    return base;
   }
-  securityValidator(req: APIRequest, res: APIResponse, next: NextFunction) {
+  securityValidator(req:APIRequest, res:APIResponse, next:NextFunction) {
     req.logger.warn('using default security validator');
     if (!req.scopes) {
       req.logger.warn('scopes not set, setting default to *');
@@ -380,14 +382,7 @@ export class API implements Swagger {
     }
     next();
   }
-
-  static newError(code: number, message?: string, info?: any, err?: any): RESTError {
-    return new RESTError(code, message, info, err);
-  }
-  static fireError(code: number, message?: string, info?: any, err?: any): never {
-    throw API.newError(code, message, info, err);
-  }
-  static handleError(err: any, req: APIRequest, res: APIResponse, next?: NextFunction) {
+  handleError(err: any, req: APIRequest, res: APIResponse, next?: NextFunction) {
     if (err.name === 'RESTError') {
       req.logger.error('REST ERROR', err);
       RESTError.send(res, err.code, err.message, err.info);
@@ -399,7 +394,14 @@ export class API implements Swagger {
       RESTError.send(res, 500, 'internal');
     }
   }
-  static handle404Error(req, res, next) {
+
+  static newError(code: number, message?: string, info?: any, err?: any): RESTError {
+    return new RESTError(code, message, info, err);
+  }
+  static fireError(code: number, message?: string, info?: any, err?: any): never {
+    throw API.newError(code, message, info, err);
+  }
+  static handle404Error(req: APIRequest, res: APIResponse, next: NextFunction) {
     req.logger.warn('404 Resource Not Found');
     RESTError.send(res, 404, 'Not Found', 'the requested resource cannot be found, check the endpoint URL');
   }
