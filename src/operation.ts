@@ -2,42 +2,22 @@ import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser'
 import { NextFunction, Router } from 'express';
 import * as jp from 'jsonpolice';
 import * as _ from 'lodash';
-import { API, APIRequest, APIRequestHandler, APIResponse } from './api';
+import { OpenAPIV3, ParameterObject, SchemaObject } from 'openapi-police';
+import { API } from './api';
 import { Resource } from './resource';
 import { Scopes } from './scopes';
-import { Swagger } from './swagger';
+import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
 
 const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
-const __api = Symbol();
-const __resource = Symbol();
-const __id = Symbol();
-const __path = Symbol();
-const __method = Symbol();
-const __scopes = Symbol();
 
-export type Method = "get" | "put" | "post" | "delete" | "options" | "head" | "patch";
 
-export abstract class Operation implements Swagger.Operation {
-  operationId: string;
-  summary?: string;
-  description?: string;
-  externalDocs?: Swagger.ExternalDocs;
-  consumes?: string[];
-  produces?: string[];
-  parameters?: Swagger.Parameters;
-  responses: Swagger.Responses;
-  schemes?: Swagger.Scheme[];
-  deprecated?: boolean;
-  security?: Swagger.Security[];
+export abstract class Operation {
+  info: OpenAPIV3.OperationObject;
+  api: API;
+  internalId: string;
+  scopes: Scopes;
 
-  protected [__api]: API;
-  protected [__resource]: Resource;
-  protected [__id]: string;
-  protected [__path]: string;
-  protected [__method]: Method;
-  protected [__scopes]: Scopes;
-
-  constructor(resource: Resource, path: string, method: Method, id?: string) {
+  constructor(public resource: Resource, public path: string, public method: Method, id?: string) {
     if (!id) {
       id = path;
       if (id.length && id[0] === '/') {
@@ -49,74 +29,49 @@ export abstract class Operation implements Swagger.Operation {
         id += '-' + method;
       }
     }
-    this[__resource] = resource;
-    this[__id] = id;
-    this[__path] = path;
-    this[__method] = method;
-    this.setInfo(this.getDefaultInfo());
+    this.internalId = id;
+    this.info = this.getDefaultInfo();
+    if (!this.info || !this.info.operationId) {
+      throw new Error('Required operationId missing');
+    }
   }
 
-  get api(): API {
-    return this[__api];
-  }
-  get resource(): Resource {
-    return this[__resource];
-  }
-  get internalId(): string {
-    return this[__id];
-  }
-  get path(): string {
-    return this[__path];
-  }
   get swaggerPath(): string {
     return this.path.replace(swaggerPathRegExp, "/{$1}");
   }
-  get method(): Method {
-    return this[__method];
-  }
-  get swaggerScopes(): Swagger.Scopes {
+  get swaggerScopes(): OpenAPIV3.OAuth2SecurityScopes {
     return {
-      [this.operationId]: this.summary || `Execute ${this.operationId} on a ${this.resource.name}`
+      [this.info.operationId as string]: this.info.summary || `Execute ${this.info.operationId} on a ${this.resource.info.name}`
     };
   }
-  get scopes(): Scopes {
-    return this[__scopes];
-  }
 
-  protected getDefaultInfo(): Swagger.Operation {
+  protected getDefaultInfo(): OpenAPIV3.OperationObject {
     return {
-      "operationId": `${this.resource.name}.${this.internalId}`,
-      "tags": [ '' + this.resource.name ],
+      "operationId": `${this.resource.info.name}.${this.internalId}`,
+      "tags": [ '' + this.resource.info.name ],
       "responses": {
         "default": {
-          "$ref": "#/responses/defaultError"
+          "$ref": "#/components/responses/defaultError"
         }
       }
     };
   }
-  protected setInfo(info: Swagger.Operation): this {
-    Object.assign(this, info);
-    return this;
-  }
-  protected async createValidators(key: string, parameters: Swagger.Parameter[]): Promise<APIRequestHandler> {
-    let validatorFactories: Promise<(req: APIRequest) => Promise<void>>[] = parameters.map(async (parameter: Swagger.Parameter) => {
-      let required = parameter.required;
-      delete parameter.required;
-      let schema:jp.Schema = await this.api.registry.create(parameter);
+  protected createParameterValidators(key: string, parameters: OpenAPIV3.ParameterObject[]): APIRequestHandler {
+    let validators: ((req: APIRequest) => Promise<void>)[] = parameters.map((parameter: OpenAPIV3.ParameterObject) => {
+      let required = parameter.required || false;
+      let schema: ParameterObject = new ParameterObject(parameter);
 
       return async function(req: APIRequest) {
         req.logger.debug(`validator ${key}.${parameter.name}, required ${required}, value ${req[key][parameter.name]}`);
         if (typeof req[key][parameter.name] === 'undefined') {
           if (required === true) {
-            throw new jp.ValidationError(key + '.' + parameter.name, (schema as any).scope, 'required');
+            throw new jp.ValidationError(`${key}.${parameter.name}`, (schema as any).scope, 'required');
           }
         } else {
-          req[key][parameter.name] = await schema.validate(req[key][parameter.name], key + '.' + parameter.name);
+          req[key][parameter.name] = await schema.validate(req[key][parameter.name], { setDefault: true }, `${key}.${parameter.name}`);
         }
       }
     });
-
-    let validators:((req: APIRequest) => Promise<void>)[] = await Promise.all(validatorFactories);
 
     return async function(req:APIRequest, res:APIResponse, next:NextFunction) {
       try {
@@ -129,26 +84,44 @@ export abstract class Operation implements Swagger.Operation {
       }
     }
   }
+  protected createBodyValidator(type: string, bodySpec: OpenAPIV3.MediaTypeObject, required: boolean = false): APIRequestHandler {
+    if (!bodySpec.schema) {
+      throw new Error(`Schema missing for content type ${type}`);
+    }
+    const schema = new SchemaObject(bodySpec.schema as OpenAPIV3.SchemaObject);
+    return (req:APIRequest, res:APIResponse, next:NextFunction) => {
+      if (_.isEqual(req.body, {}) && (!parseInt('' + req.header('content-length')))) {
+        if (required === true) {
+          next(new jp.ValidationError('body', jp.Schema.scope(schema), 'required'));
+        } else {
+          next();
+        }
+      } else {
+        req.body = schema.validate(req.body, { setDefault: true }, 'body').then(() => next(), err => next(err));
+      }
+    };
+
+  }
   protected useSecurityValidator(): boolean {
     return !!this.scopes;
   }
-  protected async securityValidator(req: APIRequest, res: APIResponse): Promise<boolean> {
+  protected securityValidator(req: APIRequest, res: APIResponse, next: NextFunction) {
     req.logger.debug(`checking scope, required: ${this.scopes}`);
     if (!req.scopes) {
       req.logger.warn('no scope');
-      throw API.newError(401, 'no scope');
+      next(API.newError(401, 'no scope'));
     } else if (!req.scopes.match(this.scopes)) {
       req.logger.warn('insufficient scope', req.scopes);
-      throw API.newError(403, 'insufficient privileges');
+      next(API.newError(403, 'insufficient privileges'));
     } else {
       req.logger.debug('scope ok');
-      return true;
+      next();
     }
   }
 
   attach(api:API) {
-    this[__api] = api;
-    api.registerOperation(this.resource.basePath + this.swaggerPath, this.method, this);
+    this.api = api;
+    api.registerOperation(this.resource.basePath + this.swaggerPath, this.method, this.info);
 
     let swaggerScopes = this.swaggerScopes;
     let scopeNames:string[] = [];
@@ -157,73 +130,62 @@ export abstract class Operation implements Swagger.Operation {
       scopeNames.push(i);
       api.registerOauth2Scope(i, swaggerScopes[i]);
     }
-
-    if (api.securityDefinitions && scopeNames.length) {
-      for (let i in api.securityDefinitions) {
-        if (api.securityDefinitions[i].type === 'oauth2') {
-          if (!this.security) {
-            this.security = [];
-          }
-          this.security.push({
-            [i]: scopeNames
-          });
+    if (this.api.document.components && this.api.document.components.securitySchemes) {
+      const schemes = this.api.document.components.securitySchemes;
+      for (let k in schemes) {
+        if (!this.info.security) {
+          this.info.security = [];
         }
+        const s = schemes[k] as OpenAPIV3.OAuth2SecurityScheme;
+        this.info.security.push({
+          [k]: s.type === 'oauth2' ? scopeNames : []
+        });
       }
     }
     if (scopeNames.length) {
-      this[__scopes] = new Scopes(scopeNames);
+      this.scopes = new Scopes(scopeNames);
     }
   }
   async router(router:Router): Promise<Router> {
-    let promises:Promise<APIRequestHandler>[] = [];
+    const middlewares:APIRequestHandler[] = [];
     if (this.useSecurityValidator()) {
-      promises.push(Promise.resolve(async (req: APIRequest, res: APIResponse, next: NextFunction) => {
-        try {
-          await this.securityValidator(req, res);
-          next();
-        } catch(err) {
-          next(err);
-        }
-      }));
+      middlewares.push(this.securityValidator.bind(this));
     }
-    let params = _.groupBy(this.parameters || [], 'in') as {
-      header: Swagger.HeaderParameter[];
-      path: Swagger.PathParameter[];
-      query: Swagger.QueryParameter[];
-      body: Swagger.BodyParameter[];
+    let params = _.groupBy(this.info.parameters || [], 'in') as {
+      path: OpenAPIV3.ParameterObject[];
+      query: OpenAPIV3.ParameterObject[];
+      header: OpenAPIV3.ParameterObject[];
+      cookie: OpenAPIV3.ParameterObject[];
     };
     if (params.header) {
-      promises.push(this.createValidators('headers', params.header));
+      middlewares.push(this.createParameterValidators('headers', params.header));
+    }
+    if (params.cookie) {
+      middlewares.push(this.createParameterValidators('cookies', params.cookie));
     }
     if (params.path) {
       _.each(params.path, function (i) {
         i.required = true;
       });
-      promises.push(this.createValidators('params', params.path));
+      middlewares.push(this.createParameterValidators('params', params.path));
     }
     if (params.query) {
-      promises.push(this.createValidators('query', params.query));
+      middlewares.push(this.createParameterValidators('query', params.query));
     }
-    if (params.body) {
-      promises.push(Promise.resolve(jsonParser()));
-      if (this.consumes && this.consumes.find(i => i === 'application/x-www-form-urlencoded')) {
-        promises.push(Promise.resolve(urlencodedParser({ extended: true })));
+    if (this.info.requestBody) {
+      const body: OpenAPIV3.RequestBodyObject = this.info.requestBody as OpenAPIV3.RequestBodyObject;
+      if (!body.content) {
+        throw new Error('Invalid request body'); // TODO maybe use another error type
       }
-      promises.push(this.api.registry.create(params.body[0].schema).then((schema:jp.Schema) => {
-        return (req:APIRequest, res:APIResponse, next:NextFunction) => {
-          if (_.isEqual(req.body, {}) && (!parseInt('' + req.header('content-length')))) {
-            if (params.body[0].required === true) {
-              next(new jp.ValidationError('body', schema.scope, 'required'));
-            } else {
-              next();
-            }
-          } else {
-            schema.validate(req.body, 'body').then(() => next(), err => next(err));
-          }
-        }
-      }));
+      if (body.content['application/json']) {
+        middlewares.push(jsonParser());
+        middlewares.push(this.createBodyValidator('application/json', body.content['application/json'], body.required));
+      }
+      if (body.content['application/x-www-form-urlencoded']) {
+        middlewares.push(urlencodedParser({ extended: true }));
+        middlewares.push(this.createBodyValidator('application/x-www-form-urlencoded', body.content['application/x-www-form-urlencoded'], body.required));
+      }
     }
-    let middlewares:APIRequestHandler[] = await Promise.all(promises);
     router[this.method](this.path, ...middlewares, this.handler.bind(this));
     return router;
   }

@@ -1,14 +1,15 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es6",
-    "noImplicitAny": false,
-    "sourceMap": true,
-    "declaration": true,
-    "outDir": "dist",
-    "strictNullChecks": true
+      "module": "commonjs",
+      "target": "es2017",
+      "noImplicitAny": false,
+      "sourceMap": true,
+      "declaration": true,
+      "outDir": "dist",
+      "strictNullChecks": true,
+      "allowJs": false
   },
-  "files": [
-    "src/index.ts"
+  "include": [
+      "src/**/*.ts"
   ]
 }

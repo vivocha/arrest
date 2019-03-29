@@ -1,11 +1,13 @@
-import * as url from 'url';
-import * as qs from 'querystring';
+import { Eredita } from 'eredita';
 import * as _ from 'lodash';
 import * as mongo from 'mongodb';
-import { Swagger } from '../swagger';
-import { API, APIRequest, APIResponse } from '../api';
+import { OpenAPIV3 } from 'openapi-police';
+import * as qs from 'querystring';
+import * as url from 'url';
+import { API } from '../api';
+import { Operation } from '../operation';
 import { Resource } from '../resource';
-import { Method, Operation } from '../operation';
+import { APIRequest, APIResponse, Method } from '../types';
 import { MongoResource } from './resource';
 import rql from './rql';
 
@@ -48,7 +50,7 @@ export abstract class MongoOperation extends Operation {
   protected getItemQuery(_id) {
     try {
       return {
-        [ '' + this.resource.id ]: (this.resource.idIsObjectId ? new mongo.ObjectID(_id) : _id)
+        [ '' + this.resource.info.id ]: (this.resource.info.idIsObjectId ? new mongo.ObjectID(_id) : _id)
       };
     } catch (error) {
       API.fireError(404, 'not_found');
@@ -56,12 +58,12 @@ export abstract class MongoOperation extends Operation {
   }
   protected parseFields(fields: string[]) {
     let out = { _metadata: 0 };
-    if (this.resource.id !== '_id') {
+    if (this.resource.info.id !== '_id') {
       out['_id'] = 0;
     }
     if (fields && fields.length) {
       out = _.reduce(fields, (o: any, i: string) => {
-        if (i && i !== '_metadata' && (i !== '_id' || i === this.resource.id)) {
+        if (i && i !== '_metadata' && (i !== '_id' || i === this.resource.info.id)) {
           if (i !== '_id') {
             out['_id'] = 0;
           }
@@ -103,9 +105,9 @@ export abstract class MongoOperation extends Operation {
       await this.prepareQuery(job);
       await this.prepareDoc(job);
       await this.prepareOpts(job);
-      req.logger.debug(this.operationId, 'query', job.query);
-      req.logger.debug(this.operationId, 'doc', job.doc);
-      req.logger.debug(this.operationId, 'opts', job.opts);
+      req.logger.debug(this.info.operationId, 'query', job.query);
+      req.logger.debug(this.info.operationId, 'doc', job.doc);
+      req.logger.debug(this.info.operationId, 'opts', job.opts);
       await this.runOperation(job);
       await this.redactResult(job);
       await this.processResult(job);
@@ -119,32 +121,36 @@ export class QueryMongoOperation extends MongoOperation {
   constructor(resource:Resource, path:string, method:Method, id: string = 'query') {
     super(resource, path, method, id);
   }
-  protected getDefaultInfo(): Swagger.Operation {
-    return Object.assign(super.getDefaultInfo(), {
-      "summary": `Retrieve a list of ${this.resource.namePlural}`,
+  protected getDefaultInfo(): OpenAPIV3.OperationObject {
+    const customInfo: OpenAPIV3.OperationObject = {
+      "summary": `Retrieve a list of ${this.resource.info.namePlural}`,
       "parameters": [
         {
-          "$ref": "#/parameters/limit"
+          "$ref": "#/components/parameters/limit"
         },
         {
-          "$ref": "#/parameters/skip"
+          "$ref": "#/components/parameters/skip"
         },
         {
-          "$ref": "#/parameters/fields"
+          "$ref": "#/components/parameters/fields"
         },
         {
-          "$ref": "#/parameters/sort"
+          "$ref": "#/components/parameters/sort"
         },
         {
-          "$ref": "#/parameters/query"
+          "$ref": "#/components/parameters/query"
         }
       ],
       "responses": {
         "200": {
-          "description": `List of matching ${this.resource.namePlural}`,
-          "schema": {
-            "type": "array",
-            "items": this.responseSchema
+          "description": `List of matching ${this.resource.info.namePlural}`,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": this.responseSchema
+              }
+            }
           },
           "headers": {
             "Link": {
@@ -164,7 +170,8 @@ export class QueryMongoOperation extends MongoOperation {
           }
         }
       }
-    });
+    };
+    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = {};
@@ -201,7 +208,8 @@ export class QueryMongoOperation extends MongoOperation {
   }
   async runOperation(job:MongoJob): Promise<MongoJob> {
     let cursor = job.coll.find(job.query);
-    cursor.maxScan(this.maxScan);
+    // TODO this is now deprecated: find another way to do it
+    //cursor.maxScan(this.maxScan);
     let matching = await cursor.count(false, { // false = ignore limit and skip when counting
       maxTimeMS: this.maxCountMs
     });
@@ -233,27 +241,32 @@ export class ReadMongoOperation extends MongoOperation {
   constructor(resource:Resource, path:string, method:Method, id: string = 'read') {
     super(resource, path, method, id);
   }
-  getDefaultInfo(): Swagger.Operation {
-    return Object.assign(super.getDefaultInfo(), {
-      "summary": `Retrieve a ${this.resource.name} by id`,
+  getDefaultInfo(): OpenAPIV3.OperationObject {
+    const customInfo: OpenAPIV3.OperationObject = {
+      "summary": `Retrieve a ${this.resource.info.name} by id`,
       "parameters": [
         {
-          "$ref": "#/parameters/id"
+          "$ref": "#/components/parameters/id"
         },
         {
-          "$ref": "#/parameters/fields"
+          "$ref": "#/components/parameters/fields"
         }
       ],
       "responses": {
         "200": {
-          "description": `The requested ${this.resource.name}`,
-          "schema": this.responseSchema
+          "description": `The requested ${this.resource.info.name}`,
+          "content": {
+            "application/json": {
+              "schema": this.responseSchema
+            }
+          },
         },
         "404": {
           "$ref": "#/responses/notFound"
         }
       }
-    });
+    };
+    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
@@ -276,13 +289,13 @@ export class CreateMongoOperation extends MongoOperation {
   constructor(resource:Resource, path:string, method:Method, id: string = 'create') {
     super(resource, path, method, id);
   }
-  getDefaultInfo(): Swagger.Operation {
-    let resourceId = '' + this.resource.id;
-    return Object.assign(super.getDefaultInfo(), {
-      "summary": `Create a new ${this.resource.name}`,
+  getDefaultInfo(): OpenAPIV3.OperationObject {
+    let resourceId = '' + this.resource.info.id;
+    const customInfo: OpenAPIV3.OperationObject = {
+      "summary": `Create a new ${this.resource.info.name}`,
       "parameters": [
         {
-          "description": `${this.resource.name} to be created, omitting ${ (resourceId === '_id' && this.resource.idIsObjectId) ? 'the unique identifier (that will be generated by the server) and ' : '' } the metadata`,
+          "description": `${this.resource.info.name} to be created, omitting ${ (resourceId === '_id' && this.resource.info.idIsObjectId) ? 'the unique identifier (that will be generated by the server) and ' : '' } the metadata`,
           "name": "body",
           "in": "body",
           "required": true,
@@ -291,8 +304,12 @@ export class CreateMongoOperation extends MongoOperation {
       ],
       "responses": {
         "201": {
-          "description": `${this.resource.name} successfully created`,
-          "schema": this.responseSchema,
+          "description": `${this.resource.info.name} successfully created`,
+          "content": {
+            "application/json": {
+              "schema": this.responseSchema,
+            }
+          },
           "headers": {
             "Location": {
               "description": "URI of the newly created resource",
@@ -302,14 +319,15 @@ export class CreateMongoOperation extends MongoOperation {
           }
         }
       }
-    });
+    };
+    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareDoc(job:MongoJob): Promise<MongoJob> {
     job.doc = _.cloneDeep(job.req.body);
-    if (this.resource.id === '_id' && this.resource.idIsObjectId) {
+    if (this.resource.info.id === '_id' && this.resource.info.idIsObjectId) {
       delete job.doc['_id'];
-    } else if (this.resource.id && typeof job.doc[this.resource.id] === 'undefined' && this.resource.idIsObjectId) {
-      job.doc[this.resource.id] = new mongo.ObjectID();
+    } else if (this.resource.info.id && typeof job.doc[this.resource.info.id] === 'undefined' && this.resource.info.idIsObjectId) {
+      job.doc[this.resource.info.id] = new mongo.ObjectID();
     }
     delete job.doc._metadata;
     return job;
@@ -318,7 +336,7 @@ export class CreateMongoOperation extends MongoOperation {
     try {
       let result = await job.coll.insertOne(job.doc, job.opts as mongo.CollectionInsertOneOptions);
       job.data = result.ops[0];
-      const fullURL = `${job.req.protocol}://${job.req.headers['host']}${job.req.baseUrl}${job.req.path}${job.data['' + this.resource.id]}`;
+      const fullURL = `${job.req.protocol}://${job.req.headers['host']}${job.req.baseUrl}${job.req.path}${job.data['' + this.resource.info.id]}`;
       job.res.set('Location', fullURL);
       job.res.status(201);
     } catch(err) {
@@ -333,7 +351,7 @@ export class CreateMongoOperation extends MongoOperation {
     return job;
   }
   async redactResult(job:MongoJob): Promise<MongoJob> {
-    if (this.resource.id !== '_id') {
+    if (this.resource.info.id !== '_id') {
       delete job.data._id;
     }
     delete job.data._metadata;
@@ -345,15 +363,15 @@ export class UpdateMongoOperation extends MongoOperation {
   constructor(resource:Resource, path:string, method:Method, id: string = 'update') {
     super(resource, path, method, id);
   }
-  getDefaultInfo(): Swagger.Operation {
-    return Object.assign(super.getDefaultInfo(), {
-      "summary": `Update a ${this.resource.name}`,
+  getDefaultInfo(): OpenAPIV3.OperationObject {
+    const customInfo: OpenAPIV3.OperationObject = {
+      "summary": `Update a ${this.resource.info.name}`,
       "parameters": [
         {
-          "$ref": "#/parameters/id"
+          "$ref": "#/components/parameters/id"
         },
         {
-          "description": `The updated ${this.resource.name}, minus the unique identifier and the metatadata`,
+          "description": `The updated ${this.resource.info.name}, minus the unique identifier and the metatadata`,
           "name": "body",
           "in": "body",
           "required": true,
@@ -362,14 +380,19 @@ export class UpdateMongoOperation extends MongoOperation {
       ],
       "responses": {
         "200": {
-          "description": `${this.resource.name} successfully updated`,
-          "schema": this.responseSchema
+          "description": `${this.resource.info.name} successfully updated`,
+          "content": {
+            "application/json": {
+              "schema": this.responseSchema
+            }
+          },
         },
         "404": {
           "$ref": "#/responses/notFound"
         }
       }
-    });
+    };
+    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
@@ -377,10 +400,10 @@ export class UpdateMongoOperation extends MongoOperation {
   }
   async prepareDoc(job:MongoJob): Promise<MongoJob> {
     let out = _.cloneDeep(job.req.body);
-    if(this.resource.id !== '_id') {
+    if(this.resource.info.id !== '_id') {
       delete out._id;
     }
-    out['' + this.resource.id] = this.resource.idIsObjectId ? new mongo.ObjectID(job.req.params.id) : job.req.params.id;
+    out['' + this.resource.info.id] = this.resource.info.idIsObjectId ? new mongo.ObjectID(job.req.params.id) : job.req.params.id;
     delete out._metadata;
     job.doc = {
       $set: out
@@ -401,7 +424,7 @@ export class UpdateMongoOperation extends MongoOperation {
     return job;
   }
   async redactResult(job:MongoJob): Promise<MongoJob> {
-    if (this.resource.id !== '_id') {
+    if (this.resource.info.id !== '_id') {
       delete job.data['_id'];
     }
     delete job.data._metadata;
@@ -413,17 +436,17 @@ export class RemoveMongoOperation extends MongoOperation {
   constructor(resource:Resource, path:string, method:Method, id: string = 'remove') {
     super(resource, path, method, id);
   }
-  getDefaultInfo(): Swagger.Operation {
-    return Object.assign(super.getDefaultInfo(), {
-      "summary": `Delete a ${this.resource.name} by id`,
+  getDefaultInfo(): OpenAPIV3.OperationObject {
+    const customInfo: OpenAPIV3.OperationObject = {
+      "summary": `Delete a ${this.resource.info.name} by id`,
       "parameters": [
         {
-          "$ref": "#/parameters/id"
+          "$ref": "#/components/parameters/id"
         }
       ],
       "responses": {
         "200": {
-          "description": `${this.resource.name} successfully deleted`
+          "description": `${this.resource.info.name} successfully deleted`
         },
         "404": {
           "$ref": "#/responses/notFound"
@@ -432,7 +455,8 @@ export class RemoveMongoOperation extends MongoOperation {
           "$ref": "#/responses/defaultError"
         }
       }
-    });
+    };
+    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)

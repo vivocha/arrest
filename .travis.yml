@@ -1,26 +1,22 @@
-sudo: required
 dist: trusty
 language: node_js
-cache:
-  directories:
-    - node_modules
+node_js:
+  - lts/*
+services:
+  - docker
 branches:
   only:
     - master
 notifications:
   email: false
-node_js:
-  - '8'
-services:
-  - docker
+before_install:
+
 before_script:
   - npm prune
-after_success:
-  - npm run semantic-release
 script:
-  - npm run build
+  - npm run build:all
   - npm run cover
   - npm run check-coverage
 after_success:
-  - npm run report-coverage
   - npm run semantic-release
+  - npm run report-coverage
