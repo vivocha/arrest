@@ -1,13 +1,11 @@
-var chai = require('chai')
-  , spies = require('chai-spies')
-  , should = chai.should()
-  , API = require('../../dist/api').API
-  , Resource = require('../../dist/resource').Resource
-  , ops = require('../../dist/operation')
-  , Operation = ops.Operation
-  , SimpleOperation = ops.SimpleOperation
+import * as chai from 'chai';
+import * as spies from 'chai-spies';
+import { API } from '../../dist/api';
+import { Operation, SimpleOperation } from '../../dist/operation';
+import { Resource } from '../../dist/resource';
+import { APIRequest, APIRequestHandler, APIResponse } from '../../dist/types';
 
-
+const should = chai.should();
 chai.use(spies);
 
 describe('Resource', function() {
@@ -16,7 +14,7 @@ describe('Resource', function() {
 
     it('should create a Resource with no metadata', function () {
       let r = new Resource();
-      r.name.should.equal('Resource');
+      (r.info as any).name.should.equal('Resource');
     });
 
     it('should create a Resource with specified metadata', function () {
@@ -28,7 +26,7 @@ describe('Resource', function() {
         title: 'Test title',
         summaryFields: ['a', 'b']
       };
-      let r = new Resource(meta);
+      const r = (new Resource(meta)).info as any;
       r.name.should.equal(meta.name);
       r.description.should.equal(meta.description);
       r.namePlural.should.equal(meta.namePlural);
@@ -38,7 +36,7 @@ describe('Resource', function() {
     });
 
     it('should set namePlural when not specified', function () {
-      let r = new Resource({name: 'Test'});
+      let r = (new Resource({name: 'Test'})).info as any;
       r.namePlural.should.equal('Tests');
     });
 
@@ -47,11 +45,12 @@ describe('Resource', function() {
         constructor(resource, path, method) {
           super(resource, path, method, 'aaa');
         }
+        handler(req: APIRequest, res: APIResponse, next) {}
       }
       let r = new Resource({name: 'Test', routes: {'/': {get: TestOp}}});
-      r.operations.should.have.length(1);
-      r.operations[0].should.be.instanceOf(TestOp);
-      r.operations[0].operationId.should.be.equal('Test.aaa');
+      r.info.operations.should.have.length(1);
+      r.info.operations[0].should.be.instanceOf(TestOp);
+      r.info.operations[0].operationId.should.be.equal('Test.aaa');
     });
 
     it('should instantiate the operations specified in the routes, with the routes argument', function () {
@@ -59,11 +58,12 @@ describe('Resource', function() {
         constructor(resource, path, method) {
           super(resource, path, method, 'aaa');
         }
+        handler(req: APIRequest, res: APIResponse, next) {}
       }
       let r = new Resource({name: 'Test'}, {'/': {get: TestOp}});
-      r.operations.should.have.length(1);
-      r.operations[0].should.be.instanceOf(TestOp);
-      r.operations[0].operationId.should.be.equal('Test.aaa');
+      r.info.operations.should.have.length(1);
+      r.info.operations[0].should.be.instanceOf(TestOp);
+      r.info.operations[0].operationId.should.be.equal('Test.aaa');
     });
 
     it('should instantiate the operations specified by request handler', function () {
@@ -73,9 +73,9 @@ describe('Resource', function() {
           }
         }
       });
-      r.operations.should.have.length(1);
-      r.operations[0].should.be.instanceOf(SimpleOperation);
-      r.operations[0].operationId.should.be.equal('Test.get');
+      r.info.operations.should.have.length(1);
+      r.info.operations[0].should.be.instanceOf(SimpleOperation);
+      r.info.operations[0].operationId.should.be.equal('Test.get');
     });
 
     it('should throw if routes are specified twice', function () {
@@ -83,6 +83,7 @@ describe('Resource', function() {
         constructor(resource, path, method) {
           super(resource, path, method, 'aaa');
         }
+        handler(req: APIRequest, res: APIResponse, next) {}
       }
       should.throw(function () {
         new Resource({name: 'Test', routes: {}}, {'/': {get: TestOp}})
@@ -91,7 +92,7 @@ describe('Resource', function() {
 
     it('should throw if an invalid route handler is specified', function () {
       should.throw(function () {
-        new Resource({name: 'Test'}, {'/': {get: null}})
+        new Resource({name: 'Test'}, {'/': {get: null as any as APIRequestHandler}})
       }, Error, /invalid handler/);
     });
 
@@ -122,63 +123,67 @@ describe('Resource', function() {
   describe('attach', function () {
 
     it('should add a tag to the API and add the scope description to oauth2 settings', function () {
-      const api = new API({
-        info: {
-          version: '1.0.0'
-        },
-        securityDefinitions: {
-          "access_code": {
+      const api = new API();
+      api.document.components = { 
+        securitySchemes: {
+          "myScheme": {
             "type": "oauth2",
-            "flow": "accessCode",
-            "tokenUrl": "token"
-          },
-          "implicit": {
-            "type": "oauth2",
-            "flow": "implicit",
-            "authorizationUrl": "/a/b/authorize",
-            "scopes": {}
+            "flows": {
+              "authorizationCode": {
+                "tokenUrl": "token",
+                "authorizationUrl": "/a/b/authorize",
+                "scopes": {}
+              },
+              "implicit": {
+                "authorizationUrl": "/a/b/authorize",
+                "scopes": {}
+              },
+            }
           }
         }
-      });
+      };
       const meta = {
         name: 'Test',
         description: 'Test description',
         id: 'ID',
         title: 'Test title',
         summaryFields: ['a', 'b'],
-        externalDocs: {url: 'aaaa'}
+        externalDocs: { url: 'aaaa' }
       };
       let r = new Resource(meta);
       api.addResource(r);
-      api.tags.should.have.length(1);
-      let t = api.tags[0];
+      const tags = api.document.tags as any;
+      tags.should.have.length(1);
+      let t = tags[0];
       t.name.should.equal(meta.name);
       t.description.should.equal(meta.description);
       t.externalDocs.should.deep.equal(meta.externalDocs);
       t['x-id'].should.equal(meta.id);
       t['x-title'].should.equal(meta.title);
       t['x-summary-fields'].should.equal(meta.summaryFields);
-      api.securityDefinitions.access_code.scopes[meta.name].should.equal(r.scopeDescription);
-      api.securityDefinitions.implicit.scopes[meta.name].should.equal(r.scopeDescription);
+      const secs = (api.document.components as any).securitySchemes;
+      secs.myScheme.flows.authorizationCode.scopes[meta.name].should.equal(r.scopeDescription);
+      secs.myScheme.flows.implicit.scopes[meta.name].should.equal(r.scopeDescription);
     });
 
     it('should also attach all operations', function () {
-      const api = new API({info: {version: '1.0.0'}});
+      const api = new API();
       class TestOp extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'aaa');
         }
+        handler(req: APIRequest, res: APIResponse, next) {}
       }
       let r1 = new Resource({name: 'Test'}, {'/': {get: TestOp}});
       let r2 = new Resource({name: 'Other'}, {'/': {post: TestOp}});
       api.addResource(r1);
       api.addResource(r2);
-      should.exist(api.paths['/tests']);
-      should.exist(api.paths['/tests'].get);
-      api.paths['/tests'].get.operationId.should.equal('Test.aaa');
-      should.exist(api.paths['/others']);
-      should.exist(api.paths['/others'].post);
-      api.paths['/others'].post.operationId.should.equal('Other.aaa');
+      should.exist(api.document.paths['/tests']);
+      should.exist(api.document.paths['/tests'].get);
+      (api.document.paths['/tests'].get as any).operationId.should.equal('Test.aaa');
+      should.exist(api.document.paths['/others']);
+      should.exist(api.document.paths['/others'].post);
+      (api.document.paths['/others'].post as any).operationId.should.equal('Other.aaa');
     });
 
   });
@@ -191,12 +196,13 @@ describe('Resource', function() {
         constructor(resource, path, method) {
           super(resource, path, method, 'aaa');
         }
+        handler(req: APIRequest, res: APIResponse, next) {}
       }
       let r = new Resource();
       r.addOperation(new TestOp(r, '/', 'get'));
-      r.operations.should.have.length(1);
-      r.operations[0].should.be.instanceOf(TestOp);
-      r.operations[0].operationId.should.be.equal('Resource.aaa');
+      r.info.operations.should.have.length(1);
+      r.info.operations[0].should.be.instanceOf(TestOp);
+      r.info.operations[0].operationId.should.be.equal('Resource.aaa');
     });
 
     it('should add a SimpleOperation instance and assign it a default id', function () {
@@ -205,36 +211,28 @@ describe('Resource', function() {
       r.addOperation('', 'get', (req, res) => {});
       r.addOperation('/a', 'get', (req, res) => {});
       r.addOperation('/a', 'post', (req, res) => {});
-      r.operations.should.have.length(4);
-      r.operations[0].should.be.instanceOf(SimpleOperation);
-      r.operations[0].operationId.should.be.equal('Resource.get');
-      r.operations[1].operationId.should.be.equal('Resource.get');
-      r.operations[2].operationId.should.be.equal('Resource.a');
-      r.operations[3].operationId.should.be.equal('Resource.a-post');
+      r.info.operations.should.have.length(4);
+      r.info.operations[0].should.be.instanceOf(SimpleOperation);
+      r.info.operations[0].operationId.should.be.equal('Resource.get');
+      r.info.operations[1].operationId.should.be.equal('Resource.get');
+      r.info.operations[2].operationId.should.be.equal('Resource.a');
+      r.info.operations[3].operationId.should.be.equal('Resource.a-post');
     });
 
     it('should add a SimpleOperation instance with the specified id', function () {
       let r = new Resource();
       r.addOperation('/', 'get', (req, res) => {
       }, 'test');
-      r.operations.should.have.length(1);
-      r.operations[0].should.be.instanceOf(SimpleOperation);
-      r.operations[0].operationId.should.be.equal('Resource.test');
+      r.info.operations.should.have.length(1);
+      r.info.operations[0].should.be.instanceOf(SimpleOperation);
+      r.info.operations[0].operationId.should.be.equal('Resource.test');
     });
 
     it('should throw if a no method is specified', function () {
       let r = new Resource();
       should.throw(function () {
-        r.addOperation('/');
+        r.addOperation('/' as any as Operation);
       }, Error, /invalid method/);
-    });
-
-    it('should throw if a no handler is specified', function () {
-      let r = new Resource();
-      let op = new SimpleOperation(SimpleOperation.prototype.handler, r, '/', 'get');
-      should.throw(function () {
-        op.handler()
-      }, Error, /handler not defined/);
     });
 
   });

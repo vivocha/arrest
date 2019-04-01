@@ -1,14 +1,14 @@
-var chai = require('chai')
-  , spies = require('chai-spies')
-  , should = chai.should()
-  , supertest = require('supertest')
-  , express = require('express')
-  , Scopes = require('../../dist/scopes').Scopes
-  , API = require('../../dist/api').API
-  , Resource = require('../../dist/resource').Resource
-  , Operation = require('../../dist/operation').Operation
+import * as chai from 'chai';
+import * as spies from 'chai-spies';
+import * as express from 'express';
+import * as supertest from 'supertest';
+import { API } from '../../dist/api';
+import { Operation } from '../../dist/operation';
+import { Resource } from '../../dist/resource';
+import { Scopes } from '../../dist/scopes';
+import { APIRequest, APIResponse } from '../../dist/types';
 
-
+const should = chai.should();
 chai.use(spies);
 
 describe('Operation', function() {
@@ -16,47 +16,53 @@ describe('Operation', function() {
   describe('attach', function() {
 
     it('should add the scope names', function() {
-      const api = new API({
-        info: {
-          version: '1.0.0'
-        },
-        securityDefinitions: {
-          "access_code": {
+      const api = new API();
+      api.document.components = { 
+        securitySchemes: {
+          "myOauth2": {
             "type": "oauth2",
-            "flow": "accessCode",
-            "tokenUrl": "token"
+            "flows": {
+              "authorizationCode": {
+                "tokenUrl": "token",
+                "authorizationUrl": "/a/b/authorize",
+                "scopes": {}
+              },
+              "implicit": {
+                "authorizationUrl": "/a/b/authorize",
+                "scopes": {}
+              },
+            }
           },
-          "implicit": {
-            "type": "oauth2",
-            "flow": "implicit",
-            "authorizationUrl": "/a/b/authorize"
-          },
-          "basic": {
-            "type": "whatever"
+          "myBasic": {
+            "type": "http",
+            "scheme": "Basic"
           }
         }
-      });
+      };
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
         }
+        handler(req: APIRequest, res: APIResponse, next) {}
       }
       class Op2 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op2');
         }
+        handler(req: APIRequest, res: APIResponse, next) {}
       }
       let r = new Resource({ name: 'Test' }, { '/': { get: Op1, post: Op2 }});
       api.addResource(r);
-      should.exist(api.paths['/tests']);
-      should.exist(api.paths['/tests'].get);
-      should.exist(api.paths['/tests'].post);
-      api.paths['/tests'].get.operationId.should.equal('Test.op1');
-      api.paths['/tests'].post.operationId.should.equal('Test.op2');
+      should.exist(api.document.paths['/tests']);
+      should.exist(api.document.paths['/tests'].get);
+      should.exist(api.document.paths['/tests'].post);
+      const doc = api.document as any;
+      doc.paths['/tests'].get.operationId.should.equal('Test.op1');
+      doc.paths['/tests'].post.operationId.should.equal('Test.op2');
 
-      should.exist(api.securityDefinitions.access_code.scopes['Test']);
-      should.exist(api.securityDefinitions.access_code.scopes['Test.op1']);
-      should.exist(api.securityDefinitions.access_code.scopes['Test.op2']);
+      should.exist(doc.components.securitySchemes.myOauth2.scopes['Test']);
+      should.exist(doc.components.securitySchemes.myOauth2.scopes['Test.op1']);
+      should.exist(doc.components.securitySchemes.myOauth2.scopes['Test.op2']);
     });
 
   });
@@ -71,18 +77,7 @@ describe('Operation', function() {
       const app = express();
       let server;
 
-      const api = new API({
-        info: {
-          version: '1.0.0'
-        },
-        securityDefinitions: {
-          "access_code": {
-            "type": "oauth2",
-            "flow": "accessCode",
-            "tokenUrl": "token"
-          }
-        }
-      });
+      const api = new API();
       const spy = chai.spy(function(req, res) {
         res.send({ a: 5 });
       });
@@ -109,7 +104,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             should.exist(data);
             data.a.should.equal(5);
-            spy.should.have.been.called.once();
+            spy.should.have.been.called.once;
           });
 
       }).then(() => {
@@ -141,28 +136,32 @@ describe('Operation', function() {
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
-          this.setInfo({
-            parameters: [
-              {
-                "name": "x-test-p1",
-                "in": "header",
-                "type": "boolean",
-                "required": true
+          this.info.parameters = [
+            {
+              "name": "x-test-p1",
+              "in": "header",
+              "schema": {
+                "type": "boolean"
               },
-              {
-                "name": "x-test-p2",
-                "in": "header",
-                "type": "number",
-              },
-              {
-                "name": "x-test-p3",
-                "in": "header",
+              "required": true
+            },
+            {
+              "name": "x-test-p2",
+              "in": "header",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "x-test-p3",
+              "in": "header",
+              "style": "pipeDelimited",
+              "schema": {
                 "type": "array",
-                "collectionFormat": "pipes",
                 "items": { "type": "integer" }
               }
-            ]
-          });
+            }
+          ]
         }
         handler(req, res) {
           spy(req, res);
@@ -192,7 +191,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('required');
             data.info.should.equal('headers.x-test-p1');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -205,7 +204,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('headers.x-test-p1');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -219,7 +218,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('headers.x-test-p2');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -234,7 +233,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('headers.x-test-p3/0');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -250,7 +249,7 @@ describe('Operation', function() {
             data.headers['x-test-p1'].should.equal(true);
             data.headers['x-test-p2'].should.equal(5);
             data.headers['x-test-p3'].should.deep.equal([ 1, 2, 3]);
-            spy.should.have.been.called.once();
+            spy.should.have.been.called.once;
           });
       });
 
@@ -272,20 +271,22 @@ describe('Operation', function() {
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
-          this.setInfo({
-            parameters: [
-              {
-                "name": "p1",
-                "in": "path",
+          this.info.parameters= [
+            {
+              "name": "p1",
+              "in": "path",
+              "schema": {
                 "type": "boolean"
-              },
-              {
-                "name": "p2",
-                "in": "path",
-                "type": "number",
               }
-            ]
-          });
+            },
+            {
+              "name": "p2",
+              "in": "path",
+              "schema": {
+                "type": "number"
+              }
+            }
+          ];
         }
         handler(req, res) {
           spy(req, res);
@@ -315,7 +316,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('required');
             data.info.should.equal('params.p2');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -327,7 +328,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('params.p1');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -339,7 +340,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('params.p2');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -351,7 +352,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.params.p1.should.equal(true);
             data.params.p2.should.equal(5);
-            spy.should.have.been.called.once();
+            spy.should.have.been.called.once;
           });
       });
 
@@ -373,28 +374,32 @@ describe('Operation', function() {
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
-          this.setInfo({
-            parameters: [
-              {
-                "name": "p1",
-                "in": "query",
-                "type": "boolean",
-                "required": true
+          this.info.parameters = [
+            {
+              "name": "p1",
+              "in": "query",
+              "schema": {
+                "type": "boolean"
               },
-              {
-                "name": "p2",
-                "in": "query",
-                "type": "number",
-              },
-              {
-                "name": "p3",
-                "in": "query",
+              "required": true
+            },
+            {
+              "name": "p2",
+              "in": "query",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "p3",
+              "in": "query",
+              "style": "pipeDelimited",
+              "schema": {
                 "type": "array",
-                "collectionFormat": "pipes",
                 "items": { "type": "integer" }
               }
-            ]
-          });
+            }
+          ];
         }
         handler(req, res) {
           spy(req, res);
@@ -424,7 +429,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('required');
             data.info.should.equal('query.p1');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -436,7 +441,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('query.p1');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -448,7 +453,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('query.p2');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -460,7 +465,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('query.p3/1');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -473,7 +478,7 @@ describe('Operation', function() {
             data.query.p1.should.equal(true);
             data.query.p2.should.equal(5);
             data.query.p3.should.deep.equal([ 1, 2, 3]);
-            spy.should.have.been.called.once();
+            spy.should.have.been.called.once;
           });
       });
 
@@ -495,11 +500,9 @@ describe('Operation', function() {
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
-          this.setInfo({
-            parameters: [
-              {
-                "name": "aaa",
-                "in": "body",
+          this.info.requestBody = {
+            "content": {
+              "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -512,11 +515,11 @@ describe('Operation', function() {
                   },
                   "additionalProperties": false,
                   "required": [ "a" ]
-                },
-                "required": true
+                }
               }
-            ]
-          });
+            },
+            "required": true
+          };
         }
         handler(req, res) {
           spy(req, res);
@@ -525,17 +528,15 @@ describe('Operation', function() {
       class Op2 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op2');
-          this.setInfo({
-            parameters: [
-              {
-                "name": "bbb",
-                "in": "body",
+          this.info.requestBody = {
+            "content": {
+              "application/json": {
                 "schema": {
-                  "type": "object",
+                  "type": "object"
                 }
               }
-            ]
-          });
+            }
+          };
         }
         handler(req, res) {
           res.send({});
@@ -544,12 +545,9 @@ describe('Operation', function() {
       class Op3 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op3');
-          this.setInfo({
-            consumes: [ 'application/x-www-form-urlencoded' ],
-            parameters: [
-              {
-                "name": "bbb",
-                "in": "body",
+          this.info.requestBody = {
+            "content": {
+              "application/x-www-form-urlencoded": {
                 "schema": {
                   "type": "object",
                   "required": [ "test" ],
@@ -561,8 +559,8 @@ describe('Operation', function() {
                   }
                 }
               }
-            ]
-          });
+            }
+          };
         }
         handler(req, res) {
           spy(req, res);
@@ -592,7 +590,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('required');
             data.info.should.equal('body');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -614,7 +612,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('required');
             data.info.should.equal('body/a');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -627,7 +625,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('body/a');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -640,7 +638,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.message.should.equal('type');
             data.info.should.equal('body/b');
-            spy.should.not.have.been.called.once();
+            spy.should.not.have.been.called.once;
           });
       });
 
@@ -653,7 +651,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.body.a.should.equal(true);
             data.body.b.should.equal(5);
-            spy.should.have.been.called.once();
+            spy.should.have.been.called.once;
           });
       });
 
@@ -688,7 +686,7 @@ describe('Operation', function() {
           next();
         }
       }
-      const api = new API1({ info: { version: '1.0.0' }});
+      const api = new API1();
       const spy = chai.spy(function(req, res) {
         res.send({});
       });
@@ -697,7 +695,7 @@ describe('Operation', function() {
           super(resource, path, method, 'op1');
         }
         get swaggerScopes() {
-          return [];
+          return {};
         }
         handler(req, res) {
           spy(req, res);
@@ -724,7 +722,7 @@ describe('Operation', function() {
           .expect(200)
           .expect('Content-Type', /json/)
           .then(() => {
-            spy.should.have.been.called.once();
+            spy.should.have.been.called.once;
           });
       });
 
@@ -734,7 +732,7 @@ describe('Operation', function() {
           .expect(401)
           .expect('Content-Type', /json/)
           .then(() => {
-            spy.should.have.been.called.once();
+            spy.should.have.been.called.once;
           });
       });
 
@@ -755,7 +753,7 @@ describe('Operation', function() {
           next();
         }
       }
-      const api = new API1({ info: { version: '1.0.0' }});
+      const api = new API1();
       const spy = chai.spy(function(req, res) {
         res.send({});
       });

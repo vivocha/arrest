@@ -1,20 +1,19 @@
-const chai = require('chai')
-  , spies = require('chai-spies')
-  , should = chai.should()
-  , mongo = require('mongodoki')
-  , supertest = require('supertest')
-  , express = require('express')
-  , arrest = require('../../dist/index')
-  , API = arrest.API
-  , MongoResource = arrest.MongoResource
-  , MongoOperation = arrest.MongoOperation
-  , QueryMongoOperation = arrest.QueryMongoOperation
+import * as chai from 'chai';
+import * as chaiAsPromised from 'chai-as-promised';
+import * as spies from 'chai-spies';
+import * as express from 'express';
+import * as mongo from 'mongodoki';
+import * as supertest from 'supertest';
+import { API } from '../../dist/api';
+import { MongoJob, MongoOperation, MongoResource, QueryMongoOperation } from '../../dist/mongo/index';
 
+const should = chai.should();
 chai.use(spies);
+chai.use(chaiAsPromised);
 
 describe('mongo', function() {
 
-  const md = new mongo.Mongodoki({ reuse: true });
+  const md = new mongo.Mongodoki({ reuse: true } as mongo.DokiConfiguration);
 
   before(async function() {
     this.timeout(0);
@@ -45,10 +44,11 @@ describe('mongo', function() {
       });
 
       it('should connect to a mongodb via a connection uri', function() {
-        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test' });
-        r.collection.should.equal('tests');
-        r.id.should.equal('_id');
-        r.idIsObjectId.should.equal(true);
+        const r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test' });
+        const info = r.info as any;
+        info.collection.should.equal('tests');
+        info.id.should.equal('_id');
+        info.idIsObjectId.should.equal(true);
         db = r.db;
         return r.db;
       });
@@ -59,23 +59,24 @@ describe('mongo', function() {
       });
 
       it('should use an existing valid db connection', function() {
-        let c = mongo.MongoClient.connect('mongodb://localhost:27017/local');
+        let c = mongo.MongoClient.connect('mongodb://localhost:27017/local').then(c => c.db());
         let r = new MongoResource(c, { name: 'Test' });
         db = r.db;
         return r.db;
       });
 
       it('should fail with an existing failed db connection', function() {
-        let c = mongo.MongoClient.connect('mongodb://localhost:57017/local');
+        let c = mongo.MongoClient.connect('mongodb://localhost:57017/local').then(c => c.db());
         let r = new MongoResource(c, { name: 'Test' });
         return r.db.should.be.rejected;
       });
 
       it('should use the specified collection and id parameters', function() {
         let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: 'a', id: 'b', idIsObjectId: false });
-        r.collection.should.equal('a');
-        r.id.should.equal('b');
-        r.idIsObjectId.should.equal(false);
+        const info = r.info as any;
+        info.collection.should.equal('a');
+        info.id.should.equal('b');
+        info.idIsObjectId.should.equal(false);
         db = r.db;
         return r.db;
       });
@@ -115,7 +116,7 @@ describe('mongo', function() {
           idIsObjectId: false,
           createIndexes: true
         });
-        r.getIndexes = () => [
+        (r as any).getIndexes = () => [
           {
             key: { b: 1 },
             unique: true,
@@ -123,7 +124,7 @@ describe('mongo', function() {
           }
         ];
         db = r.db;
-        let coll = (await db).collection(r.collection);
+        let coll = (await db).collection((r.info as any).collection);
         await coll.createIndex({ b: 1 }, { unique: true });
 
         coll = await r.getCollection();
@@ -141,7 +142,7 @@ describe('mongo', function() {
         });
 
         db = r.db;
-        let coll = (await db).collection(r.collection);
+        let coll = (await db).collection((r.info as any).collection);
         await coll.createIndex({ b: 1 }, { });
         await r.getCollection().should.be.rejected;
       });
@@ -174,7 +175,7 @@ describe('mongo', function() {
       }
     }
 
-    let db, id, coll, coll2, r1, r2, r3, r4;
+    let db, id, coll, coll2, r1, r2, r3, r4, server;
 
     before(async function() {
       db = await mongo.MongoClient.connect('mongodb://localhost:27017/local');
@@ -208,11 +209,12 @@ describe('mongo', function() {
     });
 
     it('should install default operation handlers', function() {
-      api.paths['/tests'].get.operationId.should.equal('Test.query');
-      api.paths['/tests'].post.operationId.should.equal('Test.create');
-      api.paths['/tests/{id}'].get.operationId.should.equal('Test.read');
-      api.paths['/tests/{id}'].put.operationId.should.equal('Test.update');
-      api.paths['/tests/{id}'].delete.operationId.should.equal('Test.remove');
+      const doc = api.document as any;
+      doc.paths['/tests'].get.operationId.should.equal('Test.query');
+      doc.paths['/tests'].post.operationId.should.equal('Test.create');
+      doc.paths['/tests/{id}'].get.operationId.should.equal('Test.read');
+      doc.paths['/tests/{id}'].put.operationId.should.equal('Test.update');
+      doc.paths['/tests/{id}'].delete.operationId.should.equal('Test.remove');
     });
 
     describe('create', function() {
@@ -305,11 +307,16 @@ describe('mongo', function() {
           getCollectionOptions() {
             return { strict: true }
           }
+          runOperation(job: MongoJob): Promise<MongoJob> {
+            return Promise.resolve(job);
+          }    
         };
 
         let r = new MongoResource(db, { name: 'Test', collection: 'aaa' });
         let c = new TestOperation(r, '/', 'get', 'x');
-        c.collection.then(() => should.fail(), err => true);
+        c.collection.then(() => {
+          throw new Error('should not get here')
+        }, err => true);
       });
 
     });

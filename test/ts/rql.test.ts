@@ -1,9 +1,8 @@
-var chai = require('chai')
-  , spies = require('chai-spies')
-  , should = chai.should()
-  , rql = require('../../dist/mongo/rql').default
+import * as chai from 'chai';
+import * as spies from 'chai-spies';
+import rql from '../../dist/mongo/rql';
 
-
+chai.should();
 chai.use(spies);
 
 describe('rql', function() {
@@ -83,19 +82,19 @@ describe('rql', function() {
   });
 
   it('should parse "sort"', function() {
-    let opts = {};
+    let opts: any = {};
     rql({}, opts, 'sort(a,b)');
     opts.sort.should.deep.equal([ 'a', 'b' ]);
   });
 
   it('should parse "select"', function() {
-    let opts = {};
+    let opts: any = {};
     rql({}, opts, 'select(a,b)');
     opts.fields.should.deep.equal([ 'a', 'b' ]);
   });
 
   it('should parse "limit"', function() {
-    let opts = {};
+    let opts: any = {};
     rql({}, opts, 'limit(a,b)');
     opts.skip.should.equal('a');
     opts.limit.should.equal('b');
