@@ -6,6 +6,8 @@ import { OpenAPIV3 } from 'openapi-police';
 import * as pem from 'pem';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
+import { DEFAULT_DOCUMENT } from '../../dist/defaults';
+import { RESTError } from '../../dist/error';
 import { Operation } from '../../dist/operation';
 import { Resource } from '../../dist/resource';
 import { Scopes } from '../../dist/scopes';
@@ -109,7 +111,7 @@ describe('API', function () {
           app2.use(router);
           server2 = app2.listen(port + 1);
           return supertest('http://localhost:' + (port + 1))
-            .get('/swagger.json')
+            .get('/openapi.json')
             .expect(400)
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
@@ -124,16 +126,15 @@ describe('API', function () {
         });
       });
 
-      it('should return a the default swagger file', function () {
+      it('should return a default openapi file', function () {
         return request
-          .get('/swagger.json')
+          .get('/openapi.json')
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             should.exist(data);
-            data.swagger.should.equal('2.0');
-            data.host.should.equal(host);
-            data.basePath.should.equal('/');
+            data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
+            data.servers[0].url.should.equal(`${basePath}/`);
             should.not.exist(data.id);
             should.not.exist(data.tags);
           });
@@ -141,12 +142,12 @@ describe('API', function () {
 
       it('should normalize oauth2 urls in security definitions', function () {
         return request
-          .get('/swagger.json')
+          .get('/openapi.json')
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.securityDefinitions.access_code.tokenUrl.should.equal(basePath + '/token');
-            data.securityDefinitions.implicit.authorizationUrl.should.equal(basePath + '/a/b/authorize');
+            data.components.securitySchemes.myScheme.flows.authorizationCode.tokenUrl.should.equal(basePath + '/token');
+            data.components.securitySchemes.myScheme.flows.implicit.authorizationUrl.should.equal(basePath + '/a/b/authorize');
           });
       });
 
@@ -177,16 +178,15 @@ describe('API', function () {
       server.close();
     });
 
-    it('should attach the api on /v{major version} and reflect that in the swagger', function () {
+    it('should attach the api on /v{major version} and reflect that in openapi.json', function () {
       return request
-        .get('/v3/swagger.json')
+        .get('/v3/openapi.json')
         .expect(200)
         .expect('Content-Type', /json/)
         .then(({ body: data }) => {
           should.exist(data);
-          data.swagger.should.equal('2.0');
-          data.host.should.equal(host);
-          data.basePath.should.equal('/v3/');
+          data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
+          data.servers[0].url.should.equal(`${basePath}/v3/`);
         });
     });
 
@@ -195,19 +195,18 @@ describe('API', function () {
 
       return api2.attach(r).then(() => {
         return request
-          .get('/v4/swagger.json')
+          .get('/v4/openapi.json')
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             should.exist(data);
-            data.swagger.should.equal('2.0');
-            data.host.should.equal(host);
-            data.basePath.should.equal('/v4/');
+            data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
+            data.servers[0].url.should.equal(`${basePath}/v4/`);
           });
       });
     });
 
-    it('should attach another api with the same version which will handle resources to handled by the fist one', function () {
+    it('should attach another api with the same version which will handle resources to handled by the first one', function () {
       const api3 = new API({ version: '3.2.2', title: 'test' });
       api3.addResource(new Resource({ routes: { '/': { get: (req, res) => res.json({ result: 10 }) } } }));
 
@@ -266,15 +265,13 @@ describe('API', function () {
       return api.listen(port).then(server => {
         server1 = server;
         return request
-          .get('/swagger.json')
+          .get('/openapi.json')
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             should.exist(data);
-            data.swagger.should.equal('2.0');
-            data.host.should.equal(host);
-            data.basePath.should.equal('/');
-            data.schemes.should.deep.equal(['http']);
+            data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
+            data.servers[0].url.should.equal(`${basePath}/`);
           });
       });
     });
@@ -294,15 +291,13 @@ describe('API', function () {
         return api.listen(0, port, { key: keys.serviceKey, cert: keys.certificate }).then(server => {
           server1 = server;
           return supertest('https://' + host)
-            .get('/swagger.json')
+            .get('/openapi.json')
             .expect(200)
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-              data.swagger.should.equal('2.0');
-              data.host.should.equal(host);
-              data.basePath.should.equal('/');
-              data.schemes.should.deep.equal(['https']);
+              data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
+              data.servers[0].url.should.equal(`https://${host}/`);
             });
         });
       });
@@ -327,26 +322,22 @@ describe('API', function () {
           server2 = servers[1];
           return Promise.all([
             request
-              .get('/swagger.json')
+              .get('/openapi.json')
               .expect(200)
               .expect('Content-Type', /json/)
               .then(({ body: data }) => {
                 should.exist(data);
-                data.swagger.should.equal('2.0');
-                data.host.should.equal(host);
-                data.basePath.should.equal('/');
-                data.schemes.should.deep.equal(['https', 'http']);
+                data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
+                data.servers[0].url.should.equal(`${basePath}/`);
               }),
             supertest('https://localhost:' + (port + 2))
-              .get('/swagger.json')
+              .get('/openapi.json')
               .expect(200)
               .expect('Content-Type', /json/)
               .then(({ body: data }) => {
                 should.exist(data);
-                data.swagger.should.equal('2.0');
-                data.host.should.equal('localhost:' + (port + 2));
-                data.basePath.should.equal('/');
-                data.schemes.should.deep.equal(['https', 'http']);
+                data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
+                data.servers[0].url.should.equal(`https://localhost:${port + 2}/`);
               })
           ]);
         });
@@ -492,6 +483,7 @@ describe('API', function () {
         });
     });
   });
+
   describe('Scopes', function () {
 
     it('should return all the scopes as an array', function () {
@@ -564,11 +556,22 @@ describe('API', function () {
     let server;
 
     afterEach(function () {
-      server.close();
+      if (server) {
+        server.close();
+        server = undefined;
+      }
+    });
+
+    it('should initialize missing document properties when registering a schema', function() {
+      const api = new API();
+      delete api.document.components;
+      api.registerSchema('test', {
+        type: 'object'
+      });
+      (api.document as any).components.schemas.test.should.deep.equal({ type: 'object'});
     });
 
     it('should be able to resolve an internal schema', function () {
-      debugger;
       const spy = chai.spy((req, res) => { res.json({}) });
       const api = new API();
       class Op1 extends Operation {
@@ -604,7 +607,7 @@ describe('API', function () {
                 "type": "string"
               },
               "d": { $ref: '#/components/schemas/op1_schema1' },
-              "e": { $ref: '#/components/schemas/op1_schema1#/properties/b' }
+              "e": { $ref: '#/components/schemas/op1_schema1/properties/b' }
             },
             "additionalProperties": false,
             "required": ["d"]
@@ -631,8 +634,9 @@ describe('API', function () {
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-              data.message.should.equal('required');
-              data.info.should.equal('body/d');
+              data.message.should.equal('ValidationError');
+              data.info.type.should.equal('required');
+              data.info.path.should.equal('body/d');
             }),
           request
             .post('/tests/a')
@@ -641,8 +645,9 @@ describe('API', function () {
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-              data.message.should.equal('required');
-              data.info.should.equal('body/d/a');
+              data.message.should.equal('ValidationError');
+              data.info.errors[0].type.should.equal('required');
+              data.info.errors[0].path.should.equal('body/d/a');
             }),
           request
             .post('/tests/a')
@@ -651,8 +656,9 @@ describe('API', function () {
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-              data.message.should.equal('type');
-              data.info.should.equal('body/e');
+              data.message.should.equal('ValidationError');
+              data.info.errors[0].type.should.equal('type');
+              data.info.errors[0].path.should.equal('body/e');
             }),
           request
             .post('/tests/a')
@@ -667,6 +673,61 @@ describe('API', function () {
         });
       });
 
+    });
+
+    it('should fail if an external schema cannot be retrieved (1)', function () {
+      const spy = chai.spy((req, res) => { res.json({}) });
+      const api = new API();
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+          this.info.requestBody = {
+            "content": {
+              "application/json": {
+                "schema": { $ref: `http://noresolve.vivocha.com/aaa` }
+              }
+            },
+            "required": true
+          };
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      const app = express();
+      server = app.listen(port);
+
+      api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
+      return api.router().should.be.rejectedWith(Error, /noresolve.vivocha.com/);
+    });
+
+    it('should fail if an external schema cannot be retrieved (2)', function () {
+      const spy = chai.spy((req, res) => { res.json({}) });
+      const api = new API();
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+          this.info.requestBody = {
+            "content": {
+              "application/json": {
+                "schema": { $ref: `${basePath}/aaa` }
+              }
+            },
+            "required": true
+          };
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      const app = express();
+      app.get('/aaa', (req, res) => res.status(499).end());
+      server = app.listen(port);
+
+      api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
+      return api.router().should.be.rejectedWith(RESTError);
     });
 
     it('should be able to resolve an external schema', function () {
@@ -718,8 +779,9 @@ describe('API', function () {
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-              data.message.should.equal('required');
-              data.info.should.equal('body/h');
+              data.message.should.equal('ValidationError');
+              data.info.type.should.equal('required');
+              data.info.path.should.equal('body/h');
             }),
           request
             .post('/tests/a')
@@ -728,8 +790,9 @@ describe('API', function () {
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-              data.message.should.equal('type');
-              data.info.should.equal('body/h');
+              data.message.should.equal('ValidationError');
+              data.info.errors[0].type.should.equal('type');
+              data.info.errors[0].path.should.equal('body/h');
             }),
           request
             .post('/tests/a')
@@ -738,8 +801,9 @@ describe('API', function () {
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-              data.message.should.equal('type');
-              data.info.should.equal('body/i');
+              data.message.should.equal('ValidationError');
+              data.info.errors[0].type.should.equal('type');
+              data.info.errors[0].path.should.equal('body/i');
             }),
           request
             .post('/tests/a')

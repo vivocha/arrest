@@ -7,6 +7,7 @@ import { API } from './api';
 import { Resource } from './resource';
 import { Scopes } from './scopes';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
+import cookieParser = require('cookie-parser');
 
 const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
 
@@ -73,7 +74,7 @@ export abstract class Operation {
       }
     });
 
-    return async function(req:APIRequest, res:APIResponse, next:NextFunction) {
+    return async function(req: APIRequest, res: APIResponse, next: NextFunction) {
       try {
         for (let v of validators) {
           await v(req);
@@ -89,7 +90,7 @@ export abstract class Operation {
       throw new Error(`Schema missing for content type ${type}`);
     }
     const schema = new SchemaObject(bodySpec.schema as OpenAPIV3.SchemaObject);
-    return (req:APIRequest, res:APIResponse, next:NextFunction) => {
+    return async (req:APIRequest, res:APIResponse, next:NextFunction) => {
       if (_.isEqual(req.body, {}) && (!parseInt('' + req.header('content-length')))) {
         if (required === true) {
           next(new jp.ValidationError('body', jp.Schema.scope(schema), 'required'));
@@ -97,7 +98,10 @@ export abstract class Operation {
           next();
         }
       } else {
-        req.body = schema.validate(req.body, { setDefault: true }, 'body').then(() => next(), err => next(err));
+        req.body = await schema.validate(req.body, {
+          setDefault: true,
+          coerceTypes: (type !== 'application/json')
+        }, 'body').then(() => next(), err => next(err));
       }
     };
 
@@ -161,6 +165,7 @@ export abstract class Operation {
       middlewares.push(this.createParameterValidators('headers', params.header));
     }
     if (params.cookie) {
+      middlewares.push(cookieParser());
       middlewares.push(this.createParameterValidators('cookies', params.cookie));
     }
     if (params.path) {
@@ -185,7 +190,10 @@ export abstract class Operation {
         middlewares.push(urlencodedParser({ extended: true }));
         middlewares.push(this.createBodyValidator('application/x-www-form-urlencoded', body.content['application/x-www-form-urlencoded'], body.required));
       }
+    } else if ([ 'put', 'post', 'patch'].includes(this.method)) {
+      middlewares.push(jsonParser());
     }
+
     router[this.method](this.path, ...middlewares, this.handler.bind(this));
     return router;
   }
@@ -194,11 +202,10 @@ export abstract class Operation {
 }
 
 export class SimpleOperation extends Operation {
-  constructor(handler: APIRequestHandler, resource: Resource, path: string, method: Method, id?: string) {
+  constructor(protected customHandler: APIRequestHandler, resource: Resource, path: string, method: Method, id?: string) {
     super(resource, path, method, id);
-    this.handler = handler;
   }
   handler(req: APIRequest, res: APIResponse, next?: NextFunction) {
-    throw new Error('SimpleOperation handler not defined');
+    this.customHandler(req, res, next);
   }
 }

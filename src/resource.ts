@@ -40,19 +40,14 @@ export class Resource {
   protected operations: Operation[] = [];
 
   constructor(public info: ResourceDefinition = {}, routes?: Routes) {
-    if (info && info.routes) {
+    if (this.info.routes) {
       if (routes) {
         throw new Error('double routes specification');
       }
-      routes = info.routes;
-      delete info.routes;
+      routes = this.info.routes;
+      delete this.info.routes;
     }
-    if (!this.info.name) {
-      this.info.name = Resource.capitalize(camelcase(this.constructor.name));
-    }
-    if (!this.info.namePlural) {
-      this.info.namePlural = this.info.name + 's';
-    }
+    this.initInfo();
     if (routes) {
       for (let path in routes) {
         let handlers = routes[path];
@@ -60,6 +55,15 @@ export class Resource {
           this.addOperation(path, method as  Method, handlers[method]);
         }
       }
+    }
+  }
+
+  protected initInfo() {
+    if (!this.info.name) {
+      this.info.name = Resource.capitalize(camelcase(this.constructor.name));
+    }
+    if (!this.info.namePlural) {
+      this.info.namePlural = this.info.name + 's';
     }
   }
 

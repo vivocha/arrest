@@ -78,6 +78,8 @@
   },
   "homepage": "https://github.com/vivocha/arrest",
   "devDependencies": {
+    "@commitlint/cli": "^7.5.2",
+    "@commitlint/config-conventional": "^7.5.0",
     "@types/body-parser": "^1.17.0",
     "@types/chai": "^4.1.7",
     "@types/chai-as-promised": "^7.1.0",
@@ -89,7 +91,7 @@
     "@types/mongodb": "^3.1.22",
     "@types/node": "^10.14.1",
     "@types/request": "^2.48.1",
-    "@types/semver": "^5.5.0",
+    "@types/semver": "^6.0.0",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
     "chai-spies": "^1.0.0",
@@ -106,11 +108,12 @@
     "rimraf": "^2.6.3",
     "semantic-release": "^15.13.3",
     "supertest": "^4.0.2",
-    "typescript": "^3.3.4000"
+    "typescript": "^3.4.1"
   },
   "dependencies": {
     "body-parser": "^1.18.3",
-    "camelcase": "^5.2.0",
+    "camelcase": "^5.3.0",
+    "cookie-parser": "^1.4.4",
     "debug": "^4.1.1",
     "debuggo": "^1.1.2",
     "decamelize": "^3.1.1",
@@ -119,7 +122,7 @@
     "jsonref": "^5.1.2",
     "lodash": "^4.17.11",
     "mongodb": "^3.2.2",
-    "openapi-police": "^1.0.5",
+    "openapi-police": "^1.0.11",
     "request": "^2.88.0",
     "rql": "^0.3.3",
     "semver": "^6.0.0"

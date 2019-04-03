@@ -2,7 +2,8 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import * as spies from 'chai-spies';
 import * as express from 'express';
-import * as mongo from 'mongodoki';
+import { MongoClient } from 'mongodb';
+import { DokiConfiguration, Mongodoki } from 'mongodoki';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
 import { MongoJob, MongoOperation, MongoResource, QueryMongoOperation } from '../../dist/mongo/index';
@@ -13,7 +14,7 @@ chai.use(chaiAsPromised);
 
 describe('mongo', function() {
 
-  const md = new mongo.Mongodoki({ reuse: true } as mongo.DokiConfiguration);
+  const md = new Mongodoki({ reuse: true } as DokiConfiguration);
 
   before(async function() {
     this.timeout(0);
@@ -37,7 +38,7 @@ describe('mongo', function() {
           } catch (err) {
 
           } finally {
-            await _db.close();
+            //await _db.close();
             db = undefined;
           }
         }
@@ -54,25 +55,25 @@ describe('mongo', function() {
       });
 
       it('should fail to connect to a wrong connection uri', function() {
-        let r = new MongoResource('mongodb://localhost:57017/local', { name: 'Test' });
+        const r = new MongoResource('mongodb://localhost:57017/local', { name: 'Test' });
         return r.db.should.be.rejected;
       });
 
-      it('should use an existing valid db connection', function() {
-        let c = mongo.MongoClient.connect('mongodb://localhost:27017/local').then(c => c.db());
+      it('should use an existing valid db connection', async function() {
+        const c = MongoClient.connect('mongodb://localhost:27017/local').then(c => c.db());
         let r = new MongoResource(c, { name: 'Test' });
         db = r.db;
         return r.db;
       });
 
       it('should fail with an existing failed db connection', function() {
-        let c = mongo.MongoClient.connect('mongodb://localhost:57017/local').then(c => c.db());
-        let r = new MongoResource(c, { name: 'Test' });
+        const c = MongoClient.connect('mongodb://localhost:57017/local').then(c => c.db());
+        const r = new MongoResource(c, { name: 'Test' });
         return r.db.should.be.rejected;
       });
 
       it('should use the specified collection and id parameters', function() {
-        let r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: 'a', id: 'b', idIsObjectId: false });
+        const r = new MongoResource('mongodb://localhost:27017/local', { name: 'Test', collection: 'a', id: 'b', idIsObjectId: false });
         const info = r.info as any;
         info.collection.should.equal('a');
         info.id.should.equal('b');
@@ -82,7 +83,7 @@ describe('mongo', function() {
       });
 
       it('should not fail if a required index is missing and createIndexes is false', async function() {
-        let r = new MongoResource('mongodb://localhost:27017/local', {
+        const r = new MongoResource('mongodb://localhost:27017/local', {
           name: 'Test',
           collection: collectionName,
           id: 'b',
@@ -94,7 +95,7 @@ describe('mongo', function() {
       });
 
       it('should create the required indexes', async function() {
-        let r = new MongoResource('mongodb://localhost:27017/local', {
+        const r = new MongoResource('mongodb://localhost:27017/local', {
           name: 'Test',
           collection: collectionName,
           id: 'b',
@@ -109,7 +110,7 @@ describe('mongo', function() {
       });
 
       it('should detect existing indexes matching the required ones', async function() {
-        let r = new MongoResource('mongodb://localhost:27017/local', {
+        const r = new MongoResource('mongodb://localhost:27017/local', {
           name: 'Test',
           collection: collectionName,
           id: 'b',
@@ -128,12 +129,12 @@ describe('mongo', function() {
         await coll.createIndex({ b: 1 }, { unique: true });
 
         coll = await r.getCollection();
-        let indexes = await coll.indexes();
+        const indexes = await coll.indexes();
         return indexes.length.should.equal(2);
       });
 
       it('should fail if an existing index has different options', async function() {
-        let r = new MongoResource('mongodb://localhost:27017/local', {
+        const r = new MongoResource('mongodb://localhost:27017/local', {
           name: 'Test',
           collection: collectionName,
           id: 'b',
@@ -142,7 +143,7 @@ describe('mongo', function() {
         });
 
         db = r.db;
-        let coll = (await db).collection((r.info as any).collection);
+        const coll = (await db).collection((r.info as any).collection);
         await coll.createIndex({ b: 1 }, { });
         await r.getCollection().should.be.rejected;
       });
@@ -178,7 +179,7 @@ describe('mongo', function() {
     let db, id, coll, coll2, r1, r2, r3, r4, server;
 
     before(async function() {
-      db = await mongo.MongoClient.connect('mongodb://localhost:27017/local');
+      db = await MongoClient.connect('mongodb://localhost:27017/local').then(c => c.db());
       r1 = new MongoResource(db, { name: 'Test', collection: collectionName });
       r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false });
       r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 },  '/2': { get: FakeOp2 }});
@@ -204,7 +205,7 @@ describe('mongo', function() {
       } catch(e) {
 
       } finally {
-        await db.close();
+        //await db.close();
       }
     });
 
@@ -251,7 +252,7 @@ describe('mongo', function() {
             oid = m[1];
           })
           .then(({ body: data }) => {
-            return coll2.findOne({}, { _id: 0 }).then(found => {
+            return coll2.findOne({}, { projection: {_id: 0 } }).then(found => {
               data.should.deep.equal(JSON.parse(JSON.stringify(found)));
               data.should.deep.equal({ c: 3, d: false, myoid: oid });
             });

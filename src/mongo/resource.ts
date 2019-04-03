@@ -19,6 +19,16 @@ export class MongoResource extends Resource {
 
   constructor(db: string | Db | Promise<Db>, public info: MongoResourceDefinition, routes: Routes = MongoResource.defaultRoutes()) {
     super(info, routes);
+    if (typeof db === 'string') {
+      this.db = MongoClient.connect(db as string).then(client => client.db());
+    } else {
+      this.db = Promise.resolve(db as Db | Promise<Db>);
+    }
+    this.indexesChecked = false;
+  }
+
+  protected initInfo() {
+    super.initInfo();
     if (typeof this.info.id !== 'string') {
       this.info.id = '_id';
     }
@@ -28,14 +38,8 @@ export class MongoResource extends Resource {
     if (!this.info.collection) {
       this.info.collection = decamelize('' + this.info.namePlural, '_');
     }
-    if (typeof db === 'string') {
-      this.db = MongoClient.connect(db as string).then(client => client.db());
-    } else {
-      this.db = Promise.resolve(db as Db | Promise<Db>);
-    }
-    this.indexesChecked = false;
   }
-
+  
   get schema(): any {
     return true;
   }

@@ -13,7 +13,50 @@ chai.use(spies);
 
 describe('Operation', function() {
 
+  describe('constructor', function() {
+
+    it('should fail if no info is available', function() {
+      class Op extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op');
+        }
+        getDefaultInfo() {
+          return undefined as any;
+        }
+        handler(req, res) {}
+      }
+      (function() { new Op(undefined, '', 'get') }).should.throw(Error, /Required operationId/);
+    });
+    it('should fail if no operationId is available', function() {
+      class Op extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op');
+        }
+        getDefaultInfo() {
+          return {};
+        }
+        handler(req, res) {}
+      }
+      (function() { new Op(undefined, '', 'get') }).should.throw(Error, /Required operationId/);
+    });
+
+  });
+
   describe('attach', function() {
+
+    it('should create document.paths in API if it does not exist', function() {
+      const api = new API();
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+        }
+        handler(req: APIRequest, res: APIResponse, next) {}
+      }
+      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 }});
+      delete api.document.paths;
+      api.addResource(r);
+      should.exist(api.document.paths['/tests']);
+    });
 
     it('should add the scope names', function() {
       const api = new API();
@@ -28,8 +71,7 @@ describe('Operation', function() {
                 "scopes": {}
               },
               "implicit": {
-                "authorizationUrl": "/a/b/authorize",
-                "scopes": {}
+                "authorizationUrl": "/a/b/authorize"
               },
             }
           },
@@ -38,7 +80,7 @@ describe('Operation', function() {
             "scheme": "Basic"
           }
         }
-      };
+      } as any;
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
@@ -60,9 +102,12 @@ describe('Operation', function() {
       doc.paths['/tests'].get.operationId.should.equal('Test.op1');
       doc.paths['/tests'].post.operationId.should.equal('Test.op2');
 
-      should.exist(doc.components.securitySchemes.myOauth2.scopes['Test']);
-      should.exist(doc.components.securitySchemes.myOauth2.scopes['Test.op1']);
-      should.exist(doc.components.securitySchemes.myOauth2.scopes['Test.op2']);
+      should.exist(doc.components.securitySchemes.myOauth2.flows.authorizationCode.scopes['Test']);
+      should.exist(doc.components.securitySchemes.myOauth2.flows.authorizationCode.scopes['Test.op1']);
+      should.exist(doc.components.securitySchemes.myOauth2.flows.authorizationCode.scopes['Test.op2']);
+      should.exist(doc.components.securitySchemes.myOauth2.flows.implicit.scopes['Test']);
+      should.exist(doc.components.securitySchemes.myOauth2.flows.implicit.scopes['Test.op1']);
+      should.exist(doc.components.securitySchemes.myOauth2.flows.implicit.scopes['Test.op2']);
     });
 
   });
@@ -155,7 +200,6 @@ describe('Operation', function() {
             {
               "name": "x-test-p3",
               "in": "header",
-              "style": "pipeDelimited",
               "schema": {
                 "type": "array",
                 "items": { "type": "integer" }
@@ -179,7 +223,9 @@ describe('Operation', function() {
       });
 
       after(function() {
-        server.close();
+        if (server) {
+          server.close();
+        }
       });
 
 
@@ -189,8 +235,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('required');
-            data.info.should.equal('headers.x-test-p1');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('required');
+            data.info.path.should.equal('headers.x-test-p1');
             spy.should.not.have.been.called.once;
           });
       });
@@ -202,8 +249,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('headers.x-test-p1');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('headers.x-test-p1');
             spy.should.not.have.been.called.once;
           });
       });
@@ -216,8 +264,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('headers.x-test-p2');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('headers.x-test-p2');
             spy.should.not.have.been.called.once;
           });
       });
@@ -231,8 +280,10 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('headers.x-test-p3/0');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('items');
+            data.info.errors[0].type.should.equal('type');
+            data.info.errors[0].path.should.equal('headers.x-test-p3/0');
             spy.should.not.have.been.called.once;
           });
       });
@@ -242,13 +293,149 @@ describe('Operation', function() {
           .get('/tests/')
           .set('x-test-p1', 'true')
           .set('x-test-p2', '5')
-          .set('x-test-p3', '1|2|3')
+          .set('x-test-p3', '1,2,3')
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             data.headers['x-test-p1'].should.equal(true);
             data.headers['x-test-p2'].should.equal(5);
             data.headers['x-test-p3'].should.deep.equal([ 1, 2, 3]);
+            spy.should.have.been.called.once;
+          });
+      });
+
+    });
+
+    describe('cookie', function() {
+
+      const port = 9876;
+      const host = 'localhost:' + port;
+      const basePath = 'http://' + host;
+      const request = supertest(basePath);
+      const app = express();
+      let server;
+
+      const api = new API();
+      const spy = chai.spy(function(req, res) {
+        res.send({ cookies: req.cookies });
+      });
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+          this.info.parameters = [
+            {
+              "name": "test-p1",
+              "in": "cookie",
+              "schema": {
+                "type": "boolean"
+              },
+              "required": true
+            },
+            {
+              "name": "test-p2",
+              "in": "cookie",
+              "schema": {
+                "type": "number"
+              }
+            },
+            {
+              "name": "test-p3",
+              "in": "cookie",
+              "schema": {
+                "type": "array",
+                "items": { "type": "integer" }
+              }
+            }
+          ]
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 }});
+      api.addResource(r);
+
+      before(function() {
+        return api.router().then(router => {
+          app.use(router);
+          server = app.listen(port);
+        });
+      });
+
+      after(function() {
+        if (server) {
+          server.close();
+        }
+      });
+
+
+      it('should fail if a required cookie is missing', function() {
+        return request
+          .get('/tests/')
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('required');
+            data.info.path.should.equal('cookies.test-p1');
+            spy.should.not.have.been.called.once;
+          });
+      });
+
+      it('should fail if a cookie has the wrong scalar type (1)', function() {
+        return request
+          .get('/tests/')
+          .set('Cookie', ['test-p1=test'])
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('cookies.test-p1');
+            spy.should.not.have.been.called.once;
+          });
+      });
+
+      it('should fail if a cookie has the wrong scalar type (2)', function() {
+        return request
+          .get('/tests/')
+          .set('Cookie', ['test-p1=false;test-p2=test'])
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('cookies.test-p2');
+            spy.should.not.have.been.called.once;
+          });
+      });
+
+      it('should fail if a cookie has the wrong item type', function() {
+        return request
+          .get('/tests/')
+          .set('Cookie', ['test-p1=true;test-p2=5;test-p3=test'])
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('items');
+            data.info.errors[0].type.should.equal('type');
+            data.info.errors[0].path.should.equal('cookies.test-p3/0');
+            spy.should.not.have.been.called.once;
+          });
+      });
+
+      it('should correctly return all cookie parameters', function() {
+        return request
+          .get('/tests/')
+          .set('Cookie', ['test-p1=true;test-p2=5;test-p3=1,2,3'])
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.cookies['test-p1'].should.equal(true);
+            data.cookies['test-p2'].should.equal(5);
+            data.cookies['test-p3'].should.deep.equal([ 1, 2, 3]);
             spy.should.have.been.called.once;
           });
       });
@@ -314,8 +501,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('required');
-            data.info.should.equal('params.p2');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('required');
+            data.info.path.should.equal('params.p2');
             spy.should.not.have.been.called.once;
           });
       });
@@ -326,8 +514,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('params.p1');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('params.p1');
             spy.should.not.have.been.called.once;
           });
       });
@@ -338,13 +527,14 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('params.p2');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('params.p2');
             spy.should.not.have.been.called.once;
           });
       });
 
-      it('should correctly return all header parameters', function() {
+      it('should correctly return all path parameters', function() {
         return request
           .get('/tests/true/5')
           .expect(200)
@@ -427,8 +617,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('required');
-            data.info.should.equal('query.p1');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('required');
+            data.info.path.should.equal('query.p1');
             spy.should.not.have.been.called.once;
           });
       });
@@ -439,8 +630,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('query.p1');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('query.p1');
             spy.should.not.have.been.called.once;
           });
       });
@@ -451,8 +643,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('query.p2');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('query.p2');
             spy.should.not.have.been.called.once;
           });
       });
@@ -463,8 +656,10 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('query.p3/1');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('items');
+            data.info.errors[0].type.should.equal('type');
+            data.info.errors[0].path.should.equal('query.p3/1');
             spy.should.not.have.been.called.once;
           });
       });
@@ -581,6 +776,38 @@ describe('Operation', function() {
         server.close();
       });
 
+      it('should throw is a requestBody is missing the content', function() {
+        class Op1 extends Operation {
+          constructor(resource, path, method) {
+            super(resource, path, method, 'op');
+            this.info.requestBody = { } as any;
+          }
+          handler(req, res) {}
+        }
+        const api = new API();
+        const r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }});
+        api.addResource(r);
+        return api.router().should.be.rejectedWith(Error, /Invalid request body/);
+      });
+
+      it('should throw is a requestBody is missing the schema', function() {
+        class Op1 extends Operation {
+          constructor(resource, path, method) {
+            super(resource, path, method, 'op');
+            this.info.requestBody = {
+              "content": {
+                "application/json": {}
+              },
+              "required": true
+            };
+          }
+          handler(req, res) {}
+        }
+        const api = new API();
+        const r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }});
+        api.addResource(r);
+        return api.router().should.be.rejectedWith(Error, /Schema missing/);
+      });
 
       it('should fail if a requested body is missing', function() {
         return request
@@ -588,8 +815,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('required');
-            data.info.should.equal('body');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('required');
+            data.info.path.should.equal('body');
             spy.should.not.have.been.called.once;
           });
       });
@@ -610,8 +838,9 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('required');
-            data.info.should.equal('body/a');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('required');
+            data.info.path.should.equal('body/a');
             spy.should.not.have.been.called.once;
           });
       });
@@ -623,8 +852,10 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('body/a');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('properties');
+            data.info.errors[0].type.should.equal('type');
+            data.info.errors[0].path.should.equal('body/a');
             spy.should.not.have.been.called.once;
           });
       });
@@ -636,8 +867,10 @@ describe('Operation', function() {
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.message.should.equal('type');
-            data.info.should.equal('body/b');
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('properties');
+            data.info.errors[0].type.should.equal('type');
+            data.info.errors[0].path.should.equal('body/b');
             spy.should.not.have.been.called.once;
           });
       });
@@ -658,6 +891,7 @@ describe('Operation', function() {
       it('should accept and parse urlencoded bodies', function() {
         return request
           .post('/tests/c')
+          .set('Content-Type', 'application/x-www-form-urlencoded')
           .send('test=5')
           .expect(200)
           .expect('Content-Type', /json/)

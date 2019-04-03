@@ -6,7 +6,6 @@ import * as qs from 'querystring';
 import * as url from 'url';
 import { API } from '../api';
 import { Operation } from '../operation';
-import { Resource } from '../resource';
 import { APIRequest, APIResponse, Method } from '../types';
 import { MongoResource } from './resource';
 import rql from './rql';
@@ -24,15 +23,18 @@ export interface MongoJob {
 export abstract class MongoOperation extends Operation {
   static readonly MAX_SCAN = 200;
   static readonly MAX_COUNT_MS = 200;
+  
+  constructor(public resource: MongoResource, path: string, method: Method, id?: string) {
+    super(resource, path, method, id);
+  }
 
+  /* TODO is maxScan still supported?
   get maxScan():number {
     return MongoOperation.MAX_SCAN;
   }
+  */
   get maxCountMs():number {
     return MongoOperation.MAX_COUNT_MS;
-  }
-  get resource():MongoResource {
-    return super.resource as MongoResource;
   }
   get collection(): Promise<mongo.Collection> {
     return this.resource.getCollection(this.getCollectionOptions());
@@ -118,7 +120,7 @@ export abstract class MongoOperation extends Operation {
 }
 
 export class QueryMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method, id: string = 'query') {
+  constructor(resource: MongoResource, path: string, method: Method, id: string = 'query') {
     super(resource, path, method, id);
   }
   protected getDefaultInfo(): OpenAPIV3.OperationObject {
@@ -238,7 +240,7 @@ export class QueryMongoOperation extends MongoOperation {
 }
 
 export class ReadMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method, id: string = 'read') {
+  constructor(resource: MongoResource, path: string, method: Method, id: string = 'read') {
     super(resource, path, method, id);
   }
   getDefaultInfo(): OpenAPIV3.OperationObject {
@@ -262,7 +264,7 @@ export class ReadMongoOperation extends MongoOperation {
           },
         },
         "404": {
-          "$ref": "#/responses/notFound"
+          "$ref": "#/components/responses/notFound"
         }
       }
     };
@@ -286,7 +288,7 @@ export class ReadMongoOperation extends MongoOperation {
 }
 
 export class CreateMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method, id: string = 'create') {
+  constructor(resource: MongoResource, path: string, method: Method, id: string = 'create') {
     super(resource, path, method, id);
   }
   getDefaultInfo(): OpenAPIV3.OperationObject {
@@ -360,7 +362,7 @@ export class CreateMongoOperation extends MongoOperation {
 }
 
 export class UpdateMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method, id: string = 'update') {
+  constructor(resource: MongoResource, path: string, method: Method, id: string = 'update') {
     super(resource, path, method, id);
   }
   getDefaultInfo(): OpenAPIV3.OperationObject {
@@ -388,7 +390,7 @@ export class UpdateMongoOperation extends MongoOperation {
           },
         },
         "404": {
-          "$ref": "#/responses/notFound"
+          "$ref": "#/components/responses/notFound"
         }
       }
     };
@@ -433,7 +435,7 @@ export class UpdateMongoOperation extends MongoOperation {
 }
 
 export class RemoveMongoOperation extends MongoOperation {
-  constructor(resource:Resource, path:string, method:Method, id: string = 'remove') {
+  constructor(resource: MongoResource, path: string, method: Method, id: string = 'remove') {
     super(resource, path, method, id);
   }
   getDefaultInfo(): OpenAPIV3.OperationObject {
@@ -449,10 +451,10 @@ export class RemoveMongoOperation extends MongoOperation {
           "description": `${this.resource.info.name} successfully deleted`
         },
         "404": {
-          "$ref": "#/responses/notFound"
+          "$ref": "#/components/responses/notFound"
         },
         "default": {
-          "$ref": "#/responses/defaultError"
+          "$ref": "#/components/responses/defaultError"
         }
       }
     };

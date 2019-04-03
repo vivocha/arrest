@@ -13,6 +13,7 @@ import { RESTError } from './error';
 import { Resource } from './resource';
 import { Scopes } from './scopes';
 import { APIRequest, APIResponse } from './types';
+import request = require('request');
 
 let reqId: number = 0;
 
@@ -22,14 +23,19 @@ export class API {
   protected logger: Logger;
   protected resources: Resource[];
   protected internalRouter: Promise<Router>;
+  protected parseOptions: refs.ParseOptions;
 
   constructor(info?:OpenAPIV3.InfoObject) {
-    this.document = Object.assign({}, (new Eredita(info || {}, new Eredita(_.cloneDeep(DEFAULT_DOCUMENT)))).mergePath());
+    this.document = Eredita.deepExtend(_.cloneDeep(DEFAULT_DOCUMENT), { info: info || {} });
     if (!semver.valid(this.document.info.version)) {
       throw new Error('Invalid version');
     }
     this.logger = getLogger(this.getDebugLabel());
     this.resources = [ ];
+    this.parseOptions = {
+      scope: 'http://vivocha.com/api/v3',
+      retriever: this.defaultSchemaRetriever.bind(this)
+    };
   }
 
   protected getDebugLabel(): string {
@@ -37,6 +43,23 @@ export class API {
   }
   protected getDebugContext(): string {
     return `#${++reqId}`;
+  }
+  protected async defaultSchemaRetriever(url: string): Promise<any> {
+    return new Promise(function(resolve, reject) {
+      request({
+        url: url,
+        method: 'GET',
+        json: true
+      }, function(err, response, data) {
+        if (err) {
+          reject(err);
+        } else if (response.statusCode !== 200) {
+          reject(new RESTError(response.statusCode as number));
+        } else {
+          resolve(data);
+        }
+      });
+    });
   }
 
   addResource(resource:Resource): this {
@@ -102,11 +125,7 @@ export class API {
   async listen(httpPort: number, httpsPort?: number, httpsOptions?: https.ServerOptions): Promise<any> {
     if (!httpPort && !httpsPort) {
       throw new Error('no listen ports specified');
-    } /*else if (httpPort && !httpsPort) {
-      this.schemes = [ 'http' ];
-    } else if (!httpPort && httpsPort) {
-      this.schemes = [ 'https' ];
-    }*/
+    }
     let router = await this.router();
     let app = express();
     app.use(router);
@@ -147,16 +166,34 @@ export class API {
             res.set('Access-Control-Allow-Origin', '*');
             res.set('Access-Control-Allow-Methods', 'GET');
             const out: OpenAPIV3.Document = _.cloneDeep(originalDocument);
+            const baseUrl = `${req.protocol}://${req.headers['host']}${req.baseUrl}/`;
             out.servers = [
               {
-                url: `${req.protocol}://${req.headers['host']}${req.baseUrl}`
+                url: baseUrl
               }
             ];
+
+            // Normalize OAuth2 urls
+            if (out.components && out.components.securitySchemes) {
+              for (let i in out.components.securitySchemes) {
+                const s = out.components.securitySchemes[i] as OpenAPIV3.OAuth2SecurityScheme;
+                if (s.type === 'oauth2' && s.flows) {
+                  for (let j in s.flows) {
+                    const f = s.flows[j];
+                    [ 'authorizationUrl', 'tokenUrl', 'refreshUrl' ].forEach(k => {
+                      if (f[k]) {
+                        f[k] = (new URL(f[k], baseUrl)).toString();
+                      }
+                    });
+                  }
+                }
+              }
+            }
             res.json(out);
           }
         });
 
-        this.document = await refs.parse(this.document, { scope: 'http://vivocha.com/api/v3' } );
+        this.document = await refs.parse(this.document, this.parseOptions );
         for (let resource of this.resources) {
           await resource.router(router, options);
         }

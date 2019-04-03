@@ -47,10 +47,10 @@ describe('Resource', function() {
         }
         handler(req: APIRequest, res: APIResponse, next) {}
       }
-      let r = new Resource({name: 'Test', routes: {'/': {get: TestOp}}});
-      r.info.operations.should.have.length(1);
-      r.info.operations[0].should.be.instanceOf(TestOp);
-      r.info.operations[0].operationId.should.be.equal('Test.aaa');
+      let r: any = new Resource({name: 'Test', routes: {'/': {get: TestOp}}});
+      r.operations.should.have.length(1);
+      r.operations[0].should.be.instanceOf(TestOp);
+      r.operations[0].info.operationId.should.be.equal('Test.aaa');
     });
 
     it('should instantiate the operations specified in the routes, with the routes argument', function () {
@@ -60,22 +60,21 @@ describe('Resource', function() {
         }
         handler(req: APIRequest, res: APIResponse, next) {}
       }
-      let r = new Resource({name: 'Test'}, {'/': {get: TestOp}});
-      r.info.operations.should.have.length(1);
-      r.info.operations[0].should.be.instanceOf(TestOp);
-      r.info.operations[0].operationId.should.be.equal('Test.aaa');
+      let r: any = new Resource({name: 'Test'}, {'/': {get: TestOp}});
+      r.operations.should.have.length(1);
+      r.operations[0].should.be.instanceOf(TestOp);
+      r.operations[0].info.operationId.should.be.equal('Test.aaa');
     });
 
     it('should instantiate the operations specified by request handler', function () {
-      let r = new Resource({name: 'Test'}, {
+      let r: any = new Resource({name: 'Test'}, {
         '/': {
-          get: (req, res) => {
-          }
+          get: (req, res) => {}
         }
       });
-      r.info.operations.should.have.length(1);
-      r.info.operations[0].should.be.instanceOf(SimpleOperation);
-      r.info.operations[0].operationId.should.be.equal('Test.get');
+      r.operations.should.have.length(1);
+      r.operations[0].should.be.instanceOf(SimpleOperation);
+      r.operations[0].info.operationId.should.be.equal('Test.get');
     });
 
     it('should throw if routes are specified twice', function () {
@@ -198,34 +197,34 @@ describe('Resource', function() {
         }
         handler(req: APIRequest, res: APIResponse, next) {}
       }
-      let r = new Resource();
+      let r: any = new Resource();
       r.addOperation(new TestOp(r, '/', 'get'));
-      r.info.operations.should.have.length(1);
-      r.info.operations[0].should.be.instanceOf(TestOp);
-      r.info.operations[0].operationId.should.be.equal('Resource.aaa');
+      r.operations.should.have.length(1);
+      r.operations[0].should.be.instanceOf(TestOp);
+      r.operations[0].info.operationId.should.be.equal('Resource.aaa');
     });
 
     it('should add a SimpleOperation instance and assign it a default id', function () {
-      let r = new Resource();
+      let r: any = new Resource();
       r.addOperation('/', 'get', (req, res) => {});
       r.addOperation('', 'get', (req, res) => {});
       r.addOperation('/a', 'get', (req, res) => {});
       r.addOperation('/a', 'post', (req, res) => {});
-      r.info.operations.should.have.length(4);
-      r.info.operations[0].should.be.instanceOf(SimpleOperation);
-      r.info.operations[0].operationId.should.be.equal('Resource.get');
-      r.info.operations[1].operationId.should.be.equal('Resource.get');
-      r.info.operations[2].operationId.should.be.equal('Resource.a');
-      r.info.operations[3].operationId.should.be.equal('Resource.a-post');
+      r.operations.should.have.length(4);
+      r.operations[0].should.be.instanceOf(SimpleOperation);
+      r.operations[0].info.operationId.should.be.equal('Resource.get');
+      r.operations[1].info.operationId.should.be.equal('Resource.get');
+      r.operations[2].info.operationId.should.be.equal('Resource.a');
+      r.operations[3].info.operationId.should.be.equal('Resource.a-post');
     });
 
     it('should add a SimpleOperation instance with the specified id', function () {
-      let r = new Resource();
+      let r: any = new Resource();
       r.addOperation('/', 'get', (req, res) => {
       }, 'test');
-      r.info.operations.should.have.length(1);
-      r.info.operations[0].should.be.instanceOf(SimpleOperation);
-      r.info.operations[0].operationId.should.be.equal('Resource.test');
+      r.operations.should.have.length(1);
+      r.operations[0].should.be.instanceOf(SimpleOperation);
+      r.operations[0].info.operationId.should.be.equal('Resource.test');
     });
 
     it('should throw if a no method is specified', function () {
