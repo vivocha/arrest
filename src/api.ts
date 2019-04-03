@@ -75,7 +75,7 @@ export class API {
     if (!this.document.components.schemas) {
       this.document.components.schemas = {};
     }
-    this.document.components.schemas[name] = schema;
+    this.document.components.schemas[name] = _.cloneDeep(schema);
   }
   registerOperation(path:string, method:string, operation: OpenAPIV3.OperationObject) {
     if (!this.document.paths) {
