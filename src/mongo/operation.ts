@@ -1,4 +1,3 @@
-import { Eredita } from 'eredita';
 import * as _ from 'lodash';
 import * as mongo from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
@@ -123,8 +122,8 @@ export class QueryMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'query') {
     super(resource, path, method, id);
   }
-  protected getDefaultInfo(): OpenAPIV3.OperationObject {
-    const customInfo: OpenAPIV3.OperationObject = {
+  protected getCustomInfo(): OpenAPIV3.OperationObject {
+    return {
       "summary": `Retrieve a list of ${this.resource.info.namePlural}`,
       "parameters": [
         {
@@ -173,7 +172,6 @@ export class QueryMongoOperation extends MongoOperation {
         }
       }
     };
-    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = {};
@@ -243,8 +241,8 @@ export class ReadMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'read') {
     super(resource, path, method, id);
   }
-  getDefaultInfo(): OpenAPIV3.OperationObject {
-    const customInfo: OpenAPIV3.OperationObject = {
+  getCustomInfo(): OpenAPIV3.OperationObject {
+    return {
       "summary": `Retrieve a ${this.resource.info.name} by id`,
       "parameters": [
         {
@@ -268,7 +266,6 @@ export class ReadMongoOperation extends MongoOperation {
         }
       }
     };
-    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
@@ -291,9 +288,9 @@ export class CreateMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'create') {
     super(resource, path, method, id);
   }
-  getDefaultInfo(): OpenAPIV3.OperationObject {
+  getCustomInfo(): OpenAPIV3.OperationObject {
     let resourceId = '' + this.resource.info.id;
-    const customInfo: OpenAPIV3.OperationObject = {
+    return {
       "summary": `Create a new ${this.resource.info.name}`,
       "parameters": [
         {
@@ -322,7 +319,6 @@ export class CreateMongoOperation extends MongoOperation {
         }
       }
     };
-    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareDoc(job:MongoJob): Promise<MongoJob> {
     job.doc = _.cloneDeep(job.req.body);
@@ -365,8 +361,8 @@ export class UpdateMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'update') {
     super(resource, path, method, id);
   }
-  getDefaultInfo(): OpenAPIV3.OperationObject {
-    const customInfo: OpenAPIV3.OperationObject = {
+  getCustomInfo(): OpenAPIV3.OperationObject {
+    return {
       "summary": `Update a ${this.resource.info.name}`,
       "parameters": [
         {
@@ -394,7 +390,6 @@ export class UpdateMongoOperation extends MongoOperation {
         }
       }
     };
-    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)
@@ -438,8 +433,8 @@ export class RemoveMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'remove') {
     super(resource, path, method, id);
   }
-  getDefaultInfo(): OpenAPIV3.OperationObject {
-    const customInfo: OpenAPIV3.OperationObject = {
+  getCustomInfo(): OpenAPIV3.OperationObject {
+    return {
       "summary": `Delete a ${this.resource.info.name} by id`,
       "parameters": [
         {
@@ -458,7 +453,6 @@ export class RemoveMongoOperation extends MongoOperation {
         }
       }
     };
-    return Eredita.deepExtend({}, super.getDefaultInfo(), customInfo);
   }
   async prepareQuery(job:MongoJob): Promise<MongoJob> {
     job.query = this.getItemQuery(job.req.params.id)

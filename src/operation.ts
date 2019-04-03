@@ -1,4 +1,5 @@
 import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser';
+import { Eredita } from 'eredita';
 import { NextFunction, Router } from 'express';
 import * as jp from 'jsonpolice';
 import * as _ from 'lodash';
@@ -31,7 +32,7 @@ export abstract class Operation {
       }
     }
     this.internalId = id;
-    this.info = this.getDefaultInfo();
+    this.info = this.getInfo();
     if (!this.info || !this.info.operationId) {
       throw new Error('Required operationId missing');
     }
@@ -46,6 +47,9 @@ export abstract class Operation {
     };
   }
 
+  protected getInfo(): OpenAPIV3.OperationObject {
+    return Eredita.deepExtend({}, this.getDefaultInfo(), this.getCustomInfo());
+  }
   protected getDefaultInfo(): OpenAPIV3.OperationObject {
     return {
       "operationId": `${this.resource.info.name}.${this.internalId}`,
@@ -56,6 +60,9 @@ export abstract class Operation {
         }
       }
     };
+  }
+  protected getCustomInfo(): OpenAPIV3.OperationObject {
+    return {};
   }
   protected createParameterValidators(key: string, parameters: OpenAPIV3.ParameterObject[]): APIRequestHandler {
     let validators: ((req: APIRequest) => Promise<void>)[] = parameters.map((parameter: OpenAPIV3.ParameterObject) => {

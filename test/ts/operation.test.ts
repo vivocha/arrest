@@ -20,7 +20,7 @@ describe('Operation', function() {
         constructor(resource, path, method) {
           super(resource, path, method, 'op');
         }
-        getDefaultInfo() {
+        getInfo() {
           return undefined as any;
         }
         handler(req, res) {}
@@ -32,7 +32,7 @@ describe('Operation', function() {
         constructor(resource, path, method) {
           super(resource, path, method, 'op');
         }
-        getDefaultInfo() {
+        getInfo() {
           return {};
         }
         handler(req, res) {}
