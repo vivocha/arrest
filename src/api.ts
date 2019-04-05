@@ -166,7 +166,7 @@ export class API {
             res.set('Access-Control-Allow-Origin', '*');
             res.set('Access-Control-Allow-Methods', 'GET');
             const out: OpenAPIV3.Document = _.cloneDeep(originalDocument);
-            const baseUrl = `${req.protocol}://${req.headers['host']}${req.baseUrl}/`;
+            const baseUrl = `${req.protocol}://${req.headers['host']}${req.baseUrl}`;
             out.servers = [
               {
                 url: baseUrl

@@ -134,7 +134,7 @@ describe('API', function () {
           .then(({ body: data }) => {
             should.exist(data);
             data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
-            data.servers[0].url.should.equal(`${basePath}/`);
+            data.servers[0].url.should.equal(`${basePath}`);
             should.not.exist(data.id);
             should.not.exist(data.tags);
           });
@@ -186,7 +186,7 @@ describe('API', function () {
         .then(({ body: data }) => {
           should.exist(data);
           data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
-          data.servers[0].url.should.equal(`${basePath}/v3/`);
+          data.servers[0].url.should.equal(`${basePath}/v3`);
         });
     });
 
@@ -201,7 +201,7 @@ describe('API', function () {
           .then(({ body: data }) => {
             should.exist(data);
             data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
-            data.servers[0].url.should.equal(`${basePath}/v4/`);
+            data.servers[0].url.should.equal(`${basePath}/v4`);
           });
       });
     });
@@ -271,7 +271,7 @@ describe('API', function () {
           .then(({ body: data }) => {
             should.exist(data);
             data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
-            data.servers[0].url.should.equal(`${basePath}/`);
+            data.servers[0].url.should.equal(`${basePath}`);
           });
       });
     });
@@ -297,7 +297,7 @@ describe('API', function () {
             .then(({ body: data }) => {
               should.exist(data);
               data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
-              data.servers[0].url.should.equal(`https://${host}/`);
+              data.servers[0].url.should.equal(`https://${host}`);
             });
         });
       });
@@ -328,7 +328,7 @@ describe('API', function () {
               .then(({ body: data }) => {
                 should.exist(data);
                 data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
-                data.servers[0].url.should.equal(`${basePath}/`);
+                data.servers[0].url.should.equal(`${basePath}`);
               }),
             supertest('https://localhost:' + (port + 2))
               .get('/openapi.json')
@@ -337,7 +337,7 @@ describe('API', function () {
               .then(({ body: data }) => {
                 should.exist(data);
                 data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
-                data.servers[0].url.should.equal(`https://localhost:${port + 2}/`);
+                data.servers[0].url.should.equal(`https://localhost:${port + 2}`);
               })
           ]);
         });
