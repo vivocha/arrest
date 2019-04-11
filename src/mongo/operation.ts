@@ -241,7 +241,7 @@ export class ReadMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'read') {
     super(resource, path, method, id);
   }
-  getCustomInfo(): OpenAPIV3.OperationObject {
+  protected getCustomInfo(): OpenAPIV3.OperationObject {
     return {
       "summary": `Retrieve a ${this.resource.info.name} by id`,
       "parameters": [
@@ -288,7 +288,7 @@ export class CreateMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'create') {
     super(resource, path, method, id);
   }
-  getCustomInfo(): OpenAPIV3.OperationObject {
+  protected getCustomInfo(): OpenAPIV3.OperationObject {
     let resourceId = '' + this.resource.info.id;
     return {
       "summary": `Create a new ${this.resource.info.name}`,
@@ -361,7 +361,7 @@ export class UpdateMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'update') {
     super(resource, path, method, id);
   }
-  getCustomInfo(): OpenAPIV3.OperationObject {
+  protected getCustomInfo(): OpenAPIV3.OperationObject {
     return {
       "summary": `Update a ${this.resource.info.name}`,
       "parameters": [
@@ -433,7 +433,7 @@ export class RemoveMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'remove') {
     super(resource, path, method, id);
   }
-  getCustomInfo(): OpenAPIV3.OperationObject {
+  protected getCustomInfo(): OpenAPIV3.OperationObject {
     return {
       "summary": `Delete a ${this.resource.info.name} by id`,
       "parameters": [
