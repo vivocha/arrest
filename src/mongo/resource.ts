@@ -41,13 +41,13 @@ export class MongoResource extends Resource {
     }
   }
   
-  get schema(): OpenAPIV3.SchemaObject {
+  get schema(): OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject {
     return true;
   }
-  get requestSchema(): OpenAPIV3.SchemaObject {
+  get requestSchema(): OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject {
     return this.schema;
   }
-  get responseSchema(): OpenAPIV3.SchemaObject {
+  get responseSchema(): OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject {
     return this.schema;
   }
 
