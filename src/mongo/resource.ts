@@ -2,6 +2,7 @@ import { getLogger } from 'debuggo';
 import decamelize from 'decamelize';
 import * as _ from 'lodash';
 import { Collection, Db, DbCollectionOptions, MongoClient } from 'mongodb';
+import { OpenAPIV3 } from 'openapi-police';
 import { Resource, ResourceDefinition, Routes } from '../resource';
 import { CreateMongoOperation, QueryMongoOperation, ReadMongoOperation, RemoveMongoOperation, UpdateMongoOperation } from './operation';
 
@@ -40,13 +41,13 @@ export class MongoResource extends Resource {
     }
   }
   
-  get schema(): any {
+  get schema(): OpenAPIV3.SchemaObject {
     return true;
   }
-  get requestSchema(): any {
+  get requestSchema(): OpenAPIV3.SchemaObject {
     return this.schema;
   }
-  get responseSchema(): any {
+  get responseSchema(): OpenAPIV3.SchemaObject {
     return this.schema;
   }
 
