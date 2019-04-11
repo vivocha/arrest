@@ -3,7 +3,7 @@ import { Eredita } from 'eredita';
 import { NextFunction, Router } from 'express';
 import * as jp from 'jsonpolice';
 import * as _ from 'lodash';
-import { OpenAPIV3, ParameterObject, SchemaObject } from 'openapi-police';
+import { OpenAPIV3, ParameterObject, StaticSchemaObject } from 'openapi-police';
 import { API } from './api';
 import { Resource } from './resource';
 import { Scopes } from './scopes';
@@ -96,7 +96,7 @@ export abstract class Operation {
     if (!bodySpec.schema) {
       throw new Error(`Schema missing for content type ${type}`);
     }
-    const schema = new SchemaObject(bodySpec.schema as OpenAPIV3.SchemaObject);
+    const schema = new StaticSchemaObject(bodySpec.schema as OpenAPIV3.SchemaObject);
     return async (req:APIRequest, res:APIResponse, next:NextFunction) => {
       if (_.isEqual(req.body, {}) && (!parseInt('' + req.header('content-length')))) {
         if (required === true) {

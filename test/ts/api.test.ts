@@ -2,7 +2,7 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import * as spies from 'chai-spies';
 import * as express from 'express';
-import { OpenAPIV3 } from 'openapi-police';
+import { OpenAPIV3, ParserError, RetrieverError, SchemaObject } from 'openapi-police';
 import * as pem from 'pem';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
@@ -675,7 +675,121 @@ describe('API', function () {
 
     });
 
-    it('should fail if an external schema cannot be retrieved (1)', function () {
+    it('should be able to resolve dynamic schemas', function () {
+      const spy = chai.spy((req, res) => { res.json({}) });
+      const api = new API();
+      class Schema1 extends SchemaObject {
+        async spec(): Promise<OpenAPIV3.SchemaObject> {
+          return {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "boolean"
+              },
+              "b": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false,
+            "required": ["a"]
+          }
+        }
+      }
+      class Schema2 extends SchemaObject {
+        async spec(): Promise<OpenAPIV3.SchemaObject> {
+          return {
+            "type": "object",
+            "properties": {
+              "c": {
+                "type": "string"
+              },
+              "d": { $ref: '#/components/schemas/op1_schema1' },
+              "e": { $ref: '#/components/schemas/op1_schema1/properties/b' }
+            },
+            "additionalProperties": false,
+            "required": ["d"]
+          }
+        }
+      }
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+          this.info.requestBody = {
+            "content": {
+              "application/json": {
+                "schema": { $ref: '#/components/schemas/op1_schema2' }
+              }
+            },
+            "required": true
+          };
+        }
+        attach(api) {
+          api.registerDynamicSchema('op1_schema1', new Schema1());
+          api.registerDynamicSchema('op1_schema2', new Schema2());
+          super.attach(api);
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
+
+      return api.router().then(router => {
+        const app = express();
+        app.use(router);
+        server = app.listen(port);
+
+        return Promise.all([
+          request
+            .post('/tests/a')
+            .send({})
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('ValidationError');
+              data.info.type.should.equal('required');
+              data.info.path.should.equal('body/d');
+            }),
+          request
+            .post('/tests/a')
+            .send({ d: {} })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('ValidationError');
+              data.info.errors[0].type.should.equal('required');
+              data.info.errors[0].path.should.equal('body/d/a');
+            }),
+          request
+            .post('/tests/a')
+            .send({ d: { a: true }, e: true })
+            .expect(400)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.message.should.equal('ValidationError');
+              data.info.errors[0].type.should.equal('type');
+              data.info.errors[0].path.should.equal('body/e');
+            }),
+          request
+            .post('/tests/a')
+            .send({ d: { a: true }, e: 1 })
+            .expect(200)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+            })
+        ]).then(() => {
+          spy.should.have.been.called.once;
+        });
+      });
+
+    });
+
+    it('should fail if an external schema cannot be retrieved (1)', async function () {
       const spy = chai.spy((req, res) => { res.json({}) });
       const api = new API();
       class Op1 extends Operation {
@@ -699,10 +813,11 @@ describe('API', function () {
       server = app.listen(port);
 
       api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
-      return api.router().should.be.rejectedWith(Error, /noresolve.vivocha.com/);
+      const err = await api.router().should.be.rejectedWith(ParserError, 'retriever');
+      err.errors[0].message.should.match(/noresolve.vivocha.com/);
     });
 
-    it('should fail if an external schema cannot be retrieved (2)', function () {
+    it('should fail if an external schema cannot be retrieved (2)', async function () {
       const spy = chai.spy((req, res) => { res.json({}) });
       const api = new API();
       class Op1 extends Operation {
@@ -727,7 +842,9 @@ describe('API', function () {
       server = app.listen(port);
 
       api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
-      return api.router().should.be.rejectedWith(RESTError);
+      const err = await api.router().should.be.rejectedWith(ParserError, 'retriever');
+      err.errors[0].should.be.instanceOf(RetrieverError);
+      err.errors[0].originalError.should.be.instanceOf(RESTError);
     });
 
     it('should be able to resolve an external schema', function () {

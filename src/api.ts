@@ -6,7 +6,7 @@ import * as http from 'http';
 import * as https from 'https';
 import * as refs from 'jsonref'; // TODO include everything from openapi-police
 import * as _ from 'lodash';
-import { OpenAPIV3, ValidationError } from 'openapi-police';
+import { OpenAPIV3, SchemaObject, ValidationError } from 'openapi-police';
 import * as semver from 'semver';
 import { DEFAULT_DOCUMENT } from './defaults';
 import { RESTError } from './error';
@@ -22,6 +22,9 @@ export class API {
 
   protected logger: Logger;
   protected resources: Resource[];
+  protected dynamicSchemas: {
+    [name: string]: SchemaObject
+  }
   protected internalRouter: Promise<Router>;
   protected parseOptions: refs.ParseOptions;
 
@@ -76,6 +79,13 @@ export class API {
       this.document.components.schemas = {};
     }
     this.document.components.schemas[name] = _.cloneDeep(schema);
+  }
+  registerDynamicSchema(name: string, schema: SchemaObject) {
+    if (!this.dynamicSchemas) {
+      this.dynamicSchemas = { [name]: schema }
+    } else {
+      this.dynamicSchemas[name] = schema;
+    }
   }
   registerOperation(path:string, method:string, operation: OpenAPIV3.OperationObject) {
     if (!this.document.paths) {
@@ -157,6 +167,12 @@ export class API {
           next();
         });
         router.use(this.securityValidator.bind(this));
+
+        if (this.dynamicSchemas) {
+          for (let name in this.dynamicSchemas) {
+            this.registerSchema(name, await this.dynamicSchemas[name].spec());
+          }
+        }
   
         const originalDocument = _.cloneDeep(this.document);
         router.get('/openapi.json', (req: APIRequest, res: APIResponse, next: NextFunction) => {
@@ -193,7 +209,7 @@ export class API {
           }
         });
 
-        this.document = await refs.parse(this.document, this.parseOptions );
+        this.document = await refs.parse(this.document, this.parseOptions);
         for (let resource of this.resources) {
           await resource.router(router, options);
         }
