@@ -107,7 +107,8 @@ export abstract class Operation {
       } else {
         req.body = await schema.validate(req.body, {
           setDefault: true,
-          coerceTypes: (type !== 'application/json')
+          coerceTypes: (type !== 'application/json'),
+          context: 'write'
         }, 'body').then(() => next(), err => next(err));
       }
     };
