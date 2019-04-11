@@ -272,7 +272,7 @@ export class ReadMongoOperation extends MongoOperation {
     return job;
   }
   async prepareOpts(job:MongoJob): Promise<MongoJob> {
-    job.opts.fields = this.parseFields(job.req.query.fields);
+    job.opts.projection = this.parseFields(job.req.query.fields);
     return job;
   }
   async runOperation(job:MongoJob): Promise<MongoJob> {
