@@ -6,21 +6,19 @@ import { API } from './api';
 import { Operation, SimpleOperation } from './operation';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
 
-const __operations = Symbol();
-
 export interface OperationFactory {
-  new(resource:Resource, path:string, method:Method): Operation
+  new (resource: Resource, path: string, method: Method): Operation;
 }
 
 export interface Routes {
-  [path:string]: {
-    ["get"]?: OperationFactory | APIRequestHandler;
-    ["put"]?: OperationFactory | APIRequestHandler;
-    ["post"]?: OperationFactory | APIRequestHandler;
-    ["delete"]?: OperationFactory | APIRequestHandler;
-    ["options"]?: OperationFactory | APIRequestHandler;
-    ["head"]?: OperationFactory | APIRequestHandler;
-    ["patch"]?: OperationFactory | APIRequestHandler;
+  [path: string]: {
+    ['get']?: OperationFactory | APIRequestHandler;
+    ['put']?: OperationFactory | APIRequestHandler;
+    ['post']?: OperationFactory | APIRequestHandler;
+    ['delete']?: OperationFactory | APIRequestHandler;
+    ['options']?: OperationFactory | APIRequestHandler;
+    ['head']?: OperationFactory | APIRequestHandler;
+    ['patch']?: OperationFactory | APIRequestHandler;
   };
 }
 
@@ -52,7 +50,7 @@ export class Resource {
       for (let path in routes) {
         let handlers = routes[path];
         for (let method in handlers) {
-          this.addOperation(path, method as  Method, handlers[method]);
+          this.addOperation(path, method as Method, handlers[method]);
         }
       }
     }
@@ -70,14 +68,14 @@ export class Resource {
   get basePath(): string {
     return '/' + (this.info.path ? this.info.path : decamelize('' + this.info.namePlural, '-'));
   }
-  get scopeDescription():string {
+  get scopeDescription(): string {
     return `Unrestricted access to all ${this.info.namePlural}`;
   }
 
   addOperation(op: Operation): this;
   addOperation(path: string, method: Method, handler: OperationFactory | APIRequestHandler, id?: string): this;
   addOperation(pathOrOp: any, method?: Method, handler?: OperationFactory | APIRequestHandler, id?: string): this {
-    let op:Operation;
+    let op: Operation;
     if (typeof pathOrOp === 'string') {
       if (!method) {
         throw new Error('invalid method');
@@ -108,9 +106,9 @@ export class Resource {
 
     api.registerOauth2Scope('' + this.info.name, this.scopeDescription);
 
-    this.operations.forEach((op:Operation) => op.attach(api));
+    this.operations.forEach((op: Operation) => op.attach(api));
   }
-  async router(base:Router, options?: RouterOptions): Promise<Router> {
+  async router(base: Router, options?: RouterOptions): Promise<Router> {
     let r = Router(options);
     let knownPaths = new Set();
     for (let op of this.operations) {

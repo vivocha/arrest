@@ -23,18 +23,18 @@ export class API {
   protected logger: Logger;
   protected resources: Resource[];
   protected dynamicSchemas: {
-    [name: string]: SchemaObject
-  }
+    [name: string]: SchemaObject;
+  };
   protected internalRouter: Promise<Router>;
   protected parseOptions: refs.ParseOptions;
 
-  constructor(info?:OpenAPIV3.InfoObject) {
+  constructor(info?: OpenAPIV3.InfoObject) {
     this.document = Eredita.deepExtend(_.cloneDeep(DEFAULT_DOCUMENT), { info: info || {} });
     if (!semver.valid(this.document.info.version)) {
       throw new Error('Invalid version');
     }
     this.logger = getLogger(this.getDebugLabel());
-    this.resources = [ ];
+    this.resources = [];
     this.parseOptions = {
       scope: 'http://vivocha.com/api/v3',
       retriever: this.defaultSchemaRetriever.bind(this)
@@ -49,23 +49,26 @@ export class API {
   }
   protected async defaultSchemaRetriever(url: string): Promise<any> {
     return new Promise(function(resolve, reject) {
-      request({
-        url: url,
-        method: 'GET',
-        json: true
-      }, function(err, response, data) {
-        if (err) {
-          reject(err);
-        } else if (response.statusCode !== 200) {
-          reject(new RESTError(response.statusCode as number));
-        } else {
-          resolve(data);
+      request(
+        {
+          url: url,
+          method: 'GET',
+          json: true
+        },
+        function(err, response, data) {
+          if (err) {
+            reject(err);
+          } else if (response.statusCode !== 200) {
+            reject(new RESTError(response.statusCode as number));
+          } else {
+            resolve(data);
+          }
         }
-      });
+      );
     });
   }
 
-  addResource(resource:Resource): this {
+  addResource(resource: Resource): this {
     this.resources.push(resource);
     resource.attach(this);
     return this;
@@ -82,12 +85,12 @@ export class API {
   }
   registerDynamicSchema(name: string, schema: SchemaObject) {
     if (!this.dynamicSchemas) {
-      this.dynamicSchemas = { [name]: schema }
+      this.dynamicSchemas = { [name]: schema };
     } else {
       this.dynamicSchemas[name] = schema;
     }
   }
-  registerOperation(path:string, method:string, operation: OpenAPIV3.OperationObject) {
+  registerOperation(path: string, method: string, operation: OpenAPIV3.OperationObject) {
     if (!this.document.paths) {
       this.document.paths = {};
     }
@@ -106,7 +109,7 @@ export class API {
     }
     this.document.tags.push(tag);
   }
-  registerOauth2Scope(name:string, description:string): void {
+  registerOauth2Scope(name: string, description: string): void {
     const oauth2Defs: OpenAPIV3.OAuth2SecurityScheme[] = this.getOauth2Schemes();
     oauth2Defs.forEach(i => {
       for (let f in i.flows) {
@@ -173,7 +176,7 @@ export class API {
             this.registerSchema(name, await this.dynamicSchemas[name].spec());
           }
         }
-  
+
         const originalDocument = _.cloneDeep(this.document);
         router.get('/openapi.json', (req: APIRequest, res: APIResponse, next: NextFunction) => {
           if (!req.headers['host']) {
@@ -196,9 +199,9 @@ export class API {
                 if (s.type === 'oauth2' && s.flows) {
                   for (let j in s.flows) {
                     const f = s.flows[j];
-                    [ 'authorizationUrl', 'tokenUrl', 'refreshUrl' ].forEach(k => {
+                    ['authorizationUrl', 'tokenUrl', 'refreshUrl'].forEach(k => {
                       if (f[k]) {
-                        f[k] = (new URL(f[k], baseUrl)).toString();
+                        f[k] = new URL(f[k], baseUrl).toString();
                       }
                     });
                   }
@@ -220,8 +223,8 @@ export class API {
     return this.internalRouter;
   }
 
-  async attach(base:Router, options?: RouterOptions): Promise<Router> {
-    let router = await this.router(options)
+  async attach(base: Router, options?: RouterOptions): Promise<Router> {
+    let router = await this.router(options);
     base.use('/v' + semver.major(this.document.info.version), router);
     return base;
   }
@@ -242,7 +245,7 @@ export class API {
       function _convertError(err: Error) {
         const out: any = { type: err.message };
         if (err.name === 'ValidationError') {
-          const verr: ValidationError = err as ValidationError; 
+          const verr: ValidationError = err as ValidationError;
           out.path = verr.path;
           out.scope = verr.scope;
           if (verr.errors) {

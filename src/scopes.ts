@@ -7,10 +7,10 @@ export class Scopes {
     if (typeof scopes === 'string') {
       scopes = scopes.split(' ');
     }
-    for (let i = 0, cat, op, on, parts ; i < scopes.length ; i++) {
+    for (let i = 0, cat, op, on, parts; i < scopes.length; i++) {
       parts = scopes[i].split('.');
       if (parts.length !== 2) {
-        parts = [ scopes[i], '*' ];
+        parts = [scopes[i], '*'];
       }
       cat = parts[0];
       op = parts[1];

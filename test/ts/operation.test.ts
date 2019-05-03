@@ -12,9 +12,7 @@ const should = chai.should();
 chai.use(spies);
 
 describe('Operation', function() {
-
   describe('constructor', function() {
-
     it('should fail if no info is available', function() {
       class Op extends Operation {
         constructor(resource, path, method) {
@@ -25,7 +23,9 @@ describe('Operation', function() {
         }
         handler(req, res) {}
       }
-      (function() { new Op(undefined, '', 'get') }).should.throw(Error, /Required operationId/);
+      (function() {
+        new Op(undefined, '', 'get');
+      }.should.throw(Error, /Required operationId/));
     });
     it('should fail if no operationId is available', function() {
       class Op extends Operation {
@@ -37,13 +37,13 @@ describe('Operation', function() {
         }
         handler(req, res) {}
       }
-      (function() { new Op(undefined, '', 'get') }).should.throw(Error, /Required operationId/);
+      (function() {
+        new Op(undefined, '', 'get');
+      }.should.throw(Error, /Required operationId/));
     });
-
   });
 
   describe('attach', function() {
-
     it('should create document.paths in API if it does not exist', function() {
       const api = new API();
       class Op1 extends Operation {
@@ -52,7 +52,7 @@ describe('Operation', function() {
         }
         handler(req: APIRequest, res: APIResponse, next) {}
       }
-      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 }});
+      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
       delete api.document.paths;
       api.addResource(r);
       should.exist(api.document.paths['/tests']);
@@ -60,24 +60,24 @@ describe('Operation', function() {
 
     it('should add the scope names', function() {
       const api = new API();
-      api.document.components = { 
+      api.document.components = {
         securitySchemes: {
-          "myOauth2": {
-            "type": "oauth2",
-            "flows": {
-              "authorizationCode": {
-                "tokenUrl": "token",
-                "authorizationUrl": "/a/b/authorize",
-                "scopes": {}
+          myOauth2: {
+            type: 'oauth2',
+            flows: {
+              authorizationCode: {
+                tokenUrl: 'token',
+                authorizationUrl: '/a/b/authorize',
+                scopes: {}
               },
-              "implicit": {
-                "authorizationUrl": "/a/b/authorize"
-              },
+              implicit: {
+                authorizationUrl: '/a/b/authorize'
+              }
             }
           },
-          "myBasic": {
-            "type": "http",
-            "scheme": "Basic"
+          myBasic: {
+            type: 'http',
+            scheme: 'Basic'
           }
         }
       } as any;
@@ -93,7 +93,7 @@ describe('Operation', function() {
         }
         handler(req: APIRequest, res: APIResponse, next) {}
       }
-      let r = new Resource({ name: 'Test' }, { '/': { get: Op1, post: Op2 }});
+      let r = new Resource({ name: 'Test' }, { '/': { get: Op1, post: Op2 } });
       api.addResource(r);
       should.exist(api.document.paths['/tests']);
       should.exist(api.document.paths['/tests'].get);
@@ -109,11 +109,9 @@ describe('Operation', function() {
       should.exist(doc.components.securitySchemes.myOauth2.flows.implicit.scopes['Test.op1']);
       should.exist(doc.components.securitySchemes.myOauth2.flows.implicit.scopes['Test.op2']);
     });
-
   });
 
   describe('router', function() {
-
     it('should add an handler that gets requests', function() {
       const port = 9876;
       const host = 'localhost:' + port;
@@ -135,38 +133,39 @@ describe('Operation', function() {
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 }});
+      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
       api.addResource(r);
 
-      return api.router().then(router => {
-        app.use(router);
-        server = app.listen(port);
+      return api
+        .router()
+        .then(router => {
+          app.use(router);
+          server = app.listen(port);
 
-        return request
-          .get('/tests/')
-          .expect(200)
-          .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-            should.exist(data);
-            data.a.should.equal(5);
-            spy.should.have.been.called.once;
-          });
-
-      }).then(() => {
-        server.close();
-      }, err => {
-        server.close();
-        throw err;
-      });
-
+          return request
+            .get('/tests/')
+            .expect(200)
+            .expect('Content-Type', /json/)
+            .then(({ body: data }) => {
+              should.exist(data);
+              data.a.should.equal(5);
+              spy.should.have.been.called.once;
+            });
+        })
+        .then(
+          () => {
+            server.close();
+          },
+          err => {
+            server.close();
+            throw err;
+          }
+        );
     });
-
   });
 
   describe('validators', function() {
-
     describe('header', function() {
-
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -183,36 +182,36 @@ describe('Operation', function() {
           super(resource, path, method, 'op1');
           this.info.parameters = [
             {
-              "name": "x-test-p1",
-              "in": "header",
-              "schema": {
-                "type": "boolean"
+              name: 'x-test-p1',
+              in: 'header',
+              schema: {
+                type: 'boolean'
               },
-              "required": true
+              required: true
             },
             {
-              "name": "x-test-p2",
-              "in": "header",
-              "schema": {
-                "type": "number"
+              name: 'x-test-p2',
+              in: 'header',
+              schema: {
+                type: 'number'
               }
             },
             {
-              "name": "x-test-p3",
-              "in": "header",
-              "schema": {
-                "type": "array",
-                "items": { "type": "integer" }
+              name: 'x-test-p3',
+              in: 'header',
+              schema: {
+                type: 'array',
+                items: { type: 'integer' }
               }
             }
-          ]
+          ];
         }
         handler(req, res) {
           spy(req, res);
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 }});
+      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
       api.addResource(r);
 
       before(function() {
@@ -227,7 +226,6 @@ describe('Operation', function() {
           server.close();
         }
       });
-
 
       it('should fail if a required header is missing', function() {
         return request
@@ -299,15 +297,13 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.headers['x-test-p1'].should.equal(true);
             data.headers['x-test-p2'].should.equal(5);
-            data.headers['x-test-p3'].should.deep.equal([ 1, 2, 3]);
+            data.headers['x-test-p3'].should.deep.equal([1, 2, 3]);
             spy.should.have.been.called.once;
           });
       });
-
     });
 
     describe('cookie', function() {
-
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -324,36 +320,36 @@ describe('Operation', function() {
           super(resource, path, method, 'op1');
           this.info.parameters = [
             {
-              "name": "test-p1",
-              "in": "cookie",
-              "schema": {
-                "type": "boolean"
+              name: 'test-p1',
+              in: 'cookie',
+              schema: {
+                type: 'boolean'
               },
-              "required": true
+              required: true
             },
             {
-              "name": "test-p2",
-              "in": "cookie",
-              "schema": {
-                "type": "number"
+              name: 'test-p2',
+              in: 'cookie',
+              schema: {
+                type: 'number'
               }
             },
             {
-              "name": "test-p3",
-              "in": "cookie",
-              "schema": {
-                "type": "array",
-                "items": { "type": "integer" }
+              name: 'test-p3',
+              in: 'cookie',
+              schema: {
+                type: 'array',
+                items: { type: 'integer' }
               }
             }
-          ]
+          ];
         }
         handler(req, res) {
           spy(req, res);
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 }});
+      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
       api.addResource(r);
 
       before(function() {
@@ -368,7 +364,6 @@ describe('Operation', function() {
           server.close();
         }
       });
-
 
       it('should fail if a required cookie is missing', function() {
         return request
@@ -435,15 +430,13 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.cookies['test-p1'].should.equal(true);
             data.cookies['test-p2'].should.equal(5);
-            data.cookies['test-p3'].should.deep.equal([ 1, 2, 3]);
+            data.cookies['test-p3'].should.deep.equal([1, 2, 3]);
             spy.should.have.been.called.once;
           });
       });
-
     });
 
     describe('path', function() {
-
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -458,19 +451,19 @@ describe('Operation', function() {
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
-          this.info.parameters= [
+          this.info.parameters = [
             {
-              "name": "p1",
-              "in": "path",
-              "schema": {
-                "type": "boolean"
+              name: 'p1',
+              in: 'path',
+              schema: {
+                type: 'boolean'
               }
             },
             {
-              "name": "p2",
-              "in": "path",
-              "schema": {
-                "type": "number"
+              name: 'p2',
+              in: 'path',
+              schema: {
+                type: 'number'
               }
             }
           ];
@@ -480,7 +473,7 @@ describe('Operation', function() {
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/:p1': { get: Op1 }, '/:p1/:p2': { get: Op1 }});
+      let r = new Resource({ name: 'Test' }, { '/:p1': { get: Op1 }, '/:p1/:p2': { get: Op1 } });
       api.addResource(r);
 
       before(function() {
@@ -493,7 +486,6 @@ describe('Operation', function() {
       after(function() {
         server.close();
       });
-
 
       it('should fail if a path parameter is missing', function() {
         return request
@@ -545,11 +537,9 @@ describe('Operation', function() {
             spy.should.have.been.called.once;
           });
       });
-
     });
 
     describe('query', function() {
-
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -566,27 +556,27 @@ describe('Operation', function() {
           super(resource, path, method, 'op1');
           this.info.parameters = [
             {
-              "name": "p1",
-              "in": "query",
-              "schema": {
-                "type": "boolean"
+              name: 'p1',
+              in: 'query',
+              schema: {
+                type: 'boolean'
               },
-              "required": true
+              required: true
             },
             {
-              "name": "p2",
-              "in": "query",
-              "schema": {
-                "type": "number"
+              name: 'p2',
+              in: 'query',
+              schema: {
+                type: 'number'
               }
             },
             {
-              "name": "p3",
-              "in": "query",
-              "style": "pipeDelimited",
-              "schema": {
-                "type": "array",
-                "items": { "type": "integer" }
+              name: 'p3',
+              in: 'query',
+              style: 'pipeDelimited',
+              schema: {
+                type: 'array',
+                items: { type: 'integer' }
               }
             }
           ];
@@ -596,7 +586,7 @@ describe('Operation', function() {
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 }});
+      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
       api.addResource(r);
 
       before(function() {
@@ -609,7 +599,6 @@ describe('Operation', function() {
       after(function() {
         server.close();
       });
-
 
       it('should fail if a required query parameter is missing', function() {
         return request
@@ -672,15 +661,13 @@ describe('Operation', function() {
           .then(({ body: data }) => {
             data.query.p1.should.equal(true);
             data.query.p2.should.equal(5);
-            data.query.p3.should.deep.equal([ 1, 2, 3]);
+            data.query.p3.should.deep.equal([1, 2, 3]);
             spy.should.have.been.called.once;
           });
       });
-
     });
 
     describe('body', function() {
-
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -696,24 +683,24 @@ describe('Operation', function() {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
           this.info.requestBody = {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "a": {
-                      "type": "boolean"
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    a: {
+                      type: 'boolean'
                     },
-                    "b": {
-                      "type": "integer"
+                    b: {
+                      type: 'integer'
                     }
                   },
-                  "additionalProperties": false,
-                  "required": [ "a" ]
+                  additionalProperties: false,
+                  required: ['a']
                 }
               }
             },
-            "required": true
+            required: true
           };
         }
         handler(req, res) {
@@ -724,10 +711,10 @@ describe('Operation', function() {
         constructor(resource, path, method) {
           super(resource, path, method, 'op2');
           this.info.requestBody = {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object'
                 }
               }
             }
@@ -741,15 +728,15 @@ describe('Operation', function() {
         constructor(resource, path, method) {
           super(resource, path, method, 'op3');
           this.info.requestBody = {
-            "content": {
-              "application/x-www-form-urlencoded": {
-                "schema": {
-                  "type": "object",
-                  "required": [ "test" ],
-                  "additionalProperties": false,
-                  "properties": {
-                    "test": {
-                      "type": "integer"
+            content: {
+              'application/x-www-form-urlencoded': {
+                schema: {
+                  type: 'object',
+                  required: ['test'],
+                  additionalProperties: false,
+                  properties: {
+                    test: {
+                      type: 'integer'
                     }
                   }
                 }
@@ -762,7 +749,7 @@ describe('Operation', function() {
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }, '/c': { post: Op3 }});
+      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }, '/c': { post: Op3 } });
       api.addResource(r);
 
       before(function() {
@@ -780,12 +767,12 @@ describe('Operation', function() {
         class Op1 extends Operation {
           constructor(resource, path, method) {
             super(resource, path, method, 'op');
-            this.info.requestBody = { } as any;
+            this.info.requestBody = {} as any;
           }
           handler(req, res) {}
         }
         const api = new API();
-        const r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }});
+        const r = new Resource({ name: 'Test' }, { '/a': { post: Op1 } });
         api.addResource(r);
         return api.router().should.be.rejectedWith(Error, /Invalid request body/);
       });
@@ -795,16 +782,16 @@ describe('Operation', function() {
           constructor(resource, path, method) {
             super(resource, path, method, 'op');
             this.info.requestBody = {
-              "content": {
-                "application/json": {}
+              content: {
+                'application/json': {}
               },
-              "required": true
+              required: true
             };
           }
           handler(req, res) {}
         }
         const api = new API();
-        const r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }});
+        const r = new Resource({ name: 'Test' }, { '/a': { post: Op1 } });
         api.addResource(r);
         return api.router().should.be.rejectedWith(Error, /Schema missing/);
       });
@@ -827,14 +814,13 @@ describe('Operation', function() {
           .post('/tests/b')
           .expect(200)
           .expect('Content-Type', /json/)
-          .then(({ body: data }) => {
-          });
+          .then(({ body: data }) => {});
       });
 
       it('should fail if the body has the wrong type (1)', function() {
         return request
           .post('/tests/a')
-          .send({ })
+          .send({})
           .expect(400)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
@@ -899,15 +885,11 @@ describe('Operation', function() {
             data.body.test.should.equal(5);
           });
       });
-
     });
-
   });
 
   describe('scopes', function() {
-
     describe('no scopes supplied', function() {
-
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -936,7 +918,7 @@ describe('Operation', function() {
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/1': { get: Op1 }, '/2': { get: spy }});
+      let r = new Resource({ name: 'Test' }, { '/1': { get: Op1 }, '/2': { get: spy } });
       api.addResource(r);
 
       before(function() {
@@ -969,11 +951,9 @@ describe('Operation', function() {
             spy.should.have.been.called.once;
           });
       });
-
     });
 
     describe('scopes supplied', function() {
-
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -983,7 +963,7 @@ describe('Operation', function() {
 
       class API1 extends API {
         securityValidator(req, res, next) {
-          req.scopes = new Scopes([ 'a.*', '*.x', '-a.x', 'c.y' ]);
+          req.scopes = new Scopes(['a.*', '*.x', '-a.x', 'c.y']);
           next();
         }
       }
@@ -991,30 +971,45 @@ describe('Operation', function() {
       const spy = chai.spy(function(req, res) {
         res.send({});
       });
-      api.addResource(new Resource({ name: 'a', namePlural: 'a' }, {
-        '/x': {
-          get: spy
-        },
-        '/y': {
-          get: spy
-        }
-      }));
-      api.addResource(new Resource({ name: 'b', namePlural: 'b' }, {
-        '/x': {
-          get: spy
-        },
-        '/y': {
-          get: spy
-        }
-      }));
-      api.addResource(new Resource({ name: 'c', namePlural: 'c' }, {
-        '/x': {
-          get: spy
-        },
-        '/y': {
-          get: spy
-        }
-      }));
+      api.addResource(
+        new Resource(
+          { name: 'a', namePlural: 'a' },
+          {
+            '/x': {
+              get: spy
+            },
+            '/y': {
+              get: spy
+            }
+          }
+        )
+      );
+      api.addResource(
+        new Resource(
+          { name: 'b', namePlural: 'b' },
+          {
+            '/x': {
+              get: spy
+            },
+            '/y': {
+              get: spy
+            }
+          }
+        )
+      );
+      api.addResource(
+        new Resource(
+          { name: 'c', namePlural: 'c' },
+          {
+            '/x': {
+              get: spy
+            },
+            '/y': {
+              get: spy
+            }
+          }
+        )
+      );
 
       before(function() {
         return api.router().then(router => {
@@ -1060,9 +1055,6 @@ describe('Operation', function() {
             .expect('Content-Type', /json/)
         ]);
       });
-
     });
-
   });
-
 });

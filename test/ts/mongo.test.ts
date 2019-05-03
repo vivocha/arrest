@@ -13,7 +13,6 @@ chai.use(spies);
 chai.use(chaiAsPromised);
 
 describe('mongo', function() {
-
   const md = new Mongodoki({ reuse: true } as DokiConfiguration);
 
   before(async function() {
@@ -23,9 +22,7 @@ describe('mongo', function() {
   });
 
   describe('MongoResource', function() {
-
     describe('constructor', function() {
-
       const collectionName = 'arrest_test';
       let db;
 
@@ -36,7 +33,6 @@ describe('mongo', function() {
             _db = await db;
             await _db.dropCollection(collectionName);
           } catch (err) {
-
           } finally {
             //await _db.close();
             db = undefined;
@@ -144,16 +140,13 @@ describe('mongo', function() {
 
         db = r.db;
         const coll = (await db).collection((r.info as any).collection);
-        await coll.createIndex({ b: 1 }, { });
+        await coll.createIndex({ b: 1 }, {});
         await r.getCollection().should.be.rejected;
       });
-
     });
-
   });
 
   describe('MongoOperation', async function() {
-
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
@@ -182,7 +175,7 @@ describe('mongo', function() {
       db = await MongoClient.connect('mongodb://localhost:27017/local', { useNewUrlParser: true }).then(c => c.db());
       r1 = new MongoResource(db, { name: 'Test', collection: collectionName });
       r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false });
-      r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 },  '/2': { get: FakeOp2 }});
+      r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 }, '/2': { get: FakeOp2 } });
       r4 = new MongoResource(db, { name: 'Oid', collection: collectionName + '_oid', id: 'myoid', idIsObjectId: true });
       api.addResource(r1);
       api.addResource(r2);
@@ -194,7 +187,7 @@ describe('mongo', function() {
       server = app.listen(port);
       coll = db.collection(collectionName);
       coll2 = db.collection(collectionName + '_oid');
-      return coll.createIndex({ myid: 1}, { unique: true });
+      return coll.createIndex({ myid: 1 }, { unique: true });
     });
 
     after(async function() {
@@ -202,8 +195,7 @@ describe('mongo', function() {
       try {
         await db.dropCollection(collectionName);
         await db.dropCollection(collectionName + '_oid');
-      } catch(e) {
-
+      } catch (e) {
       } finally {
         //await db.close();
       }
@@ -219,7 +211,6 @@ describe('mongo', function() {
     });
 
     describe('create', function() {
-
       it('should create a new record with server generated _id', function() {
         return request
           .post('/tests')
@@ -252,7 +243,7 @@ describe('mongo', function() {
             oid = m[1];
           })
           .then(({ body: data }) => {
-            return coll2.findOne({}, { projection: {_id: 0 } }).then(found => {
+            return coll2.findOne({}, { projection: { _id: 0 } }).then(found => {
               data.should.deep.equal(JSON.parse(JSON.stringify(found)));
               data.should.deep.equal({ c: 3, d: false, myoid: oid });
             });
@@ -269,7 +260,7 @@ describe('mongo', function() {
             res.headers.location.should.equal('http://localhost:9876/others/aaa');
           })
           .then(({ body: data }) => {
-            return coll.findOne({ myid: 'aaa'}).then(found => {
+            return coll.findOne({ myid: 'aaa' }).then(found => {
               delete found._id;
               data.should.deep.equal(JSON.parse(JSON.stringify(found)));
             });
@@ -297,33 +288,31 @@ describe('mongo', function() {
             data.message.should.equal('internal');
           });
       });
-
     });
 
     describe('collection', function() {
-
       it('should fail to return a non existent collection in strict mode', function() {
-
         class TestOperation extends MongoOperation {
           getCollectionOptions() {
-            return { strict: true }
+            return { strict: true };
           }
           runOperation(job: MongoJob): Promise<MongoJob> {
             return Promise.resolve(job);
-          }    
-        };
+          }
+        }
 
         let r = new MongoResource(db, { name: 'Test', collection: 'aaa' });
         let c = new TestOperation(r, '/', 'get', 'x');
-        c.collection.then(() => {
-          throw new Error('should not get here')
-        }, err => true);
+        c.collection.then(
+          () => {
+            throw new Error('should not get here');
+          },
+          err => true
+        );
       });
-
     });
 
     describe('read', function() {
-
       it('should return a record by object id', function() {
         return request
           .get('/tests/' + id)
@@ -393,11 +382,9 @@ describe('mongo', function() {
             data.message.should.equal('not_found');
           });
       });
-
     });
 
     describe('update', function() {
-
       it('should update a record by object id', function() {
         return request
           .put('/tests/' + id)
@@ -452,17 +439,27 @@ describe('mongo', function() {
             data.message.should.equal('not_found');
           });
       });
-
     });
 
     describe('query', function() {
-
       before(function() {
         return Promise.all([
-          request.post('/tests').send({  myid: 'test2', y: 11, z: false, p: 'bbb' }).expect(201),
-          request.post('/tests').send({  myid: 'test3', y: 30, z: false }).expect(201),
-          request.post('/tests').send({  myid: 'test1', y: 13, z: true, p: 'aaa' }).expect(201),
-          request.post('/tests').send({  myid: 'test4', y: 20, p: 'ddd' }).expect(201)
+          request
+            .post('/tests')
+            .send({ myid: 'test2', y: 11, z: false, p: 'bbb' })
+            .expect(201),
+          request
+            .post('/tests')
+            .send({ myid: 'test3', y: 30, z: false })
+            .expect(201),
+          request
+            .post('/tests')
+            .send({ myid: 'test1', y: 13, z: true, p: 'aaa' })
+            .expect(201),
+          request
+            .post('/tests')
+            .send({ myid: 'test4', y: 20, p: 'ddd' })
+            .expect(201)
         ]);
       });
 
@@ -593,17 +590,15 @@ describe('mongo', function() {
           .expect('Content-Type', /json/)
           .expect('Results-Matching', '0');
       });
-
     });
 
     describe('remove', function() {
-
       it('should remove a resource by object', function() {
         return request
           .delete('/tests/' + id)
           .expect(200)
           .then(({ body: data }) => {
-            data.should.deep.equal({ });
+            data.should.deep.equal({});
           });
       });
 
@@ -616,9 +611,6 @@ describe('mongo', function() {
             data.message.should.equal('not_found');
           });
       });
-
     });
-
   });
-
 });

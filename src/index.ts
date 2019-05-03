@@ -5,4 +5,3 @@ export * from './operation';
 export * from './resource';
 export * from './scopes';
 export * from './types';
-

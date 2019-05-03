@@ -34,13 +34,13 @@ export class MongoResource extends Resource {
       this.info.id = '_id';
     }
     if (typeof this.info.idIsObjectId !== 'boolean') {
-      this.info.idIsObjectId = (this.info.id === '_id');
+      this.info.idIsObjectId = this.info.id === '_id';
     }
     if (!this.info.collection) {
       this.info.collection = decamelize('' + this.info.namePlural, '_');
     }
   }
-  
+
   get schema(): OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject {
     return true;
   }
@@ -51,17 +51,17 @@ export class MongoResource extends Resource {
     return this.schema;
   }
 
-  async checkCollectionIndexes(coll:Collection): Promise<any> {
+  async checkCollectionIndexes(coll: Collection): Promise<any> {
     const indexes = this.getIndexes();
     if (indexes && indexes.length) {
       let currIndexes;
       try {
         currIndexes = await coll.indexes();
-      } catch(e) {
+      } catch (e) {
         currIndexes = [];
       }
       for (let i of indexes) {
-        const props = [ 'unique', 'sparse', 'min', 'max', 'expireAfterSeconds', 'key' ];
+        const props = ['unique', 'sparse', 'min', 'max', 'expireAfterSeconds', 'key'];
 
         let c_i = currIndexes.find(t => {
           return (typeof i.name === 'undefined' || i.name === t.name) && _.isEqual(_.pick(i, props), _.pick(t, props));
@@ -96,29 +96,31 @@ export class MongoResource extends Resource {
     return coll;
   }
   protected getCollectionOptions(): DbCollectionOptions {
-    return { };
+    return {};
   }
   protected getIndexes(): any[] | undefined {
-    return this.info.id && this.info.id !== '_id' ? [
-      {
-        key: {
-          [this.info.id]: 1
-        },
-        unique: true
-      }
-    ] : undefined;
+    return this.info.id && this.info.id !== '_id'
+      ? [
+          {
+            key: {
+              [this.info.id]: 1
+            },
+            unique: true
+          }
+        ]
+      : undefined;
   }
 
-  static defaultRoutes():Routes {
+  static defaultRoutes(): Routes {
     return {
       '/': {
-        'get': QueryMongoOperation,
-        'post': CreateMongoOperation
+        get: QueryMongoOperation,
+        post: CreateMongoOperation
       },
       '/:id': {
-        'get': ReadMongoOperation,
-        'put': UpdateMongoOperation,
-        'delete': RemoveMongoOperation
+        get: ReadMongoOperation,
+        put: UpdateMongoOperation,
+        delete: RemoveMongoOperation
       }
     };
   }

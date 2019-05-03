@@ -12,7 +12,6 @@ import cookieParser = require('cookie-parser');
 
 const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
 
-
 export abstract class Operation {
   info: OpenAPIV3.OperationObject;
   api: API;
@@ -39,7 +38,7 @@ export abstract class Operation {
   }
 
   get swaggerPath(): string {
-    return this.path.replace(swaggerPathRegExp, "/{$1}");
+    return this.path.replace(swaggerPathRegExp, '/{$1}');
   }
   get swaggerScopes(): OpenAPIV3.OAuth2SecurityScopes {
     return {
@@ -52,11 +51,11 @@ export abstract class Operation {
   }
   protected getDefaultInfo(): OpenAPIV3.OperationObject {
     return {
-      "operationId": `${this.resource.info.name}.${this.internalId}`,
-      "tags": [ '' + this.resource.info.name ],
-      "responses": {
-        "default": {
-          "$ref": "#/components/responses/defaultError"
+      operationId: `${this.resource.info.name}.${this.internalId}`,
+      tags: ['' + this.resource.info.name],
+      responses: {
+        default: {
+          $ref: '#/components/responses/defaultError'
         }
       }
     };
@@ -78,7 +77,7 @@ export abstract class Operation {
         } else {
           req[key][parameter.name] = await schema.validate(req[key][parameter.name], { setDefault: true }, `${key}.${parameter.name}`);
         }
-      }
+      };
     });
 
     return async function(req: APIRequest, res: APIResponse, next: NextFunction) {
@@ -87,32 +86,37 @@ export abstract class Operation {
           await v(req);
         }
         next();
-      } catch(err) {
+      } catch (err) {
         next(err);
       }
-    }
+    };
   }
   protected createBodyValidator(type: string, bodySpec: OpenAPIV3.MediaTypeObject, required: boolean = false): APIRequestHandler {
     if (!bodySpec.schema) {
       throw new Error(`Schema missing for content type ${type}`);
     }
     const schema = new StaticSchemaObject(bodySpec.schema as OpenAPIV3.SchemaObject);
-    return async (req:APIRequest, res:APIResponse, next:NextFunction) => {
-      if (_.isEqual(req.body, {}) && (!parseInt('' + req.header('content-length')))) {
+    return async (req: APIRequest, res: APIResponse, next: NextFunction) => {
+      if (_.isEqual(req.body, {}) && !parseInt('' + req.header('content-length'))) {
         if (required === true) {
           next(new jp.ValidationError('body', jp.Schema.scope(schema), 'required'));
         } else {
           next();
         }
       } else {
-        req.body = await schema.validate(req.body, {
-          setDefault: true,
-          coerceTypes: (type !== 'application/json'),
-          context: 'write'
-        }, 'body').then(() => next(), err => next(err));
+        req.body = await schema
+          .validate(
+            req.body,
+            {
+              setDefault: true,
+              coerceTypes: type !== 'application/json',
+              context: 'write'
+            },
+            'body'
+          )
+          .then(() => next(), err => next(err));
       }
     };
-
   }
   protected useSecurityValidator(): boolean {
     return !!this.scopes;
@@ -131,12 +135,12 @@ export abstract class Operation {
     }
   }
 
-  attach(api:API) {
+  attach(api: API) {
     this.api = api;
     api.registerOperation(this.resource.basePath + this.swaggerPath, this.method, this.info);
 
     let swaggerScopes = this.swaggerScopes;
-    let scopeNames:string[] = [];
+    let scopeNames: string[] = [];
 
     for (let i in swaggerScopes) {
       scopeNames.push(i);
@@ -158,8 +162,8 @@ export abstract class Operation {
       this.scopes = new Scopes(scopeNames);
     }
   }
-  async router(router:Router): Promise<Router> {
-    const middlewares:APIRequestHandler[] = [];
+  async router(router: Router): Promise<Router> {
+    const middlewares: APIRequestHandler[] = [];
     if (this.useSecurityValidator()) {
       middlewares.push(this.securityValidator.bind(this));
     }
@@ -177,7 +181,7 @@ export abstract class Operation {
       middlewares.push(this.createParameterValidators('cookies', params.cookie));
     }
     if (params.path) {
-      _.each(params.path, function (i) {
+      _.each(params.path, function(i) {
         i.required = true;
       });
       middlewares.push(this.createParameterValidators('params', params.path));
@@ -198,7 +202,7 @@ export abstract class Operation {
         middlewares.push(urlencodedParser({ extended: true }));
         middlewares.push(this.createBodyValidator('application/x-www-form-urlencoded', body.content['application/x-www-form-urlencoded'], body.required));
       }
-    } else if ([ 'put', 'post', 'patch'].includes(this.method)) {
+    } else if (['put', 'post', 'patch'].includes(this.method)) {
       middlewares.push(jsonParser());
     }
 

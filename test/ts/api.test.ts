@@ -16,38 +16,46 @@ const should = chai.should();
 chai.use(spies);
 chai.use(chaiAsPromised);
 
-
-describe('API', function () {
-
-  describe('constructor', function () {
-
-    it('should fail to create an API instance if an invalid version is specified', function () {
-      (function () { new API({ version: true } as any as OpenAPIV3.InfoObject) }).should.throw(Error, 'Invalid version');
-      (function () { new API({ version: 'a' } as any as OpenAPIV3.InfoObject) }).should.throw(Error, 'Invalid version');
-      (function () { new API({ version: 1 } as any as OpenAPIV3.InfoObject) }).should.throw(Error, 'Invalid version');
-      (function () { new API({ version: '1' } as any as OpenAPIV3.InfoObject) }).should.throw(Error, 'Invalid version');
-      (function () { new API({ version: '1.0' } as any as OpenAPIV3.InfoObject) }).should.throw(Error, 'Invalid version');
-      (function () { new API() }).should.not.throw;
+describe('API', function() {
+  describe('constructor', function() {
+    it('should fail to create an API instance if an invalid version is specified', function() {
+      (function() {
+        new API(({ version: true } as any) as OpenAPIV3.InfoObject);
+      }.should.throw(Error, 'Invalid version'));
+      (function() {
+        new API(({ version: 'a' } as any) as OpenAPIV3.InfoObject);
+      }.should.throw(Error, 'Invalid version'));
+      (function() {
+        new API(({ version: 1 } as any) as OpenAPIV3.InfoObject);
+      }.should.throw(Error, 'Invalid version'));
+      (function() {
+        new API(({ version: '1' } as any) as OpenAPIV3.InfoObject);
+      }.should.throw(Error, 'Invalid version'));
+      (function() {
+        new API(({ version: '1.0' } as any) as OpenAPIV3.InfoObject);
+      }.should.throw(Error, 'Invalid version'));
+      (function() {
+        new API();
+      }.should.not.throw);
     });
 
-    it('should create an API instance', function () {
+    it('should create an API instance', function() {
       let api = new API();
-      api.document.openapi.should.equal('3.0.2')
+      api.document.openapi.should.equal('3.0.2');
       api.document.info.version.should.equal('1.0.0');
       api.document.info.title.should.equal('REST API');
     });
   });
 
-  describe('router', function () {
-
-    it('should return an Expressjs router', function () {
+  describe('router', function() {
+    it('should return an Expressjs router', function() {
       let api = new API();
       return api.router().then(router => {
         router.should.be.a('function');
       });
     });
 
-    it('should return the same object when called twice', function () {
+    it('should return the same object when called twice', function() {
       let api = new API();
       return api.router().then(router1 => {
         return api.router().then(router2 => {
@@ -55,13 +63,10 @@ describe('API', function () {
         });
       });
     });
-
   });
 
-  describe('plain api (no resources)', function () {
-
-    describe('/openapi.json', function () {
-
+  describe('plain api (no resources)', function() {
+    describe('/openapi.json', function() {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -70,63 +75,69 @@ describe('API', function () {
       const app = express();
       let server;
 
-      before(function () {
-        api.document.components = { 
+      before(function() {
+        api.document.components = {
           securitySchemes: {
-            "myScheme": {
-              "type": "oauth2",
-              "flows": {
-                "authorizationCode": {
-                  "tokenUrl": "token",
-                  "authorizationUrl": "/a/b/authorize",
-                  "scopes": {}
+            myScheme: {
+              type: 'oauth2',
+              flows: {
+                authorizationCode: {
+                  tokenUrl: 'token',
+                  authorizationUrl: '/a/b/authorize',
+                  scopes: {}
                 },
-                "implicit": {
-                  "authorizationUrl": "/a/b/authorize",
-                  "scopes": {}
-                },
+                implicit: {
+                  authorizationUrl: '/a/b/authorize',
+                  scopes: {}
+                }
               }
             }
           }
         };
-  
+
         return api.router().then(router => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function () {
+      after(function() {
         server.close();
       });
 
-      it('should fail if the request is missing the Host header', function () {
+      it('should fail if the request is missing the Host header', function() {
         let app2 = express();
         let server2;
-        return api.router().then(router => {
-          app2.use((req, res, next) => {
-            delete req.headers.host;
-            next();
-          });
-          app2.use(router);
-          server2 = app2.listen(port + 1);
-          return supertest('http://localhost:' + (port + 1))
-            .get('/openapi.json')
-            .expect(400)
-            .expect('Content-Type', /json/)
-            .then(({ body: data }) => {
-              should.exist(data);
-              data.info.should.match(/Missing Host/);
+        return api
+          .router()
+          .then(router => {
+            app2.use((req, res, next) => {
+              delete req.headers.host;
+              next();
             });
-        }).then(() => {
-          server2.close();
-        }, err => {
-          server2.close();
-          throw err;
-        });
+            app2.use(router);
+            server2 = app2.listen(port + 1);
+            return supertest('http://localhost:' + (port + 1))
+              .get('/openapi.json')
+              .expect(400)
+              .expect('Content-Type', /json/)
+              .then(({ body: data }) => {
+                should.exist(data);
+                data.info.should.match(/Missing Host/);
+              });
+          })
+          .then(
+            () => {
+              server2.close();
+            },
+            err => {
+              server2.close();
+              throw err;
+            }
+          );
       });
 
-      it('should return a default openapi file', function () {
+      it('should return a default openapi file', function() {
         return request
           .get('/openapi.json')
           .expect(200)
@@ -140,7 +151,7 @@ describe('API', function () {
           });
       });
 
-      it('should normalize oauth2 urls in security definitions', function () {
+      it('should normalize oauth2 urls in security definitions', function() {
         return request
           .get('/openapi.json')
           .expect(200)
@@ -150,13 +161,10 @@ describe('API', function () {
             data.components.securitySchemes.myScheme.flows.implicit.authorizationUrl.should.equal(basePath + '/a/b/authorize');
           });
       });
-
     });
-
   });
 
-  describe('attach', function () {
-
+  describe('attach', function() {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
@@ -166,7 +174,7 @@ describe('API', function () {
     const r = express.Router();
     let server;
 
-    before(function () {
+    before(function() {
       app.use(r);
       return api.attach(r).then(router => {
         app.use(router);
@@ -174,11 +182,11 @@ describe('API', function () {
       });
     });
 
-    after(function () {
+    after(function() {
       server.close();
     });
 
-    it('should attach the api on /v{major version} and reflect that in openapi.json', function () {
+    it('should attach the api on /v{major version} and reflect that in openapi.json', function() {
       return request
         .get('/v3/openapi.json')
         .expect(200)
@@ -190,7 +198,7 @@ describe('API', function () {
         });
     });
 
-    it('should attach another api version and reflect that in the swagger', function () {
+    it('should attach another api version and reflect that in the swagger', function() {
       const api2 = new API({ version: '4.0.0', title: 'test' });
 
       return api2.attach(r).then(() => {
@@ -206,7 +214,7 @@ describe('API', function () {
       });
     });
 
-    it('should attach another api with the same version which will handle resources to handled by the first one', function () {
+    it('should attach another api with the same version which will handle resources to handled by the first one', function() {
       const api3 = new API({ version: '3.2.2', title: 'test' });
       api3.addResource(new Resource({ routes: { '/': { get: (req, res) => res.json({ result: 10 }) } } }));
 
@@ -221,11 +229,9 @@ describe('API', function () {
           });
       });
     });
-
   });
 
-  describe('listen', function () {
-
+  describe('listen', function() {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
@@ -233,7 +239,7 @@ describe('API', function () {
     let server1;
     let server2;
 
-    afterEach(function () {
+    afterEach(function() {
       delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
       if (server1) {
         server1.close();
@@ -243,24 +249,30 @@ describe('API', function () {
       }
     });
 
-    it('should fail if no ports are specified', function () {
+    it('should fail if no ports are specified', function() {
       const api = new API({ version: '3.2.1', title: 'test' });
-      return api.listen(undefined as any as number).then(() => {
-        throw new Error('should not get here');
-      }, err => {
-        err.should.be.instanceOf(Error);
-        err.message.should.match(/no listen ports specified/);
-      });
+      return api.listen((undefined as any) as number).then(
+        () => {
+          throw new Error('should not get here');
+        },
+        err => {
+          err.should.be.instanceOf(Error);
+          err.message.should.match(/no listen ports specified/);
+        }
+      );
     });
 
-    it('should fail if no https options are specified', function () {
+    it('should fail if no https options are specified', function() {
       const api = new API({ version: '3.2.1', title: 'test' });
-      api.listen(0, 1).then(() => {
-        throw new Error('should not get here')
-      }, err => true);
+      api.listen(0, 1).then(
+        () => {
+          throw new Error('should not get here');
+        },
+        err => true
+      );
     });
 
-    it('should create an api server listening to http on the requested port', function () {
+    it('should create an api server listening to http on the requested port', function() {
       const api = new API({ version: '3.2.1', title: 'test' });
       return api.listen(port).then(server => {
         server1 = server;
@@ -276,9 +288,9 @@ describe('API', function () {
       });
     });
 
-    it('should create an api server listening to https on the requested port', function () {
+    it('should create an api server listening to https on the requested port', function() {
       return new Promise((resolve, reject) => {
-        pem.createCertificate({ days: 1, selfSigned: true }, function (err, keys) {
+        pem.createCertificate({ days: 1, selfSigned: true }, function(err, keys) {
           if (err) {
             reject(err);
           } else {
@@ -301,13 +313,11 @@ describe('API', function () {
             });
         });
       });
-
-
     });
 
-    it('should create an api server listening to both http and https on the requested ports', function () {
+    it('should create an api server listening to both http and https on the requested ports', function() {
       return new Promise((resolve, reject) => {
-        pem.createCertificate({ days: 1, selfSigned: true }, function (err, keys) {
+        pem.createCertificate({ days: 1, selfSigned: true }, function(err, keys) {
           if (err) {
             reject(err);
           } else {
@@ -342,14 +352,10 @@ describe('API', function () {
           ]);
         });
       });
-
-
     });
-
   });
 
-  describe('error handling', function () {
-
+  describe('error handling', function() {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
@@ -370,19 +376,19 @@ describe('API', function () {
     let r = new Resource({ name: 'Test' }, { '/a': { get: Op1 } });
     api.addResource(r);
 
-    before(function () {
+    before(function() {
       return api.router().then(router => {
         app.use(router);
         server = app.listen(port);
       });
     });
 
-    after(function () {
+    after(function() {
       server.close();
     });
 
-    it('should return the specified rest error', function () {
-      spy = chai.spy(function (req, res) {
+    it('should return the specified rest error', function() {
+      spy = chai.spy(function(req, res) {
         API.fireError(418);
       });
       return request
@@ -394,11 +400,10 @@ describe('API', function () {
           should.not.exist(data.info);
           spy.should.have.been.called.once();
         });
-
     });
 
-    it('should return the specified rest error', function () {
-      spy = chai.spy(function (req, res) {
+    it('should return the specified rest error', function() {
+      spy = chai.spy(function(req, res) {
         API.fireError(418);
       });
       return request
@@ -410,11 +415,10 @@ describe('API', function () {
           should.not.exist(data.info);
           spy.should.have.been.called.once();
         });
-
     });
 
-    it('should return 500 as the default error', function () {
-      spy = chai.spy(function (req, res) {
+    it('should return 500 as the default error', function() {
+      spy = chai.spy(function(req, res) {
         throw new Error('bla bla bla');
       });
       return request
@@ -426,11 +430,10 @@ describe('API', function () {
           should.not.exist(data.info);
           spy.should.have.been.called.once();
         });
-
     });
 
-    it('should return 405 if an unsupported method is called on a known path', function () {
-      spy = chai.spy(function (req, res) {
+    it('should return 405 if an unsupported method is called on a known path', function() {
+      spy = chai.spy(function(req, res) {
         throw new Error('bla bla bla');
       });
       return request
@@ -445,7 +448,7 @@ describe('API', function () {
     });
   });
 
-  describe('404 Error handling', function () {
+  describe('404 Error handling', function() {
     const port = 9999;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
@@ -463,15 +466,15 @@ describe('API', function () {
     let r = new Resource({ name: 'Test' }, { '/a': { get: Op1 } });
     api.addResource(r);
 
-    before(async function () {
+    before(async function() {
       server = await api.listen(port);
       return;
     });
-    after(function(){
+    after(function() {
       server.close();
-    })
+    });
 
-    it('should return 404 if endpoint refers to an unknown path', function () {
+    it('should return 404 if endpoint refers to an unknown path', function() {
       return request
         .get('/tests/unknown')
         .expect(404)
@@ -484,14 +487,13 @@ describe('API', function () {
     });
   });
 
-  describe('Scopes', function () {
-
-    it('should return all the scopes as an array', function () {
+  describe('Scopes', function() {
+    it('should return all the scopes as an array', function() {
       let s = new Scopes(['a.x', '-a.z']);
       s.toArray().should.have.length(2);
     });
 
-    it('should create an empty scopes descriptor', function () {
+    it('should create an empty scopes descriptor', function() {
       let s = new Scopes();
       s.match('a.x').should.equal(false);
       s.match(['a.x']).should.equal(false);
@@ -500,62 +502,107 @@ describe('API', function () {
       s.match(new Scopes('-a.x')).should.equal(true);
     });
 
-    it('should use a negative wildcard scope when defined', function () {
-      let s = new Scopes([ 'a', '-*.x']);
+    it('should use a negative wildcard scope when defined', function() {
+      let s = new Scopes(['a', '-*.x']);
       s.match('a.x').should.equal(false);
       s.match('b.x').should.equal(false);
       s.match('a.y').should.equal(true);
       s.match('b.y').should.equal(false);
 
-      s = new Scopes([ '-a', '*.x']);
+      s = new Scopes(['-a', '*.x']);
       s.match('a.x').should.equal(false);
       s.match('b.x').should.equal(true);
       s.match('a.y').should.equal(false);
       s.match('b.y').should.equal(false);
     });
 
-    it('should throw if bad scopes are passed', function () {
-      should.throw(function () { let s = new Scopes(['']); }, RangeError);
+    it('should throw if bad scopes are passed', function() {
+      should.throw(function() {
+        let s = new Scopes(['']);
+      }, RangeError);
     });
 
-    it('should filter scopes', function () {
+    it('should filter scopes', function() {
       let ref1 = new Scopes(['a.*', '-a.x', '*.z']);
-      ref1.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['a.y', 'c.z']);
-      ref1.filter(['a.x', 'a.y', 'c.x', 'c.y', 'c.z']).toArray().should.deep.equal(['a.y', 'c.z']);
-      ref1.filter(new Scopes(['a.x', 'a.y', 'c.x', 'c.y', 'c.z'])).toArray().should.deep.equal(['a.y', 'c.z']);
+      ref1
+        .filter('a.x a.y c.x c.y c.z')
+        .toArray()
+        .should.deep.equal(['a.y', 'c.z']);
+      ref1
+        .filter(['a.x', 'a.y', 'c.x', 'c.y', 'c.z'])
+        .toArray()
+        .should.deep.equal(['a.y', 'c.z']);
+      ref1
+        .filter(new Scopes(['a.x', 'a.y', 'c.x', 'c.y', 'c.z']))
+        .toArray()
+        .should.deep.equal(['a.y', 'c.z']);
 
       let ref2 = new Scopes(['*', '-*.x', '-c']);
-      ref2.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['-*.x','a.y']);
-      ref2.filter(['a.x', 'a.y', 'b.x', 'b.y', 'b.z']).toArray().should.deep.equal(['-*.x', 'a.y', 'b.y', 'b.z']);
-      ref2.filter(new Scopes(['a', 'c'])).toArray().should.deep.equal(['-*.x', 'a.*']);
-      ref2.filter(new Scopes(['*'])).toArray().should.deep.equal(['-*.x', '*.*', '-c.*']);
-      ref2.filter(new Scopes(['*.x', '*.y'])).toArray().should.deep.equal(['-*.x','*.y']);
-      ref2.filter('d.*').toArray().should.deep.equal(['-*.x', 'd.*']);
+      ref2
+        .filter('a.x a.y c.x c.y c.z')
+        .toArray()
+        .should.deep.equal(['-*.x', 'a.y']);
+      ref2
+        .filter(['a.x', 'a.y', 'b.x', 'b.y', 'b.z'])
+        .toArray()
+        .should.deep.equal(['-*.x', 'a.y', 'b.y', 'b.z']);
+      ref2
+        .filter(new Scopes(['a', 'c']))
+        .toArray()
+        .should.deep.equal(['-*.x', 'a.*']);
+      ref2
+        .filter(new Scopes(['*']))
+        .toArray()
+        .should.deep.equal(['-*.x', '*.*', '-c.*']);
+      ref2
+        .filter(new Scopes(['*.x', '*.y']))
+        .toArray()
+        .should.deep.equal(['-*.x', '*.y']);
+      ref2
+        .filter('d.*')
+        .toArray()
+        .should.deep.equal(['-*.x', 'd.*']);
 
       let ref3 = new Scopes(['a', 'b', '-c']);
-      ref3.filter('*.x').toArray().should.deep.equal(['a.x', 'b.x']);
-      ref3.filter('*').toArray().should.deep.equal(['a.*', 'b.*']);
-      ref3.filter('* -*.x').toArray().should.deep.equal(['a.*', 'b.*', '-*.x']);
-      ref3.filter('d.*').toArray().should.deep.equal([]);
+      ref3
+        .filter('*.x')
+        .toArray()
+        .should.deep.equal(['a.x', 'b.x']);
+      ref3
+        .filter('*')
+        .toArray()
+        .should.deep.equal(['a.*', 'b.*']);
+      ref3
+        .filter('* -*.x')
+        .toArray()
+        .should.deep.equal(['a.*', 'b.*', '-*.x']);
+      ref3
+        .filter('d.*')
+        .toArray()
+        .should.deep.equal([]);
 
       let ref4 = new Scopes(['*.x', '-*.y']);
-      ref4.filter('d.*').toArray().should.deep.equal(['-*.y','d.x']);
+      ref4
+        .filter('d.*')
+        .toArray()
+        .should.deep.equal(['-*.y', 'd.x']);
 
       let ref5 = new Scopes(['a']);
-      ref5.filter('a.* -a.y').toArray().should.deep.equal(['a.*','-a.y']);
+      ref5
+        .filter('a.* -a.y')
+        .toArray()
+        .should.deep.equal(['a.*', '-a.y']);
     });
-
   });
 
-  describe('schema', function () {
-
+  describe('schema', function() {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     let server;
 
-    afterEach(function () {
+    afterEach(function() {
       if (server) {
         server.close();
         server = undefined;
@@ -568,49 +615,51 @@ describe('API', function () {
       api.registerSchema('test', {
         type: 'object'
       });
-      (api.document as any).components.schemas.test.should.deep.equal({ type: 'object'});
+      (api.document as any).components.schemas.test.should.deep.equal({ type: 'object' });
     });
 
-    it('should be able to resolve an internal schema', function () {
-      const spy = chai.spy((req, res) => { res.json({}) });
+    it('should be able to resolve an internal schema', function() {
+      const spy = chai.spy((req, res) => {
+        res.json({});
+      });
       const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
           this.info.requestBody = {
-            "content": {
-              "application/json": {
-                "schema": { $ref: '#/components/schemas/op1_schema2' }
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/op1_schema2' }
               }
             },
-            "required": true
+            required: true
           };
         }
         attach(api) {
           api.registerSchema('op1_schema1', {
-            "type": "object",
-            "properties": {
-              "a": {
-                "type": "boolean"
+            type: 'object',
+            properties: {
+              a: {
+                type: 'boolean'
               },
-              "b": {
-                "type": "integer"
+              b: {
+                type: 'integer'
               }
             },
-            "additionalProperties": false,
-            "required": ["a"]
+            additionalProperties: false,
+            required: ['a']
           });
           api.registerSchema('op1_schema2', {
-            "type": "object",
-            "properties": {
-              "c": {
-                "type": "string"
+            type: 'object',
+            properties: {
+              c: {
+                type: 'string'
               },
-              "d": { $ref: '#/components/schemas/op1_schema1' },
-              "e": { $ref: '#/components/schemas/op1_schema1/properties/b' }
+              d: { $ref: '#/components/schemas/op1_schema1' },
+              e: { $ref: '#/components/schemas/op1_schema1/properties/b' }
             },
-            "additionalProperties": false,
-            "required": ["d"]
+            additionalProperties: false,
+            required: ['d']
           });
           super.attach(api);
         }
@@ -672,55 +721,56 @@ describe('API', function () {
           spy.should.have.been.called.once;
         });
       });
-
     });
 
-    it('should be able to resolve dynamic schemas', function () {
-      const spy = chai.spy((req, res) => { res.json({}) });
+    it('should be able to resolve dynamic schemas', function() {
+      const spy = chai.spy((req, res) => {
+        res.json({});
+      });
       const api = new API();
       class Schema1 extends SchemaObject {
         async spec(): Promise<OpenAPIV3.SchemaObject> {
           return {
-            "type": "object",
-            "properties": {
-              "a": {
-                "type": "boolean"
+            type: 'object',
+            properties: {
+              a: {
+                type: 'boolean'
               },
-              "b": {
-                "type": "integer"
+              b: {
+                type: 'integer'
               }
             },
-            "additionalProperties": false,
-            "required": ["a"]
-          }
+            additionalProperties: false,
+            required: ['a']
+          };
         }
       }
       class Schema2 extends SchemaObject {
         async spec(): Promise<OpenAPIV3.SchemaObject> {
           return {
-            "type": "object",
-            "properties": {
-              "c": {
-                "type": "string"
+            type: 'object',
+            properties: {
+              c: {
+                type: 'string'
               },
-              "d": { $ref: '#/components/schemas/op1_schema1' },
-              "e": { $ref: '#/components/schemas/op1_schema1/properties/b' }
+              d: { $ref: '#/components/schemas/op1_schema1' },
+              e: { $ref: '#/components/schemas/op1_schema1/properties/b' }
             },
-            "additionalProperties": false,
-            "required": ["d"]
-          }
+            additionalProperties: false,
+            required: ['d']
+          };
         }
       }
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
           this.info.requestBody = {
-            "content": {
-              "application/json": {
-                "schema": { $ref: '#/components/schemas/op1_schema2' }
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/op1_schema2' }
               }
             },
-            "required": true
+            required: true
           };
         }
         attach(api) {
@@ -786,22 +836,23 @@ describe('API', function () {
           spy.should.have.been.called.once;
         });
       });
-
     });
 
-    it('should fail if an external schema cannot be retrieved (1)', async function () {
-      const spy = chai.spy((req, res) => { res.json({}) });
+    it('should fail if an external schema cannot be retrieved (1)', async function() {
+      const spy = chai.spy((req, res) => {
+        res.json({});
+      });
       const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
           this.info.requestBody = {
-            "content": {
-              "application/json": {
-                "schema": { $ref: `http://noresolve.vivocha.com/aaa` }
+            content: {
+              'application/json': {
+                schema: { $ref: `http://noresolve.vivocha.com/aaa` }
               }
             },
-            "required": true
+            required: true
           };
         }
         handler(req, res) {
@@ -817,19 +868,21 @@ describe('API', function () {
       err.errors[0].message.should.match(/noresolve.vivocha.com/);
     });
 
-    it('should fail if an external schema cannot be retrieved (2)', async function () {
-      const spy = chai.spy((req, res) => { res.json({}) });
+    it('should fail if an external schema cannot be retrieved (2)', async function() {
+      const spy = chai.spy((req, res) => {
+        res.json({});
+      });
       const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
           this.info.requestBody = {
-            "content": {
-              "application/json": {
-                "schema": { $ref: `${basePath}/aaa` }
+            content: {
+              'application/json': {
+                schema: { $ref: `${basePath}/aaa` }
               }
             },
-            "required": true
+            required: true
           };
         }
         handler(req, res) {
@@ -847,19 +900,21 @@ describe('API', function () {
       err.errors[0].originalError.should.be.instanceOf(RESTError);
     });
 
-    it('should be able to resolve an external schema', function () {
-      const spy = chai.spy((req, res) => { res.json({}) });
+    it('should be able to resolve an external schema', function() {
+      const spy = chai.spy((req, res) => {
+        res.json({});
+      });
       const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op1');
           this.info.requestBody = {
-            "content": {
-              "application/json": {
-                "schema": { $ref: `${basePath}/aaa` }
+            content: {
+              'application/json': {
+                schema: { $ref: `${basePath}/aaa` }
               }
             },
-            "required": true
+            required: true
           };
         }
         handler(req, res) {
@@ -868,19 +923,21 @@ describe('API', function () {
       }
 
       const app = express();
-      app.get('/aaa', (req, res) => res.json({
-        "type": "object",
-        "properties": {
-          "h": {
-            "type": "boolean"
+      app.get('/aaa', (req, res) =>
+        res.json({
+          type: 'object',
+          properties: {
+            h: {
+              type: 'boolean'
+            },
+            i: {
+              type: 'integer'
+            }
           },
-          "i": {
-            "type": "integer"
-          }
-        },
-        "additionalProperties": false,
-        "required": ["h"]
-      }));
+          additionalProperties: false,
+          required: ['h']
+        })
+      );
       server = app.listen(port);
 
       api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
@@ -933,9 +990,7 @@ describe('API', function () {
         ]).then(() => {
           spy.should.have.been.called.once;
         });
-      })
+      });
     });
-
   });
-
 });
