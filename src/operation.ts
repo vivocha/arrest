@@ -104,8 +104,8 @@ export abstract class Operation {
           next();
         }
       } else {
-        req.body = await schema
-          .validate(
+        try {
+          req.body = await schema.validate(
             req.body,
             {
               setDefault: true,
@@ -113,8 +113,12 @@ export abstract class Operation {
               context: 'write'
             },
             'body'
-          )
-          .then(() => next(), err => next(err));
+          );
+        } catch (err) {
+          next(err);
+          return;
+        }
+        next();
       }
     };
   }
