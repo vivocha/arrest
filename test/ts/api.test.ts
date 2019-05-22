@@ -655,8 +655,8 @@ describe('API', function() {
               c: {
                 type: 'string'
               },
-              d: { $ref: '#/components/schemas/op1_schema1' },
-              e: { $ref: '#/components/schemas/op1_schema1/properties/b' }
+              d: { $ref: 'op1_schema1' },
+              e: { $ref: 'op1_schema1#/properties/b' }
             },
             additionalProperties: false,
             required: ['d']
@@ -753,8 +753,8 @@ describe('API', function() {
               c: {
                 type: 'string'
               },
-              d: { $ref: '#/components/schemas/op1_schema1' },
-              e: { $ref: '#/components/schemas/op1_schema1/properties/b' }
+              d: { $ref: 'op1_schema1' },
+              e: { $ref: 'op1_schema1#/properties/b' }
             },
             additionalProperties: false,
             required: ['d']

@@ -13,6 +13,7 @@ import { RESTError } from './error';
 import { Resource } from './resource';
 import { Scopes } from './scopes';
 import { APIRequest, APIResponse } from './types';
+import { rebaseOASDefinitions, refsRebaser } from './utils';
 import request = require('request');
 
 let reqId: number = 0;
@@ -81,7 +82,7 @@ export class API {
     if (!this.document.components.schemas) {
       this.document.components.schemas = {};
     }
-    this.document.components.schemas[name] = _.cloneDeep(schema);
+    this.document.components.schemas[name] = refs.rebase(name, schema, refsRebaser);
   }
   registerDynamicSchema(name: string, schema: SchemaObject) {
     if (!this.dynamicSchemas) {
@@ -176,6 +177,9 @@ export class API {
             this.registerSchema(name, await this.dynamicSchemas[name].spec());
           }
         }
+
+        // Move definitions into #/components/schemas/ as schemas
+        this.document = rebaseOASDefinitions(this.document);
 
         const originalDocument = _.cloneDeep(this.document);
         router.get('/openapi.json', (req: APIRequest, res: APIResponse, next: NextFunction) => {
