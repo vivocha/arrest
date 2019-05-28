@@ -619,6 +619,7 @@ describe('API', function() {
     });
 
     it('should be able to resolve an internal schema', function() {
+      debugger;
       const spy = chai.spy((req, res) => {
         res.json({});
       });

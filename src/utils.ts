@@ -1,5 +1,4 @@
 import * as dot from 'dot-prop';
-import * as _ from 'lodash';
 import { OpenAPIV3 } from 'openapi-police';
 
 /**
@@ -7,6 +6,10 @@ import { OpenAPIV3 } from 'openapi-police';
  *
  * <ext_schema_name>#/definitions/<schema_name> to #/components/schemas/<ext_schema_name>/definitions/<schema_name>
  * #/definitions/<schema_def_name> to #/components/schemas/<schema_name>/definitions/<schema_def_name>
+ * <ext_schema_name>#/properties/<prop_name> to #/components/schemas/<ext_schema_name>/properties/<prop_name>
+ * #/properties/<prop_name> to #/components/schemas/<schema_name>/definitions/<prop_name>
+ * <ext_schema_name># to #/components/schemas/<ext_schema_name>
+ * <ext_schema_name> to #/components/schemas/<ext_schema_name>
  *
  * @export
  * @param {string} schemaName
@@ -16,11 +19,24 @@ import { OpenAPIV3 } from 'openapi-police';
 export function refsRebaser(schemaName: string, obj: any): any {
   const otherRef = new RegExp('^(.+)#/definitions/(.+)', 'g');
   const selfRef = new RegExp('^#/definitions/(.+)', 'g');
+  const otherPropRef = new RegExp('^(.+)#/properties/(.+)', 'g');
+  const selfPropRef = new RegExp('^#/properties/(.+)', 'g');
+  const nameRef = new RegExp('^([^#]+[^#]+)$', 'g');
+  const namePlusHash = new RegExp('^([^#]+)#+$', 'g');
+
   let rebasedRef = obj.$ref;
   if (obj.$ref.match(selfRef)) {
     rebasedRef = obj.$ref.replace(selfRef, `#/components/schemas/${schemaName}/definitions/$1`);
   } else if (obj.$ref.match(otherRef)) {
     rebasedRef = obj.$ref.replace(otherRef, '#/components/schemas/$1/definitions/$2');
+  } else if (obj.$ref.match(otherPropRef)) {
+    rebasedRef = obj.$ref.replace(otherPropRef, '#/components/schemas/$1/properties/$2');
+  } else if (obj.$ref.match(selfPropRef)) {
+    rebasedRef = obj.$ref.replace(selfPropRef, `#/components/schemas/${schemaName}/properties/$1`);
+  } else if (obj.$ref.match(nameRef)) {
+    rebasedRef = obj.$ref.replace(nameRef, '#/components/schemas/$1');
+  } else if (obj.$ref.match(namePlusHash)) {
+    rebasedRef = obj.$ref.replace(namePlusHash, '#/components/schemas/$1');
   }
   obj['$ref'] = rebasedRef;
   return obj;
@@ -30,12 +46,12 @@ export function refsRebaser(schemaName: string, obj: any): any {
  * Recursively move all OpenAPI spec schemas' definitions properties and rebase $refs accordingly
  *
  * @export
- * @param {*} fullSpec - the full OpenAPI spec object
- * @returns {*} - the transformed spec
+ * @param {*} fullSpec - the full OpenAPI spec object eventually containing definitions properties
+ * @returns {*} - the transformed spec with rebased definitions
  */
-export function rebaseOASDefinitions(fullSpec: OpenAPIV3.Document): OpenAPIV3.Document {
+export function rebaseOASDefinitions(fullSpec: any): OpenAPIV3.Document {
   try {
-    let specCopy = _.cloneDeep(fullSpec);
+    let specCopy = fullSpec;
     if (specCopy.components && specCopy.components.schemas) {
       const components = specCopy.components;
       for (const schemaKey in components.schemas) {
@@ -46,8 +62,7 @@ export function rebaseOASDefinitions(fullSpec: OpenAPIV3.Document): OpenAPIV3.Do
     }
     return specCopy;
   } catch (err) {
-    console.error('Unable to rebase schema definitions, error is', err);
-    return fullSpec;
+    throw new Error('Unable to rebase schema definitions, check the Schema.');
   }
 }
 
