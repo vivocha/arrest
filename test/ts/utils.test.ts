@@ -501,7 +501,7 @@ describe('utils', function() {
                   },
                   additionalProperties: false
                 },
-                hooks: { $ref: '#/components/schemas/hooks' },
+                jimmy: { $ref: '#/components/schemas/jimmy' },
                 _chhs: {
                   type: 'object',
                   properties: { web: { $ref: '#/components/schemas/webchh' } },
@@ -520,7 +520,7 @@ describe('utils', function() {
                   minLength: 64,
                   readOnly: true
                 },
-                secret: {
+                amazingWow: {
                   type: 'string',
                   minLength: 64,
                   readOnly: true
@@ -592,8 +592,8 @@ describe('utils', function() {
                         auth: {
                           type: 'object',
 
-                          required: ['type', 'secret'],
-                          properties: { type: { $ref: '#/components/schemas/notEmptyString' }, secret: { $ref: '#/components/schemas/notEmptyString' } },
+                          required: ['type', 'amazingWow'],
+                          properties: { type: { $ref: '#/components/schemas/notEmptyString' }, amazingWow: { $ref: '#/components/schemas/notEmptyString' } },
                           oneOf: [
                             { type: 'object', properties: { type: { enum: ['bearer'] } } },
                             {
@@ -1003,20 +1003,7 @@ describe('utils', function() {
                 customizationMacros: {
                   description: '',
                   properties: {
-                    MICKEY_SUPPORT_FAQ: { type: ['boolean', 'string'], description: '' },
-                    MICKEY: { description: '', type: 'string' },
-                    MICKEY_ACTIVATION: { description: '', type: 'string' },
-                    MICKEY_AVATAR_IMAGE: { description: '', type: 'string' },
-                    MICKEY_COMPACT_LOGO: { description: '', type: 'string' },
-                    MICKEY_COPYRIGHT: { description: '', type: 'string' },
-                    MICKEY_LOGO_IMAGE: { type: 'string' },
-                    MICKEY_LOWER: { description: '', type: 'string' },
-                    MICKEY_SITE: { description: '', type: 'string' },
-                    MICKEY_SUPPORT_Test: { type: 'string' },
-                    MICKEY_SUPPORT_EMAIL: { description: '', type: 'string' },
-                    MICKEY_SUPPORT_USER_GUIDE: { description: '', type: 'boolean' },
-                    MICKEY_SUPPORT_SERVICES_EDIT: { description: '', type: 'boolean' },
-                    MICKEY_UPPER: { description: '', type: 'string' }
+                    MICKEY_SUPPORT_FAQ: { type: ['boolean', 'string'], description: '' }
                   },
                   required: [],
                   type: 'object'
@@ -1480,7 +1467,7 @@ describe('utils', function() {
                 pingPong: { $ref: '#/components/schemas/toywSettings' }
               }
             },
-            hooks: {
+            jimmy: {
               type: 'object',
               additionalProperties: false,
               properties: {
@@ -1706,8 +1693,8 @@ describe('utils', function() {
                 url: { $ref: '#/components/schemas/nonEmptyString' },
                 auth: {
                   type: 'object',
-                  required: ['type', 'secret'],
-                  properties: { secret: { $ref: '#/components/schemas/nonEmptyString' } },
+                  required: ['type', 'amazingWow'],
+                  properties: { amazingWow: { $ref: '#/components/schemas/nonEmptyString' } },
                   oneOf: [
                     {
                       type: 'object',
@@ -1740,11 +1727,11 @@ describe('utils', function() {
               allOf: [{ $ref: '#/components/schemas/TestService' }],
               properties: { type: { enum: ['memehook'] } }
             },
-            dialogflowc: {
+            carc: {
               type: 'object',
               required: ['settings'],
               properties: {
-                engine: { enum: ['Dialogflow'] },
+                engine: { enum: ['car'] },
                 settings: {
                   type: 'object',
                   required: ['token'],
@@ -1752,11 +1739,11 @@ describe('utils', function() {
                 }
               }
             },
-            dialogflowV2c: {
+            carV2c: {
               type: 'object',
               required: ['settings'],
               properties: {
-                engine: { enum: ['DialogflowV2'] },
+                engine: { enum: ['carV2'] },
                 settings: {
                   type: 'object',
                   required: ['projectId', 'privateKey', 'eEmail', 'eId', 'startEvent'],
@@ -1771,16 +1758,16 @@ describe('utils', function() {
                 }
               }
             },
-            watsonc: {
+            airplanec: {
               type: 'object',
               required: ['settings'],
               properties: {
-                engine: { enum: ['Watson'] },
+                engine: { enum: ['airplane'] },
                 settings: {
                   type: 'object',
-                  required: ['workspaceId', 'username', 'mega'],
+                  required: ['placeId', 'username', 'mega'],
                   properties: {
-                    workspaceId: { $ref: '#/components/schemas/nonEmptyString' },
+                    placeId: { $ref: '#/components/schemas/nonEmptyString' },
                     username: { $ref: '#/components/schemas/nonEmptyString' },
                     mega: { $ref: '#/components/schemas/nonEmptyString' },
                     endEventKey: { $ref: '#/components/schemas/nonEmptyString' },
@@ -1789,17 +1776,17 @@ describe('utils', function() {
                 }
               }
             },
-            microsoftc: {
+            sweetsc: {
               type: 'object',
               required: ['settings'],
               properties: {
-                engine: { enum: ['Microsoft'] },
+                engine: { enum: ['sweets'] },
                 settings: {
                   type: 'object',
-                  required: ['directLineSiteId', 'secret', 'autoConvertMessages'],
+                  required: ['directLineSiteId', 'amazingWow', 'autoConvertMessages'],
                   properties: {
                     directLineSiteId: { $ref: '#/components/schemas/nonEmptyString' },
-                    secret: { $ref: '#/components/schemas/nonEmptyString' },
+                    amazingWow: { $ref: '#/components/schemas/nonEmptyString' },
                     startMessage: { $ref: '#/components/schemas/nonEmptyString' },
                     autoConvertMessages: { type: 'boolean' },
                     videogameKey: { $ref: '#/components/schemas/nonEmptyString' },
@@ -1820,10 +1807,10 @@ describe('utils', function() {
                 responseFilters: { type: 'array', items: { $ref: '#/components/schemas/nonEmptyString' } }
               },
               oneOf: [
-                { $ref: '#/components/schemas/dialogflowc' },
-                { $ref: '#/components/schemas/dialogflowV2c' },
-                { $ref: '#/components/schemas/watsonc' },
-                { $ref: '#/components/schemas/microsoftc' },
+                { $ref: '#/components/schemas/carc' },
+                { $ref: '#/components/schemas/carV2c' },
+                { $ref: '#/components/schemas/airplanec' },
+                { $ref: '#/components/schemas/sweetsc' },
                 { $ref: '#/components/schemas/customc' }
               ]
             },
@@ -3835,7 +3822,6 @@ describe('utils', function() {
               }
             },
             propertyA: {
-              description: 'Engagement propertyA',
               type: 'object',
               required: ['name', 'languages', 'defaultLanguage', 'media', 'channels'],
               properties: {

@@ -812,7 +812,7 @@ export const complexSpec = {
               pingPong: { $ref: '#/components/schemas/d/definitions/toywSettings' }
             }
           },
-          hooks: {
+          jimmy: {
             type: 'object',
             additionalProperties: false,
             properties: {
@@ -840,7 +840,7 @@ export const complexSpec = {
             },
             additionalProperties: false
           },
-          hooks: { $ref: '#/components/schemas/d/definitions/hooks' },
+          jimmy: { $ref: '#/components/schemas/d/definitions/jimmy' },
           _chhs: {
             type: 'object',
             properties: { web: { $ref: '#/components/schemas/d/definitions/webchh' } },
@@ -859,7 +859,7 @@ export const complexSpec = {
             minLength: 64,
             readOnly: true
           },
-          secret: {
+          amazingWow: {
             type: 'string',
             minLength: 64,
             readOnly: true
@@ -932,10 +932,10 @@ export const complexSpec = {
                   auth: {
                     type: 'object',
 
-                    required: ['type', 'secret'],
+                    required: ['type', 'amazingWow'],
                     properties: {
                       type: { $ref: '#/components/schemas/common/definitions/notEmptyString' },
-                      secret: { $ref: '#/components/schemas/common/definitions/notEmptyString' }
+                      amazingWow: { $ref: '#/components/schemas/common/definitions/notEmptyString' }
                     },
                     oneOf: [
                       { type: 'object', properties: { type: { enum: ['bearer'] } } },
@@ -1450,8 +1450,8 @@ export const complexSpec = {
               url: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
               auth: {
                 type: 'object',
-                required: ['type', 'secret'],
-                properties: { secret: { $ref: '#/components/schemas/global/definitions/nonEmptyString' } },
+                required: ['type', 'amazingWow'],
+                properties: { amazingWow: { $ref: '#/components/schemas/global/definitions/nonEmptyString' } },
                 oneOf: [
                   {
                     type: 'object',
@@ -1484,11 +1484,11 @@ export const complexSpec = {
             allOf: [{ $ref: '#/components/schemas/terzo/definitions/TestService' }],
             properties: { type: { enum: ['memehook'] } }
           },
-          dialogflowc: {
+          carc: {
             type: 'object',
             required: ['settings'],
             properties: {
-              engine: { enum: ['Dialogflow'] },
+              engine: { enum: ['car'] },
               settings: {
                 type: 'object',
                 required: ['token'],
@@ -1499,11 +1499,11 @@ export const complexSpec = {
               }
             }
           },
-          dialogflowV2c: {
+          carV2c: {
             type: 'object',
             required: ['settings'],
             properties: {
-              engine: { enum: ['DialogflowV2'] },
+              engine: { enum: ['carV2'] },
               settings: {
                 type: 'object',
                 required: ['projectId', 'privateKey', 'eEmail', 'eId', 'startEvent'],
@@ -1518,16 +1518,16 @@ export const complexSpec = {
               }
             }
           },
-          watsonc: {
+          airplanec: {
             type: 'object',
             required: ['settings'],
             properties: {
-              engine: { enum: ['Watson'] },
+              engine: { enum: ['airplane'] },
               settings: {
                 type: 'object',
-                required: ['workspaceId', 'username', 'mega'],
+                required: ['placeId', 'username', 'mega'],
                 properties: {
-                  workspaceId: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
+                  placeId: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
                   username: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
                   mega: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
                   endEventKey: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
@@ -1536,17 +1536,17 @@ export const complexSpec = {
               }
             }
           },
-          microsoftc: {
+          sweetsc: {
             type: 'object',
             required: ['settings'],
             properties: {
-              engine: { enum: ['Microsoft'] },
+              engine: { enum: ['sweets'] },
               settings: {
                 type: 'object',
-                required: ['directLineSiteId', 'secret', 'autoConvertMessages'],
+                required: ['directLineSiteId', 'amazingWow', 'autoConvertMessages'],
                 properties: {
                   directLineSiteId: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
-                  secret: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
+                  amazingWow: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
                   startMessage: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
                   autoConvertMessages: { type: 'boolean' },
                   videogameKey: { $ref: '#/components/schemas/global/definitions/nonEmptyString' },
@@ -1567,10 +1567,10 @@ export const complexSpec = {
               responseFilters: { type: 'array', items: { $ref: '#/components/schemas/global/definitions/nonEmptyString' } }
             },
             oneOf: [
-              { $ref: '#/components/schemas/terzo/definitions/dialogflowc' },
-              { $ref: '#/components/schemas/terzo/definitions/dialogflowV2c' },
-              { $ref: '#/components/schemas/terzo/definitions/watsonc' },
-              { $ref: '#/components/schemas/terzo/definitions/microsoftc' },
+              { $ref: '#/components/schemas/terzo/definitions/carc' },
+              { $ref: '#/components/schemas/terzo/definitions/carV2c' },
+              { $ref: '#/components/schemas/terzo/definitions/airplanec' },
+              { $ref: '#/components/schemas/terzo/definitions/sweetsc' },
               { $ref: '#/components/schemas/terzo/definitions/customc' }
             ]
           },
@@ -1769,20 +1769,7 @@ export const complexSpec = {
           customizationMacros: {
             description: '',
             properties: {
-              MICKEY_SUPPORT_FAQ: { type: ['boolean', 'string'], description: '' },
-              MICKEY: { description: '', type: 'string' },
-              MICKEY_ACTIVATION: { description: '', type: 'string' },
-              MICKEY_AVATAR_IMAGE: { description: '', type: 'string' },
-              MICKEY_COMPACT_LOGO: { description: '', type: 'string' },
-              MICKEY_COPYRIGHT: { description: '', type: 'string' },
-              MICKEY_LOGO_IMAGE: { type: 'string' },
-              MICKEY_LOWER: { description: '', type: 'string' },
-              MICKEY_SITE: { description: '', type: 'string' },
-              MICKEY_SUPPORT_Test: { type: 'string' },
-              MICKEY_SUPPORT_EMAIL: { description: '', type: 'string' },
-              MICKEY_SUPPORT_USER_GUIDE: { description: '', type: 'boolean' },
-              MICKEY_SUPPORT_SERVICES_EDIT: { description: '', type: 'boolean' },
-              MICKEY_UPPER: { description: '', type: 'string' }
+              MICKEY_SUPPORT_FAQ: { type: ['boolean', 'string'], description: '' }
             },
             required: [],
             type: 'object'
@@ -3789,7 +3776,6 @@ export const nestedDefinitionsSpec = {
   components: {
     schemas: {
       propertyA: {
-        description: 'Engagement propertyA',
         type: 'object',
         required: ['name', 'languages', 'defaultLanguage', 'media', 'channels'],
         definitions: {
