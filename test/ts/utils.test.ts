@@ -3933,4 +3933,10 @@ describe('utils', function() {
       rebased.should.deep.equal(expectedSpec);
     });
   });
+  describe('rebaseOASDefinitions() errors', function() {
+    it('should throw an Error in case of a not valid spec', function() {
+      const spec = {components: {schemas: {a: null}}};
+      should.throw(() => rebaseOASDefinitions(spec), Error);
+    });
+  });
 });
