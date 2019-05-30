@@ -36,7 +36,7 @@ describe('utils', function() {
       const rebased = refsRebaser('unused_name', obj);
       rebased.$ref.should.equal('#/components/schemas/global');
     });
-    it.skip('should leave absolute urls unchanged', function() {
+    it('should leave absolute urls unchanged', function() {
       debugger;
       const obj = { $ref: 'http://example.com' };
       const rebased = refsRebaser('unused_name', obj);

@@ -110,7 +110,7 @@ export class Resource {
   }
   async router(base: Router, options?: RouterOptions): Promise<Router> {
     let r = Router(options);
-    let knownPaths = new Set();
+    let knownPaths: Set<string | RegExp> = new Set();
     for (let op of this.operations) {
       knownPaths.add(op.path);
       await op.router(r);

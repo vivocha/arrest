@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "8.0.0-rc12",
+  "version": "8.0.0-rc13",
   "description": "OpenAPI v3 compliant REST framework for Node.js, with support for MongoDB and JSON-Schema",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -108,7 +108,7 @@
     "rimraf": "^2.6.3",
     "semantic-release": "^15.13.12",
     "supertest": "^4.0.2",
-    "typescript": "^3.4.5"
+    "typescript": "^3.5.1"
   },
   "dependencies": {
     "body-parser": "^1.19.0",
@@ -126,7 +126,7 @@
     "openapi-police": "^1.1.2",
     "request": "^2.88.0",
     "rql": "^0.3.3",
-    "semver": "^6.1.0"
+    "semver": "^6.1.1"
   },
   "config": {
     "commitizen": {

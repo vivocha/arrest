@@ -1,6 +1,17 @@
 import * as dot from 'dot-prop';
 import { OpenAPIV3 } from 'openapi-police';
 
+/*
+ * Rebasing patterns
+ */
+const otherRef = new RegExp('^(.+)#/definitions/(.+)', 'g');
+const selfRef = new RegExp('^#/definitions/(.+)', 'g');
+const otherPropRef = new RegExp('^(.+)#/properties/(.+)', 'g');
+const selfPropRef = new RegExp('^#/properties/(.+)', 'g');
+const nameRef = new RegExp('^([^#]+[^#]+)$', 'g');
+const namePlusHash = new RegExp('^([^#]+)#+$', 'g');
+const absoluteRef = new RegExp('^(http:|https:)', 'gi');
+
 /**
  * Rebase a obj.$ref value, following the rules:
  *
@@ -17,13 +28,6 @@ import { OpenAPIV3 } from 'openapi-police';
  * @returns {*} the modified obj with rebased $ref property
  */
 export function refsRebaser(schemaName: string, obj: any): any {
-  const otherRef = new RegExp('^(.+)#/definitions/(.+)', 'g');
-  const selfRef = new RegExp('^#/definitions/(.+)', 'g');
-  const otherPropRef = new RegExp('^(.+)#/properties/(.+)', 'g');
-  const selfPropRef = new RegExp('^#/properties/(.+)', 'g');
-  const nameRef = new RegExp('^([^#]+[^#]+)$', 'g');
-  const namePlusHash = new RegExp('^([^#]+)#+$', 'g');
-
   let rebasedRef = obj.$ref;
   if (obj.$ref.match(selfRef)) {
     rebasedRef = obj.$ref.replace(selfRef, `#/components/schemas/${schemaName}/definitions/$1`);
@@ -33,9 +37,9 @@ export function refsRebaser(schemaName: string, obj: any): any {
     rebasedRef = obj.$ref.replace(otherPropRef, '#/components/schemas/$1/properties/$2');
   } else if (obj.$ref.match(selfPropRef)) {
     rebasedRef = obj.$ref.replace(selfPropRef, `#/components/schemas/${schemaName}/properties/$1`);
-  } else if (obj.$ref.match(nameRef)) {
+  } else if (obj.$ref.match(nameRef) && !obj.$ref.match(absoluteRef)) {
     rebasedRef = obj.$ref.replace(nameRef, '#/components/schemas/$1');
-  } else if (obj.$ref.match(namePlusHash)) {
+  } else if (obj.$ref.match(namePlusHash) && !obj.$ref.match(absoluteRef)) {
     rebasedRef = obj.$ref.replace(namePlusHash, '#/components/schemas/$1');
   }
   obj['$ref'] = rebasedRef;
