@@ -36,11 +36,17 @@ describe('utils', function() {
       const rebased = refsRebaser('unused_name', obj);
       rebased.$ref.should.equal('#/components/schemas/global');
     });
-    it('should leave absolute urls unchanged', function() {
+    it('should leave absolute urls unchanged (http)', function() {
       debugger;
       const obj = { $ref: 'http://example.com' };
       const rebased = refsRebaser('unused_name', obj);
       rebased.$ref.should.equal('http://example.com');
+    });
+    it('should leave absolute urls unchanged (https)', function() {
+      debugger;
+      const obj = { $ref: 'https://example.com' };
+      const rebased = refsRebaser('unused_name', obj);
+      rebased.$ref.should.equal('https://example.com');
     });
   });
   describe('rebaseOASDefinitions() for a spec containing schemas with first-level definitions', function() {
