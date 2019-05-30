@@ -23,7 +23,7 @@
     "report-coverage": "cat ./coverage/lcov.info | coveralls",
     "prebuild": "rimraf dist",
     "commit": "git-cz",
-    "check-coverage": "nyc check-coverage --statements 99 --branches 99 --functions 100 --lines 99",
+    "check-coverage": "nyc check-coverage --statements 100 --branches 100 --functions 100 --lines 100",
     "watch:test": "npm t -- -w",
     "test": "find ./test/ts -type f -name '*.js' -delete && npm run build && tsc -p test && mocha --exit --no-timeouts --recursive --reporter mochawesome --reporter-options reportDir=test-results test/**/*.test.js",
     "test:debug": "find ./test/ts -type f -name '*.js' -delete && npm run build && npm run build:tests && mocha --exit --no-timeouts --inspect-brk --recursive test/**/*.test.js",
