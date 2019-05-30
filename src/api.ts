@@ -11,6 +11,7 @@ import * as semver from 'semver';
 import { DEFAULT_DOCUMENT } from './defaults';
 import { RESTError } from './error';
 import { Resource } from './resource';
+import { SchemaResource } from './schema';
 import { Scopes } from './scopes';
 import { APIRequest, APIResponse } from './types';
 import { rebaseOASDefinitions, refsRebaser } from './utils';
@@ -23,9 +24,12 @@ export class API {
 
   protected logger: Logger;
   protected resources: Resource[];
+  readonly originalSchemas: {
+    [name: string]: OpenAPIV3.SchemaObject;
+  } = {};
   protected dynamicSchemas: {
     [name: string]: SchemaObject;
-  };
+  } = {};
   protected internalRouter: Promise<Router>;
   protected parseOptions: refs.ParseOptions;
 
@@ -76,6 +80,7 @@ export class API {
   }
 
   registerSchema(name: string, schema: OpenAPIV3.SchemaObject) {
+    this.originalSchemas[name] = _.cloneDeep(schema);
     if (!this.document.components) {
       this.document.components = {};
     }
@@ -85,11 +90,7 @@ export class API {
     this.document.components.schemas[name] = refs.rebase(name, schema, refsRebaser);
   }
   registerDynamicSchema(name: string, schema: SchemaObject) {
-    if (!this.dynamicSchemas) {
-      this.dynamicSchemas = { [name]: schema };
-    } else {
-      this.dynamicSchemas[name] = schema;
-    }
+    this.dynamicSchemas[name] = schema;
   }
   registerOperation(path: string, method: string, operation: OpenAPIV3.OperationObject) {
     if (!this.document.paths) {
@@ -172,10 +173,12 @@ export class API {
         });
         router.use(this.securityValidator.bind(this));
 
-        if (this.dynamicSchemas) {
-          for (let name in this.dynamicSchemas) {
-            this.registerSchema(name, await this.dynamicSchemas[name].spec());
-          }
+        for (let name in this.dynamicSchemas) {
+          this.registerSchema(name, await this.dynamicSchemas[name].spec());
+        }
+
+        if (this.document.components && this.document.components.schemas && Object.keys(this.document.components.schemas).length > 0) {
+          this.addResource(new SchemaResource());
         }
 
         // Move definitions into #/components/schemas/ as schemas

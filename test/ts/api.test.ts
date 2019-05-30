@@ -2,7 +2,7 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import * as spies from 'chai-spies';
 import * as express from 'express';
-import { OpenAPIV3, ParserError, RetrieverError, SchemaObject } from 'openapi-police';
+import { OpenAPIV3, ParserError, RetrieverError, SchemaObject, ValidationError } from 'openapi-police';
 import * as pem from 'pem';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
@@ -91,6 +91,10 @@ describe('API', function() {
                   scopes: {}
                 }
               }
+            },
+            otherScheme: {
+              type: 'http',
+              scheme: 'basic'
             }
           }
         };
@@ -368,8 +372,8 @@ describe('API', function() {
       constructor(resource, path, method) {
         super(resource, path, method, 'op1');
       }
-      handler(req, res) {
-        spy(req, res);
+      handler(req, res, next?) {
+        spy(req, res, next);
       }
     }
 
@@ -444,6 +448,25 @@ describe('API', function() {
           data.message.should.equal('Method Not Allowed');
           data.info.should.be.a('string');
           spy.should.not.have.been.called();
+        });
+    });
+
+    it('should convert nested ValidationErrors', function() {
+      spy = chai.spy(function(req, res, next) {
+        const error = new ValidationError('/', 'http://example.com', 'level1', [
+          new ValidationError('/', 'http://example.com', 'level2-1', [new Error('level3')]),
+          new ValidationError('/', 'http://example.com', 'level2-2')
+        ]);
+        next(error);
+      });
+      return request
+        .get('/tests/a')
+        .expect(400)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          console.log(JSON.stringify(data, null, 2));
+          data.info.errors[0].errors[0].type.should.equal('level3');
+          spy.should.have.been.called.once();
         });
     });
   });
@@ -619,7 +642,6 @@ describe('API', function() {
     });
 
     it('should be able to resolve an internal schema', function() {
-      debugger;
       const spy = chai.spy((req, res) => {
         res.json({});
       });
@@ -991,6 +1013,85 @@ describe('API', function() {
         ]).then(() => {
           spy.should.have.been.called.once;
         });
+      });
+    });
+
+    it('should not create a Schema.read operation if no schema is registered', function() {
+      const api = new API();
+      delete api.document.components;
+      return api.router().then(router => {
+        const app = express();
+        app.use(router);
+        server = app.listen(port);
+
+        return request
+          .get('/openapi.json')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            should.exist(data);
+            should.not.exist(data.paths['/schemas/{id}']);
+          });
+      });
+    });
+
+    it('should create a Schema.read operation if at least a schema is registered', function() {
+      const api = new API();
+      api.registerSchema('test', {
+        type: 'object'
+      });
+      return api.router().then(router => {
+        const app = express();
+        app.use(router);
+        server = app.listen(port);
+
+        return request
+          .get('/openapi.json')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            should.exist(data);
+            should.exist(data.paths['/schemas/{id}']);
+            data.paths['/schemas/{id}'].get.operationId.should.equal('Schema.read');
+          });
+      });
+    });
+
+    it('should return a registered schema by id via the Schema.read operation', function() {
+      const api = new API();
+      const schema: OpenAPIV3.SchemaObject = {
+        type: 'object',
+        additionalProperties: false
+      };
+      api.registerSchema('test', schema);
+      return api.router().then(router => {
+        const app = express();
+        app.use(router);
+        server = app.listen(port);
+
+        return request
+          .get('/schemas/test')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal(schema);
+          });
+      });
+    });
+
+    it('should return 404 if a requested schema is not registered', function() {
+      const api = new API();
+      const schema: OpenAPIV3.SchemaObject = {
+        type: 'object',
+        additionalProperties: false
+      };
+      api.registerSchema('test', schema);
+      return api.router().then(router => {
+        const app = express();
+        app.use(router);
+        server = app.listen(port);
+
+        return request.get('/schemas/abcd').expect(404);
       });
     });
   });

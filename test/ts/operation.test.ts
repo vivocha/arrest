@@ -162,6 +162,49 @@ describe('Operation', function() {
           }
         );
     });
+    it('should automatically parse json bodies for put, post and patch is no requestBody is specified in the spec', function() {
+      const port = 9876;
+      const host = 'localhost:' + port;
+      const basePath = 'http://' + host;
+      const request = supertest(basePath);
+      const app = express();
+      let server;
+
+      const api = new API();
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+        }
+        handler(req, res) {
+          req.body.a.b.should.equal(5);
+          res.end();
+        }
+      }
+
+      let r = new Resource({ name: 'Test' }, { '/': { post: Op1 } });
+      api.addResource(r);
+
+      return api
+        .router()
+        .then(router => {
+          app.use(router);
+          server = app.listen(port);
+
+          return request
+            .post('/tests/')
+            .send({ a: { b: 5 } })
+            .expect(200);
+        })
+        .then(
+          () => {
+            server.close();
+          },
+          err => {
+            server.close();
+            throw err;
+          }
+        );
+    });
   });
 
   describe('validators', function() {
