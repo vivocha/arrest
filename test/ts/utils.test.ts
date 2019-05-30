@@ -36,6 +36,12 @@ describe('utils', function() {
       const rebased = refsRebaser('unused_name', obj);
       rebased.$ref.should.equal('#/components/schemas/global');
     });
+    it.skip('should leave absolute urls unchanged', function() {
+      debugger;
+      const obj = { $ref: 'http://example.com' };
+      const rebased = refsRebaser('unused_name', obj);
+      rebased.$ref.should.equal('http://example.com');
+    });
   });
   describe('rebaseOASDefinitions() for a spec containing schemas with first-level definitions', function() {
     it('for a simple spec, it should return the spec with moved definitions in #/components/schemas and $refs updated accordingly', function() {
@@ -3935,7 +3941,7 @@ describe('utils', function() {
   });
   describe('rebaseOASDefinitions() errors', function() {
     it('should throw an Error in case of a not valid spec', function() {
-      const spec = {components: {schemas: {a: null}}};
+      const spec = { components: { schemas: { a: null } } };
       should.throw(() => rebaseOASDefinitions(spec), Error);
     });
   });
