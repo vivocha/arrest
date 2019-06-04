@@ -3925,3 +3925,155 @@ export const multiDefSpec = {
     }
   }
 };
+export const nestedSameNameDefSpec = {
+  openapi: '3.0.2',
+  info: { title: 'nested multi def spec with the same name', version: '1.0.0' },
+  components: {
+    schemas: {
+      A: {
+        description: 'A',
+        type: 'object',
+        definitions: {
+          defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+          defB: {
+            type: 'object',
+            properties: {
+              abprop: { $ref: '#/components/schemas/A/definitions/defA' }
+            },
+            additionalProperties: false
+          }
+        },
+        properties: {
+          name: {
+            type: 'string'
+          },
+          description: {
+            type: 'string'
+          }
+        }
+      },
+      B: {
+        description: 'B',
+        type: 'object',
+        definitions: {
+          defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+          defB: {
+            type: 'object',
+            properties: {
+              abprop: { $ref: '#/components/schemas/B/definitions/defA' }
+            },
+            additionalProperties: false
+          }
+        },
+        properties: {
+          name: {
+            type: 'string'
+          },
+          description: {
+            type: 'string'
+          }
+        }
+      },
+      C: {
+        description: 'B',
+        type: 'object',
+        definitions: {
+          defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+          defB: {
+            type: 'object',
+            properties: {
+              abprop: { $ref: '#/components/schemas/C/definitions/defA' }
+            },
+            additionalProperties: false
+          }
+        },
+        properties: {
+          name: {
+            type: 'string'
+          },
+          description: {
+            type: 'string'
+          }
+        }
+      }
+    }
+  },
+  responses: {
+    a: {
+      description: 'Default/generic error response',
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/A/definitions/defA' } } }
+    },
+    c: {
+      description: 'The requested/specified resource was not found',
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/C' } } }
+    }
+  }
+};
+export const multiNestedSameNameDefSpec = {
+  openapi: '3.0.2',
+  info: { title: 'nested multi def spec with the same name', version: '1.0.0' },
+  components: {
+    schemas: {
+      A: {
+        description: 'A',
+        type: 'object',
+        definitions: {
+          defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+          defB: {
+            type: 'object',
+            properties: {
+              abprop: { $ref: '#/components/schemas/A/definitions/defA' }
+            },
+            additionalProperties: false
+          }
+        },
+        properties: {
+          name: {
+            type: 'string'
+          },
+          description: {
+            type: 'string'
+          }
+        }
+      },
+      B: {
+        description: 'B',
+        type: 'object',
+        definitions: {
+          defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+          defB: {
+            type: 'object',
+            definitions: {
+              defA: {
+                type: 'string',
+                description: 'nested nested definition'
+              }
+            },
+            properties: {
+              abprop: { $ref: '#/components/schemas/B/definitions/defB/definitions/defA' }
+            },
+            additionalProperties: false
+          }
+        },
+        properties: {
+          name: {
+            type: 'string'
+          },
+          description: {
+            type: 'string'
+          }
+        }
+      }
+    }
+  },
+  responses: {
+    a: {
+      description: 'Default/generic error response',
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/A/definitions/defA' } } }
+    },
+    c: {
+      description: 'The requested/specified resource was not found',
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/B/definitions/defA' } } }
+    }
+  }
+};

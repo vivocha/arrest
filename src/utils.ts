@@ -61,7 +61,7 @@ export function rebaseOASDefinitions(fullSpec: any): OpenAPIV3.Document {
       for (const schemaKey in components.schemas) {
         let schemas = components.schemas;
         let path = `components.schemas.${schemaKey}`;
-        specCopy = rebaseOASDefinition(specCopy, schemaKey, schemas[schemaKey], path);
+        specCopy = rebaseOASDefinition(specCopy, schemaKey, schemas[schemaKey], path, [schemaKey]);
       }
     }
     return specCopy;
@@ -70,13 +70,15 @@ export function rebaseOASDefinitions(fullSpec: any): OpenAPIV3.Document {
   }
 }
 
-function rebaseOASDefinition(fullSpec: any, schemaKey: string, schema: any, path: string): any {
+function rebaseOASDefinition(fullSpec: any, schemaKey: string, schema: any, path: string, definitionsPath: string[]): any {
   if (schema.definitions) {
     for (const defKey in schema.definitions) {
+      // current recursive definition path chain
+      const chain = [...definitionsPath, defKey];
       const newPath = `${path}.definitions.${defKey}`;
       const definition = dot.get(fullSpec, newPath);
-      fullSpec = rebaseOASDefinition(fullSpec, defKey, definition, newPath);
-      const newSchemaName = fullSpec.components.schemas[defKey] ? `${schemaKey}-${defKey}` : defKey;
+      fullSpec = rebaseOASDefinition(fullSpec, defKey, definition, newPath, chain);
+      const newSchemaName = `${chain.join('_')}`;
       // move to components/schemas and get a new ref related to the new path
       fullSpec = moveDefinition(fullSpec, newSchemaName, newPath);
     }
