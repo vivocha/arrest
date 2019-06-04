@@ -18,7 +18,7 @@ export abstract class Operation {
   internalId: string;
   scopes: Scopes;
 
-  constructor(public resource: Resource, public path: string, public method: Method, id?: string) {
+  constructor(public resource: Resource, public path: string, public method: Method, id?: string, opts?: any) {
     if (!id) {
       id = path;
       if (id.length && id[0] === '/') {
@@ -31,7 +31,7 @@ export abstract class Operation {
       }
     }
     this.internalId = id;
-    this.info = this.getInfo();
+    this.info = this.getInfo(opts);
     if (!this.info || !this.info.operationId) {
       throw new Error('Required operationId missing');
     }
@@ -46,10 +46,10 @@ export abstract class Operation {
     };
   }
 
-  protected getInfo(): OpenAPIV3.OperationObject {
-    return Eredita.deepExtend({}, this.getDefaultInfo(), this.getCustomInfo());
+  protected getInfo(opts?: any): OpenAPIV3.OperationObject {
+    return Eredita.deepExtend({}, this.getDefaultInfo(opts), this.getCustomInfo(opts));
   }
-  protected getDefaultInfo(): OpenAPIV3.OperationObject {
+  protected getDefaultInfo(opts?: any): OpenAPIV3.OperationObject {
     return {
       operationId: `${this.resource.info.name}.${this.internalId}`,
       tags: ['' + this.resource.info.name],
@@ -60,7 +60,7 @@ export abstract class Operation {
       }
     };
   }
-  protected getCustomInfo(): OpenAPIV3.OperationObject {
+  protected getCustomInfo(opts?: any): OpenAPIV3.OperationObject {
     return {};
   }
   protected createParameterValidators(key: string, parameters: OpenAPIV3.ParameterObject[]): APIRequestHandler {

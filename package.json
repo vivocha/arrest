@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "8.0.0-rc.15",
+  "version": "8.0.0-rc.16",
   "description": "OpenAPI v3 compliant REST framework for Node.js, with support for MongoDB and JSON-Schema",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
