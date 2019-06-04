@@ -1,6 +1,6 @@
 import * as chai from 'chai';
 import { rebaseOASDefinitions, refsRebaser } from '../../dist/utils';
-import { complexSpec, multiDefSpec, nestedDefinitionsSpec, simpleSpec } from './specs';
+import { complexSpec, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, simpleSpec } from './specs';
 
 const should = chai.should();
 
@@ -36,11 +36,17 @@ describe('utils', function() {
       const rebased = refsRebaser('unused_name', obj);
       rebased.$ref.should.equal('#/components/schemas/global');
     });
-    it.skip('should leave absolute urls unchanged', function() {
+    it('should leave absolute urls unchanged (http)', function() {
       debugger;
       const obj = { $ref: 'http://example.com' };
       const rebased = refsRebaser('unused_name', obj);
       rebased.$ref.should.equal('http://example.com');
+    });
+    it('should leave absolute urls unchanged (https)', function() {
+      debugger;
+      const obj = { $ref: 'https://example.com' };
+      const rebased = refsRebaser('unused_name', obj);
+      rebased.$ref.should.equal('https://example.com');
     });
   });
   describe('rebaseOASDefinitions() for a spec containing schemas with first-level definitions', function() {
@@ -51,26 +57,26 @@ describe('utils', function() {
         info: { title: 'Test Server REST API v3', version: '7.0.0-dev1' },
         components: {
           schemas: {
-            valueInterval: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } }, additionalProperties: false },
-            timeInterval: {
+            a_valueInterval: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } }, additionalProperties: false },
+            a_timeInterval: {
               type: 'object',
               description: 'Describes an interval of time as a possibly recurring pattens',
               properties: {
-                minutes: { $ref: '#/components/schemas/valueInterval' },
-                hours: { $ref: '#/components/schemas/valueInterval' },
-                dayOfMonth: { $ref: '#/components/schemas/valueInterval' },
-                dayOfWeek: { $ref: '#/components/schemas/valueInterval' },
-                month: { $ref: '#/components/schemas/valueInterval' },
-                year: { $ref: '#/components/schemas/valueInterval' }
+                minutes: { $ref: '#/components/schemas/a_valueInterval' },
+                hours: { $ref: '#/components/schemas/a_valueInterval' },
+                dayOfMonth: { $ref: '#/components/schemas/a_valueInterval' },
+                dayOfWeek: { $ref: '#/components/schemas/a_valueInterval' },
+                month: { $ref: '#/components/schemas/a_valueInterval' },
+                year: { $ref: '#/components/schemas/a_valueInterval' }
               },
               additionalProperties: false
             },
-            a1: {
+            a_a1: {
               type: 'object',
               description: 'a1',
               properties: {
-                intervals: { type: 'array', items: { $ref: '#/components/schemas/timeInterval' } },
-                exceptions: { type: 'array', items: { $ref: '#/components/schemas/timeInterval' } }
+                intervals: { type: 'array', items: { $ref: '#/components/schemas/a_timeInterval' } },
+                exceptions: { type: 'array', items: { $ref: '#/components/schemas/a_timeInterval' } }
               },
               additionalProperties: false
             },
@@ -235,7 +241,7 @@ describe('utils', function() {
                       properties: { email: { type: 'string', format: 'email' } },
                       required: ['email']
                     },
-                    last_check: { allOf: [{ $ref: '#/components/schemas/timestamp' }] }
+                    last_check: { allOf: [{ $ref: '#/components/schemas/global_timestamp' }] }
                   },
                   required: ['mode', 'info', 'version']
                 },
@@ -313,7 +319,7 @@ describe('utils', function() {
                 buss: {
                   type: 'array',
                   summary: 'parent',
-                  items: { $ref: '#/components/schemas/bus' },
+                  items: { $ref: '#/components/schemas/a_bus' },
                   default: []
                 },
                 bus: {
@@ -323,13 +329,13 @@ describe('utils', function() {
                   additionalProperties: false,
                   properties: {
                     parent: { allOf: [{ $ref: '#/components/schemas/anp_id' }] },
-                    validity: { allOf: [{ $ref: '#/components/schemas/validity' }] },
+                    validity: { allOf: [{ $ref: '#/components/schemas/global_validity' }] },
                     llls: { $ref: '#/components/schemas/a/properties/llls' },
                     pingPongs: {
-                      allOf: [{ $ref: '#/components/schemas/bucket/properties/total' }]
+                      allOf: [{ $ref: '#/components/schemas/anp_bucket/properties/total' }]
                     },
                     littleBy: {
-                      allOf: [{ $ref: '#/components/schemas/bucket/properties/total' }]
+                      allOf: [{ $ref: '#/components/schemas/anp_bucket/properties/total' }]
                     }
                   },
                   required: ['parent'],
@@ -345,17 +351,17 @@ describe('utils', function() {
                         properties: {
                           sub_id: { type: 'string' },
                           type: { type: 'string', enum: ['pingPongs', 'littleBy'] },
-                          total: { allOf: [{ $ref: '#/components/schemas/infiniteOrPositiveNumber' }] },
-                          validity: { allOf: [{ $ref: '#/components/schemas/validity' }] },
+                          total: { allOf: [{ $ref: '#/components/schemas/global_infiniteOrPositiveNumber' }] },
+                          validity: { allOf: [{ $ref: '#/components/schemas/global_validity' }] },
                           priority: {
                             type: 'number',
                             minimum: 0,
                             default: 50
                           },
-                          min: { allOf: [{ $ref: '#/components/schemas/infiniteOrPositiveNumber' }] },
-                          ts: { allOf: [{ $ref: '#/components/schemas/timestamp' }] },
+                          min: { allOf: [{ $ref: '#/components/schemas/global_infiniteOrPositiveNumber' }] },
+                          ts: { allOf: [{ $ref: '#/components/schemas/global_timestamp' }] },
                           initial: {
-                            allOf: [{ $ref: '#/components/schemas/positiveInteger' }]
+                            allOf: [{ $ref: '#/components/schemas/global_positiveInteger' }]
                           }
                         }
                       }
@@ -363,8 +369,8 @@ describe('utils', function() {
                     totals: {
                       type: 'object',
                       properties: {
-                        pingPongs: { allOf: [{ $ref: '#/components/schemas/total' }] },
-                        littleBy: { allOf: [{ $ref: '#/components/schemas/total' }] }
+                        pingPongs: { allOf: [{ $ref: '#/components/schemas/a_total' }] },
+                        littleBy: { allOf: [{ $ref: '#/components/schemas/a_total' }] }
                       }
                     }
                   }
@@ -451,32 +457,32 @@ describe('utils', function() {
             },
             b: {
               type: 'object',
-              allOf: [{ $ref: '#/components/schemas/hasaId' }],
+              allOf: [{ $ref: '#/components/schemas/global_hasaId' }],
               properties: {}
             },
             c: {
               type: 'object',
               required: ['id', 'jojo'],
-              allOf: [{ $ref: '#/components/schemas/canBeDisabled' }, { $ref: '#/components/schemas/hasaId' }],
+              allOf: [{ $ref: '#/components/schemas/global_canBeDisabled' }, { $ref: '#/components/schemas/global_hasaId' }],
               properties: {
-                id: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }] },
-                description: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }] },
-                defaultLanguage: { $ref: '#/components/schemas/languageId' },
-                nickname: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }] },
-                pic: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }] },
-                tags: { allOf: [{ $ref: '#/components/schemas/arrayOfStrings' }] },
+                id: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }] },
+                description: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }] },
+                defaultLanguage: { $ref: '#/components/schemas/global_languageId' },
+                nickname: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }] },
+                pic: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }] },
+                tags: { allOf: [{ $ref: '#/components/schemas/global_arrayOfStrings' }] },
                 todoListId: { type: 'string' },
                 videogameInfo: {
                   type: 'object',
 
                   minProperties: 1,
-                  properties: { todonald: { $ref: '#/components/schemas/keyMatch' }, toTags: { $ref: '#/components/schemas/keyMatch' } }
+                  properties: { todonald: { $ref: '#/components/schemas/global_keyMatch' }, toTags: { $ref: '#/components/schemas/global_keyMatch' } }
                 },
                 jojo: {
                   type: 'object',
                   description: '',
                   minProperties: 1,
-                  'x-patternProperties': { '^([a-z]{2,3})(-[A-Z]{2})?$': { $ref: '#/components/schemas/nonEmptyString' } }
+                  'x-patternProperties': { '^([a-z]{2,3})(-[A-Z]{2})?$': { $ref: '#/components/schemas/global_nonEmptyString' } }
                 }
               }
             },
@@ -484,10 +490,10 @@ describe('utils', function() {
               type: 'object',
               required: ['name', 'languages', 'defaultLanguage', 'meme', 'chhs'],
               allOf: [
-                { $ref: '#/components/schemas/hasaId' },
-                { $ref: '#/components/schemas/supportsDraft' },
-                { $ref: '#/components/schemas/canBeDisabled' },
-                { $ref: '#/components/schemas/commonSettings' }
+                { $ref: '#/components/schemas/global_hasaId' },
+                { $ref: '#/components/schemas/global_supportsDraft' },
+                { $ref: '#/components/schemas/global_canBeDisabled' },
+                { $ref: '#/components/schemas/d_commonSettings' }
               ],
               properties: {
                 name: { type: 'string' },
@@ -495,9 +501,9 @@ describe('utils', function() {
                 languages: {
                   type: 'array',
 
-                  items: { $ref: '#/components/schemas/languageId' }
+                  items: { $ref: '#/components/schemas/global_languageId' }
                 },
-                defaultLanguage: { $ref: '#/components/schemas/languageId' },
+                defaultLanguage: { $ref: '#/components/schemas/global_languageId' },
                 validity: {
                   type: 'object',
 
@@ -507,19 +513,19 @@ describe('utils', function() {
                   },
                   additionalProperties: false
                 },
-                jimmy: { $ref: '#/components/schemas/jimmy' },
+                jimmy: { $ref: '#/components/schemas/d_jimmy' },
                 _chhs: {
                   type: 'object',
-                  properties: { web: { $ref: '#/components/schemas/webchh' } },
-                  additionalProperties: { $ref: '#/components/schemas/chh' }
+                  properties: { web: { $ref: '#/components/schemas/d_webchh' } },
+                  additionalProperties: { $ref: '#/components/schemas/d_chh' }
                 },
-                hash: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { readOnly: true }] }
+                hash: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { readOnly: true }] }
               }
             },
             e: {
               type: 'object',
               required: ['id', 'scope'],
-              allOf: [{ $ref: '#/components/schemas/hasaId' }],
+              allOf: [{ $ref: '#/components/schemas/global_hasaId' }],
               properties: {
                 id: {
                   type: 'string',
@@ -549,29 +555,29 @@ describe('utils', function() {
               type: 'object',
               required: ['dId', 'version', 'chhId', 'eppId', 'mpr'],
               additionalProperties: false,
-              allOf: [{ $ref: '#/components/schemas/hasaId' }],
+              allOf: [{ $ref: '#/components/schemas/global_hasaId' }],
               properties: {
-                dId: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
+                dId: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
                 version: { type: 'number', writeOnly: true },
-                chhId: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                eppId: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                gagId: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                mpr: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                data: { allOf: [{ $ref: '#/components/schemas/todoList' }, { writeOnly: true }] },
-                lang: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                color: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                tags: { allOf: [{ $ref: '#/components/schemas/arrayOfStrings' }, { writeOnly: true }] },
-                optionalTags: { allOf: [{ $ref: '#/components/schemas/arrayOfStrings' }, { writeOnly: true }] },
-                assignmentTags: { allOf: [{ $ref: '#/components/schemas/arrayOfStrings' }, { writeOnly: true }] },
-                uuuu: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                uuut: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                nick: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                first_uri: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                first_title: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                ext_id: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
+                chhId: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                eppId: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                gagId: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                mpr: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                data: { allOf: [{ $ref: '#/components/schemas/ccc_todoList' }, { writeOnly: true }] },
+                lang: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                color: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                tags: { allOf: [{ $ref: '#/components/schemas/global_arrayOfStrings' }, { writeOnly: true }] },
+                optionalTags: { allOf: [{ $ref: '#/components/schemas/global_arrayOfStrings' }, { writeOnly: true }] },
+                assignmentTags: { allOf: [{ $ref: '#/components/schemas/global_arrayOfStrings' }, { writeOnly: true }] },
+                uuuu: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                uuut: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                nick: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                first_uri: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                first_title: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                ext_id: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
                 info: {},
-                mobile: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { writeOnly: true }] },
-                cccchh: { allOf: [{ $ref: '#/components/schemas/cccchh' }, { writeOnly: true }] },
+                mobile: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }, { writeOnly: true }] },
+                cccchh: { allOf: [{ $ref: '#/components/schemas/ccc_cccchh' }, { writeOnly: true }] },
                 debug: { type: 'boolean', default: false, writeOnly: true }
               }
             },
@@ -583,7 +589,7 @@ describe('utils', function() {
 
                   additionalProperties: { not: { anyOf: [{ type: 'object' }, { type: 'array' }] } }
                 },
-                language: { $ref: '#/components/schemas/languageCode' },
+                language: { $ref: '#/components/schemas/common_languageCode' },
                 context: { type: 'object' },
                 tempContext: { type: 'object' },
                 settings: {
@@ -599,13 +605,16 @@ describe('utils', function() {
                           type: 'object',
 
                           required: ['type', 'amazingWow'],
-                          properties: { type: { $ref: '#/components/schemas/notEmptyString' }, amazingWow: { $ref: '#/components/schemas/notEmptyString' } },
+                          properties: {
+                            type: { $ref: '#/components/schemas/common_notEmptyString' },
+                            amazingWow: { $ref: '#/components/schemas/common_notEmptyString' }
+                          },
                           oneOf: [
                             { type: 'object', properties: { type: { enum: ['bearer'] } } },
                             {
                               type: 'object',
                               required: ['xyz'],
-                              properties: { type: { enum: ['basic'] }, xyz: { $ref: '#/components/schemas/notEmptyString' } }
+                              properties: { type: { enum: ['basic'] }, xyz: { $ref: '#/components/schemas/common_notEmptyString' } }
                             }
                           ]
                         },
@@ -676,7 +685,7 @@ describe('utils', function() {
               properties: {
                 code: { enum: ['message'] },
                 type: { enum: ['postback'] },
-                body: { $ref: '#/components/schemas/notEmptyString' },
+                body: { $ref: '#/components/schemas/common_notEmptyString' },
                 payload: { type: 'string' }
               }
             },
@@ -686,20 +695,20 @@ describe('utils', function() {
               properties: {
                 code: { enum: ['message'] },
                 type: { enum: ['attachment'] },
-                url: { $ref: '#/components/schemas/notEmptyString' },
+                url: { $ref: '#/components/schemas/common_notEmptyString' },
                 meta: {
                   type: 'object',
                   required: ['mimetype'],
                   properties: {
-                    originalUrl: { $ref: '#/components/schemas/notEmptyString' },
-                    originalUrlHash: { $ref: '#/components/schemas/notEmptyString' },
-                    originalId: { $ref: '#/components/schemas/notEmptyString' },
-                    originalName: { $ref: '#/components/schemas/notEmptyString' },
-                    mimetype: { $ref: '#/components/schemas/notEmptyString' },
-                    desc: { $ref: '#/components/schemas/notEmptyString' },
-                    key: { $ref: '#/components/schemas/notEmptyString' },
+                    originalUrl: { $ref: '#/components/schemas/common_notEmptyString' },
+                    originalUrlHash: { $ref: '#/components/schemas/common_notEmptyString' },
+                    originalId: { $ref: '#/components/schemas/common_notEmptyString' },
+                    originalName: { $ref: '#/components/schemas/common_notEmptyString' },
+                    mimetype: { $ref: '#/components/schemas/common_notEmptyString' },
+                    desc: { $ref: '#/components/schemas/common_notEmptyString' },
+                    key: { $ref: '#/components/schemas/common_notEmptyString' },
                     size: { type: 'number' },
-                    ref: { $ref: '#/components/schemas/notEmptyString' }
+                    ref: { $ref: '#/components/schemas/common_notEmptyString' }
                   }
                 }
               }
@@ -710,7 +719,7 @@ describe('utils', function() {
               properties: {
                 code: { enum: ['message'] },
                 type: { enum: ['action'] },
-                action_code: { $ref: '#/components/schemas/notEmptyString' },
+                action_code: { $ref: '#/components/schemas/common_notEmptyString' },
                 args: { type: 'array' }
               }
             },
@@ -722,31 +731,31 @@ describe('utils', function() {
             qwerty: {
               type: 'object',
               required: ['id', 'labelId'],
-              allOf: [{ $ref: '#/components/schemas/hasaId' }],
+              allOf: [{ $ref: '#/components/schemas/global_hasaId' }],
               properties: {
-                id: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }] },
+                id: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }] },
                 labelId: { type: 'string' },
                 type: { enum: ['form', 'dialog', 'c'], default: 'form' },
                 memoNemos: {
                   type: 'array',
                   items: {
                     anyOf: [
-                      { $ref: '#/components/schemas/metamemoNemo' },
-                      { $ref: '#/components/schemas/stringmemoNemo' },
-                      { $ref: '#/components/schemas/selectmemoNemo' },
-                      { $ref: '#/components/schemas/numbermemoNemo' },
-                      { $ref: '#/components/schemas/ratingmemoNemo' },
-                      { $ref: '#/components/schemas/booleanmemoNemo' }
+                      { $ref: '#/components/schemas/qwerty_metamemoNemo' },
+                      { $ref: '#/components/schemas/qwerty_stringmemoNemo' },
+                      { $ref: '#/components/schemas/qwerty_selectmemoNemo' },
+                      { $ref: '#/components/schemas/qwerty_numbermemoNemo' },
+                      { $ref: '#/components/schemas/qwerty_ratingmemoNemo' },
+                      { $ref: '#/components/schemas/qwerty_booleanmemoNemo' }
                     ]
                   }
                 },
-                filters: { type: 'array', items: { $ref: '#/components/schemas/nonEmptyString' } },
+                filters: { type: 'array', items: { $ref: '#/components/schemas/global_nonEmptyString' } },
                 jojo: {
                   type: 'object',
                   additionalProperties: false,
-                  'x-patternProperties': { '^([a-z]{2,3})(-[A-Z]{2})?$': { $ref: '#/components/schemas/nonEmptyString' } }
+                  'x-patternProperties': { '^([a-z]{2,3})(-[A-Z]{2})?$': { $ref: '#/components/schemas/global_nonEmptyString' } }
                 },
-                promptIds: { type: 'object', additionalProperties: { $ref: '#/components/schemas/promptIds' } }
+                promptIds: { type: 'object', additionalProperties: { $ref: '#/components/schemas/qwerty_promptIds' } }
               }
             },
             anp: {
@@ -757,8 +766,8 @@ describe('utils', function() {
                 parent: {
                   type: 'string'
                 },
-                name: { allOf: [{ $ref: '#/components/schemas/multilingual' }] },
-                description: { allOf: [{ $ref: '#/components/schemas/multilingual' }] },
+                name: { allOf: [{ $ref: '#/components/schemas/anp_multilingual' }] },
+                description: { allOf: [{ $ref: '#/components/schemas/anp_multilingual' }] },
                 enabled: { type: 'boolean' },
                 visible: {
                   type: 'boolean',
@@ -777,26 +786,26 @@ describe('utils', function() {
                   type: 'object',
                   properties: {
                     pingPongs: {
-                      allOf: [{ $ref: '#/components/schemas/bucket' }]
+                      allOf: [{ $ref: '#/components/schemas/anp_bucket' }]
                     },
                     littleBy: {
-                      allOf: [{ $ref: '#/components/schemas/bucket' }]
+                      allOf: [{ $ref: '#/components/schemas/anp_bucket' }]
                     }
                   },
                   additionalProperties: {
-                    allOf: [{ $ref: '#/components/schemas/bucket' }]
+                    allOf: [{ $ref: '#/components/schemas/anp_bucket' }]
                   }
                 },
                 blggg: {
                   type: 'object',
-                  properties: { price: { $ref: '#/components/schemas/price' }, bus: { $ref: '#/components/schemas/interval' } }
+                  properties: { price: { $ref: '#/components/schemas/anp_price' }, bus: { $ref: '#/components/schemas/anp_interval' } }
                 },
                 overage: {
                   type: 'object',
                   properties: {
-                    blggg: { allOf: [{ $ref: '#/components/schemas/interval' }] },
-                    littleBy: { $ref: '#/components/schemas/reddddOverage' },
-                    pingPongs: { $ref: '#/components/schemas/reddddOverage' }
+                    blggg: { allOf: [{ $ref: '#/components/schemas/anp_interval' }] },
+                    littleBy: { $ref: '#/components/schemas/anp_reddddOverage' },
+                    pingPongs: { $ref: '#/components/schemas/anp_reddddOverage' }
                   }
                 }
               },
@@ -816,11 +825,11 @@ describe('utils', function() {
             'super-show': {
               type: 'object',
               required: ['id'],
-              allOf: [{ $ref: '#/components/schemas/hasaId' }],
+              allOf: [{ $ref: '#/components/schemas/global_hasaId' }],
               properties: {
-                id: { $ref: '#/components/schemas/nonEmptyString' },
-                description: { $ref: '#/components/schemas/nonEmptyString' },
-                offer: { $ref: '#/components/schemas/cccmemeOffer' }
+                id: { $ref: '#/components/schemas/global_nonEmptyString' },
+                description: { $ref: '#/components/schemas/global_nonEmptyString' },
+                offer: { $ref: '#/components/schemas/super-show_cccmemeOffer' }
               }
             },
             pfl: {
@@ -831,11 +840,11 @@ describe('utils', function() {
                 scopes: {
                   type: 'object',
                   properties: {
-                    owner: { allOf: [{ $ref: '#/components/schemas/amazingPropcopes' }] },
-                    admin: { allOf: [{ $ref: '#/components/schemas/amazingPropcopes' }] },
-                    supervisor: { allOf: [{ $ref: '#/components/schemas/amazingPropcopes' }] },
-                    donald: { allOf: [{ $ref: '#/components/schemas/amazingPropcopes' }] },
-                    auditor: { allOf: [{ $ref: '#/components/schemas/amazingPropcopes' }] }
+                    owner: { allOf: [{ $ref: '#/components/schemas/pfl_amazingPropcopes' }] },
+                    admin: { allOf: [{ $ref: '#/components/schemas/pfl_amazingPropcopes' }] },
+                    supervisor: { allOf: [{ $ref: '#/components/schemas/pfl_amazingPropcopes' }] },
+                    donald: { allOf: [{ $ref: '#/components/schemas/pfl_amazingPropcopes' }] },
+                    auditor: { allOf: [{ $ref: '#/components/schemas/pfl_amazingPropcopes' }] }
                   },
                   required: ['owner', 'admin', 'supervisor', 'donald', 'auditor']
                 }
@@ -875,20 +884,20 @@ describe('utils', function() {
             terzo: {
               type: 'object',
               required: ['id', 'type'],
-              allOf: [{ $ref: '#/components/schemas/hasaId' }],
-              properties: { id: { $ref: '#/components/schemas/nonEmptyString' }, type: { $ref: '#/components/schemas/nonEmptyString' } },
+              allOf: [{ $ref: '#/components/schemas/global_hasaId' }],
+              properties: { id: { $ref: '#/components/schemas/global_nonEmptyString' }, type: { $ref: '#/components/schemas/global_nonEmptyString' } },
               oneOf: [
-                { $ref: '#/components/schemas/tw_lllService' },
-                { $ref: '#/components/schemas/pull' },
-                { $ref: '#/components/schemas/abroad' },
-                { $ref: '#/components/schemas/memeHook' },
-                { $ref: '#/components/schemas/cdonald' },
-                { $ref: '#/components/schemas/cFilter' }
+                { $ref: '#/components/schemas/terzo_tw_lllService' },
+                { $ref: '#/components/schemas/terzo_pull' },
+                { $ref: '#/components/schemas/terzo_abroad' },
+                { $ref: '#/components/schemas/terzo_memeHook' },
+                { $ref: '#/components/schemas/terzo_cdonald' },
+                { $ref: '#/components/schemas/terzo_cFilter' }
               ]
             },
             xyz: {
               type: 'object',
-              allOf: [{ $ref: '#/components/schemas/hasaId' }],
+              allOf: [{ $ref: '#/components/schemas/global_hasaId' }],
               properties: {
                 id: { type: 'string' },
                 email: { anyOf: [{ type: 'string', format: 'email' }, { type: 'null' }] },
@@ -921,7 +930,7 @@ describe('utils', function() {
                 tags: { items: { type: 'string' }, type: 'array' },
                 lang: {
                   anyOf: [
-                    { title: 'Set language', allOf: [{ $ref: '#/components/schemas/languageId' }] },
+                    { title: 'Set language', allOf: [{ $ref: '#/components/schemas/global_languageId' }] },
                     { title: 'a default', type: 'string', enum: ['a'] },
                     { type: 'null' }
                   ]
@@ -935,7 +944,7 @@ describe('utils', function() {
             v_v: {
               type: 'object',
               required: ['id', 'type'],
-              allOf: [{ $ref: '#/components/schemas/hasaId' }],
+              allOf: [{ $ref: '#/components/schemas/global_hasaId' }],
               dependencies: { pattern: ['transform'] },
               properties: {
                 id: { type: 'string', minLength: 1 },
@@ -979,27 +988,27 @@ describe('utils', function() {
             toyw: {
               type: 'object',
               required: ['id', 'type', 'htmlId', 'scssId'],
-              allOf: [{ $ref: '#/components/schemas/supportsDraft' }],
+              allOf: [{ $ref: '#/components/schemas/global_supportsDraft' }],
               properties: {
-                id: { $ref: '#/components/schemas/nonEmptyString' },
+                id: { $ref: '#/components/schemas/global_nonEmptyString' },
                 type: { enum: ['gag', 'pingPong'] },
-                thumbnailId: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }] },
+                thumbnailId: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }] },
                 stringIds: {
                   type: 'array',
 
-                  items: { $ref: '#/components/schemas/nonEmptyString' }
+                  items: { $ref: '#/components/schemas/global_nonEmptyString' }
                 },
-                htmlId: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }] },
-                scssId: { allOf: [{ $ref: '#/components/schemas/nonEmptyString' }] },
+                htmlId: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }] },
+                scssId: { allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }] },
                 ssetttts: {
                   type: 'array',
 
-                  items: { $ref: '#/components/schemas/ssetttt' }
+                  items: { $ref: '#/components/schemas/toyw_ssetttt' }
                 },
                 v_vs: {
                   type: 'array',
 
-                  items: { $ref: '#/components/schemas/toyw-v_v' }
+                  items: { $ref: '#/components/schemas/toyw_v_v' }
                 }
               }
             },
@@ -1070,94 +1079,97 @@ describe('utils', function() {
             },
             pfl_id: { type: 'string', enum: [], default: 'default' },
             wwww_id: { type: 'string', enum: ['local'] },
-            hasMetadata: {
+            global_hasMetadata: {
               type: 'object',
               required: ['_metadata'],
               properties: { _metadata: { type: 'object' } }
             },
-            hasaId: {
+            global_hasaId: {
               type: 'object',
               required: ['id_a_c'],
               properties: { id_a_c: { type: 'string', readOnly: true } }
             },
-            hasVersion: {
+            global_hasVersion: {
               type: 'object',
               required: ['version'],
               properties: { version: { type: 'integer', minimum: 1 } }
             },
-            supportsDraft: {
+            global_supportsDraft: {
               type: 'object',
-              allOf: [{ $ref: '#/components/schemas/hasVersion' }],
+              allOf: [{ $ref: '#/components/schemas/global_hasVersion' }],
               properties: { draft: { type: 'boolean', default: false } }
             },
-            canBeDisabled: {
+            global_canBeDisabled: {
               type: 'object',
               properties: { enabled: { type: 'boolean', default: true } }
             },
-            'global-objectId': { type: 'string', minLength: 24, maxLength: 24, pattern: '^[0-9a-fA-F]{24}$' },
-            nonEmptyString: { type: 'string', minLength: 1 },
-            arrayOfStrings: { type: 'array', items: { $ref: '#/components/schemas/nonEmptyString' } },
-            keyMatch: {
+            global_objectId: { type: 'string', minLength: 24, maxLength: 24, pattern: '^[0-9a-fA-F]{24}$' },
+            global_nonEmptyString: { type: 'string', minLength: 1 },
+            global_arrayOfStrings: { type: 'array', items: { $ref: '#/components/schemas/global_nonEmptyString' } },
+            global_keyMatch: {
               type: 'object',
               required: ['key', 'map'],
               properties: {
-                key: { description: '', allOf: [{ $ref: '#/components/schemas/nonEmptyString' }] },
+                key: { description: '', allOf: [{ $ref: '#/components/schemas/global_nonEmptyString' }] },
                 map: {
                   type: 'object',
                   minProperties: 1,
                   description: '',
                   additionalProperties: {
-                    anyOf: [{ $ref: '#/components/schemas/nonEmptyString' }, { type: 'array', items: { $ref: '#/components/schemas/nonEmptyString' } }]
+                    anyOf: [
+                      { $ref: '#/components/schemas/global_nonEmptyString' },
+                      { type: 'array', items: { $ref: '#/components/schemas/global_nonEmptyString' } }
+                    ]
                   }
                 }
               }
             },
-            languageId: {
+            global_languageId: {
               type: 'string',
-
               pattern: '^([a-z]{2,3})(-[A-Z]{2})?$'
             },
-            timestamp: { type: 'string', format: 'date-time' },
-            validity: {
+            global_timestamp: { type: 'string', format: 'date-time' },
+            global_validity: {
               type: 'object',
               properties: {
-                from: { allOf: [{ $ref: '#/components/schemas/timestamp' }] },
-                to: { allOf: [{ $ref: '#/components/schemas/timestamp' }] }
+                from: { allOf: [{ $ref: '#/components/schemas/global_timestamp' }] },
+                to: { allOf: [{ $ref: '#/components/schemas/global_timestamp' }] }
               }
             },
-            positiveInteger: { title: 'positive number', type: 'integer', minimum: 0 },
-            infinite: { title: 'infinite number', type: 'integer', minimum: -1, maximum: -1 },
-            infiniteOrPositiveNumber: { oneOf: [{ $ref: '#/components/schemas/infinite' }, { $ref: '#/components/schemas/positiveInteger' }] },
-            notEmptyString: { type: 'string', minLength: 1 },
-            languageCode: {
+            global_positiveInteger: { title: 'positive number', type: 'integer', minimum: 0 },
+            global_infinite: { title: 'infinite number', type: 'integer', minimum: -1, maximum: -1 },
+            global_infiniteOrPositiveNumber: {
+              oneOf: [{ $ref: '#/components/schemas/global_infinite' }, { $ref: '#/components/schemas/global_positiveInteger' }]
+            },
+            common_notEmptyString: { type: 'string', minLength: 1 },
+            common_languageCode: {
               type: 'string',
-
               pattern: '^([a-z]{2,3})(-[A-Z]{2})?$'
             },
-            total: {
+            a_total: {
               type: 'object',
               properties: {
-                total: { allOf: [{ $ref: '#/components/schemas/infiniteOrPositiveNumber' }] },
+                total: { allOf: [{ $ref: '#/components/schemas/global_infiniteOrPositiveNumber' }] },
                 max: {
-                  allOf: [{ $ref: '#/components/schemas/infiniteOrPositiveNumber' }]
+                  allOf: [{ $ref: '#/components/schemas/global_infiniteOrPositiveNumber' }]
                 },
                 min: {
-                  allOf: [{ $ref: '#/components/schemas/infiniteOrPositiveNumber' }]
+                  allOf: [{ $ref: '#/components/schemas/global_infiniteOrPositiveNumber' }]
                 },
                 initial: {
-                  allOf: [{ $ref: '#/components/schemas/positiveInteger' }]
+                  allOf: [{ $ref: '#/components/schemas/global_positiveInteger' }]
                 },
                 spent: {
-                  allOf: [{ $ref: '#/components/schemas/positiveInteger' }]
+                  allOf: [{ $ref: '#/components/schemas/global_positiveInteger' }]
                 }
               }
             },
-            bus: {
+            a_bus: {
               type: 'object',
               required: ['parent'],
               properties: {
                 parent: { allOf: [{ $ref: '#/components/schemas/anp_id' }] },
-                validity: { allOf: [{ $ref: '#/components/schemas/validity' }] },
+                validity: { allOf: [{ $ref: '#/components/schemas/global_validity' }] },
                 llls: {
                   allOf: [{ $ref: '#/components/schemas/llls' }]
                 },
@@ -1165,14 +1177,14 @@ describe('utils', function() {
                 blggg: {
                   type: 'object',
                   properties: {
-                    price: { $ref: '#/components/schemas/price' },
+                    price: { $ref: '#/components/schemas/anp_price' },
                     bus: {
-                      allOf: [{ $ref: '#/components/schemas/interval' }],
+                      allOf: [{ $ref: '#/components/schemas/anp_interval' }],
                       type: 'object',
                       properties: {
-                        start: { allOf: [{ $ref: '#/components/schemas/timestamp' }] },
-                        due: { allOf: [{ $ref: '#/components/schemas/timestamp' }] },
-                        overage_due: { allOf: [{ $ref: '#/components/schemas/timestamp' }] }
+                        start: { allOf: [{ $ref: '#/components/schemas/global_timestamp' }] },
+                        due: { allOf: [{ $ref: '#/components/schemas/global_timestamp' }] },
+                        overage_due: { allOf: [{ $ref: '#/components/schemas/global_timestamp' }] }
                       }
                     }
                   }
@@ -1180,27 +1192,27 @@ describe('utils', function() {
                 overage: { $ref: '#/components/schemas/anp/properties/overage' }
               }
             },
-            majorTom: { enum: ['disabled', 'donald', 'visitor', 'ch'] },
-            memeSettings: {
+            d_majorTom: { enum: ['disabled', 'donald', 'visitor', 'ch'] },
+            d_memeSettings: {
               type: 'object',
 
               required: ['icecream', 'fruit', 'songs'],
               properties: {
-                icecream: { $ref: '#/components/schemas/majorTom' },
-                fruit: { $ref: '#/components/schemas/majorTom' },
-                songs: { $ref: '#/components/schemas/majorTom' }
+                icecream: { $ref: '#/components/schemas/d_majorTom' },
+                fruit: { $ref: '#/components/schemas/d_majorTom' },
+                songs: { $ref: '#/components/schemas/d_majorTom' }
               },
               additionalProperties: false
             },
-            tags: { type: 'array', items: { $ref: '#/components/schemas/nonEmptyString' } },
-            rrtnSettings: {
+            d_tags: { type: 'array', items: { $ref: '#/components/schemas/global_nonEmptyString' } },
+            d_rrtnSettings: {
               type: 'object',
 
               properties: {
-                color: { $ref: '#/components/schemas/nonEmptyString' },
-                tags: { $ref: '#/components/schemas/tags' },
-                optionalTags: { $ref: '#/components/schemas/tags' },
-                assignmentTags: { $ref: '#/components/schemas/tags' },
+                color: { $ref: '#/components/schemas/global_nonEmptyString' },
+                tags: { $ref: '#/components/schemas/d_tags' },
+                optionalTags: { $ref: '#/components/schemas/d_tags' },
+                assignmentTags: { $ref: '#/components/schemas/d_tags' },
                 priority: { type: 'integer' },
                 showPendingOnPause: { type: 'boolean' },
                 forcePause: { type: 'boolean' },
@@ -1212,111 +1224,114 @@ describe('utils', function() {
                 ninoTimeout: { type: 'integer' }
               }
             },
-            valueInterval: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } }, additionalProperties: false },
-            timeInterval: {
+            d_valueInterval: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } }, additionalProperties: false },
+            d_timeInterval: {
               type: 'object',
 
               properties: {
-                minutes: { $ref: '#/components/schemas/valueInterval' },
-                hours: { $ref: '#/components/schemas/valueInterval' },
-                dayOfMonth: { $ref: '#/components/schemas/valueInterval' },
-                dayOfWeek: { $ref: '#/components/schemas/valueInterval' },
-                month: { $ref: '#/components/schemas/valueInterval' },
-                year: { $ref: '#/components/schemas/valueInterval' }
+                minutes: { $ref: '#/components/schemas/d_valueInterval' },
+                hours: { $ref: '#/components/schemas/d_valueInterval' },
+                dayOfMonth: { $ref: '#/components/schemas/d_valueInterval' },
+                dayOfWeek: { $ref: '#/components/schemas/d_valueInterval' },
+                month: { $ref: '#/components/schemas/d_valueInterval' },
+                year: { $ref: '#/components/schemas/d_valueInterval' }
               },
               additionalProperties: false
             },
-            openingHours: {
+            d_openingHours: {
               type: 'object',
 
               properties: {
-                intervals: { type: 'array', items: { $ref: '#/components/schemas/timeInterval' } },
-                exceptions: { type: 'array', items: { $ref: '#/components/schemas/timeInterval' } }
+                intervals: { type: 'array', items: { $ref: '#/components/schemas/d_timeInterval' } },
+                exceptions: { type: 'array', items: { $ref: '#/components/schemas/d_timeInterval' } }
               },
               additionalProperties: false
             },
-            pingPongMode: {
+            d_pingPongMode: {
               type: 'object',
               required: ['offer'],
               properties: {
-                offer: { $ref: '#/components/schemas/nonEmptyString' },
-                todoListId: { $ref: '#/components/schemas/nonEmptyString' },
+                offer: { $ref: '#/components/schemas/global_nonEmptyString' },
+                todoListId: { $ref: '#/components/schemas/global_nonEmptyString' },
                 autoStart: { type: 'boolean' },
-                rrtn: { $ref: '#/components/schemas/rrtnSettings' },
-                openingHours: { $ref: '#/components/schemas/openingHours' }
+                rrtn: { $ref: '#/components/schemas/d_rrtnSettings' },
+                openingHours: { $ref: '#/components/schemas/d_openingHours' }
               }
             },
-            pingPongAlternatives: {
+            d_pingPongAlternatives: {
               anyOf: [
-                { $ref: '#/components/schemas/nonEmptyString' },
-                { $ref: '#/components/schemas/pingPongMode' },
-                { type: 'array', items: { $ref: '#/components/schemas/pingPongAlternatives' } },
+                { $ref: '#/components/schemas/global_nonEmptyString' },
+                { $ref: '#/components/schemas/d_pingPongMode' },
+                { type: 'array', items: { $ref: '#/components/schemas/d_pingPongAlternatives' } },
                 {
                   type: 'object',
                   required: ['or'],
                   additionalProperties: false,
-                  properties: { or: { type: 'array', items: { $ref: '#/components/schemas/pingPongAlternatives' } } }
+                  properties: { or: { type: 'array', items: { $ref: '#/components/schemas/d_pingPongAlternatives' } } }
                 }
               ]
             },
-            pingPongModes: {
+            d_pingPongModes: {
               type: 'object',
               properties: {
-                gag: { $ref: '#/components/schemas/pingPongAlternatives' },
-                nodonalds: { $ref: '#/components/schemas/pingPongAlternatives' },
-                timeout: { $ref: '#/components/schemas/pingPongAlternatives' },
-                error: { $ref: '#/components/schemas/pingPongAlternatives' },
-                closed: { $ref: '#/components/schemas/pingPongAlternatives' }
+                gag: { $ref: '#/components/schemas/d_pingPongAlternatives' },
+                nodonalds: { $ref: '#/components/schemas/d_pingPongAlternatives' },
+                timeout: { $ref: '#/components/schemas/d_pingPongAlternatives' },
+                error: { $ref: '#/components/schemas/d_pingPongAlternatives' },
+                closed: { $ref: '#/components/schemas/d_pingPongAlternatives' }
               }
             },
-            commonSettings: {
+            d_commonSettings: {
               type: 'object',
               properties: {
-                meme: { $ref: '#/components/schemas/memeSettings' },
-                rrtn: { $ref: '#/components/schemas/rrtnSettings' },
-                openingHours: { $ref: '#/components/schemas/openingHours' },
-                pingPongModes: { $ref: '#/components/schemas/pingPongModes' },
-                schoolAddress: { $ref: '#/components/schemas/nonEmptyString' }
+                meme: { $ref: '#/components/schemas/d_memeSettings' },
+                rrtn: { $ref: '#/components/schemas/d_rrtnSettings' },
+                openingHours: { $ref: '#/components/schemas/d_openingHours' },
+                pingPongModes: { $ref: '#/components/schemas/d_pingPongModes' },
+                schoolAddress: { $ref: '#/components/schemas/global_nonEmptyString' }
               }
             },
-            todoListSettings: {
+            d_todoListSettings: {
               type: 'object',
-              properties: { todoListIds: { $ref: '#/components/schemas/arrayOfStrings' }, surveyId: { $ref: '#/components/schemas/nonEmptyString' } }
+              properties: {
+                todoListIds: { $ref: '#/components/schemas/global_arrayOfStrings' },
+                surveyId: { $ref: '#/components/schemas/global_nonEmptyString' }
+              }
             },
-            languageSettings: {
+            d_languageSettings: {
               type: 'object',
               required: ['defaultLanguage'],
-              properties: { type: { enum: ['const', 'detect'], default: 'const' }, defaultLanguage: { $ref: '#/components/schemas/languageId' } }
+              properties: { type: { enum: ['const', 'detect'], default: 'const' }, defaultLanguage: { $ref: '#/components/schemas/global_languageId' } }
             },
-            lemonDetectionGuest: {
+            d_lemonDetectionGuest: {
               type: 'object',
               required: ['type'],
               properties: {
                 mapping: {
                   type: 'object',
 
-                  additionalProperties: { $ref: '#/components/schemas/languageId' }
+                  additionalProperties: { $ref: '#/components/schemas/global_languageId' }
                 }
               },
               oneOf: [
                 { type: 'object', properties: { type: { enum: ['page', 'domain', 'ua', 'url', 'geoip'] } } },
-                { type: 'object', required: ['code'], properties: { type: { enum: ['js'] }, code: { $ref: '#/components/schemas/nonEmptyString' } } }
+                { type: 'object', required: ['code'], properties: { type: { enum: ['js'] }, code: { $ref: '#/components/schemas/global_nonEmptyString' } } }
               ]
             },
-            lemonSettings: {
+            d_lemonSettings: {
               type: 'object',
-              allOf: [{ $ref: '#/components/schemas/languageSettings' }],
-              properties: { strategies: { type: 'array', items: { $ref: '#/components/schemas/lemonDetectionGuest' } } }
+              allOf: [{ $ref: '#/components/schemas/d_languageSettings' }],
+              properties: { strategies: { type: 'array', items: { $ref: '#/components/schemas/d_lemonDetectionGuest' } } }
             },
-            webAction: {
+            d_webAction: {
               type: 'object',
               properties: { once: { type: 'boolean', default: false }, blocking: { type: 'boolean', default: false } },
               oneOf: [
-                { type: 'object', required: ['code'], properties: { code: { $ref: '#/components/schemas/nonEmptyString' } } },
-                { type: 'object', required: ['url'], properties: { url: { $ref: '#/components/schemas/nonEmptyString' } } }
+                { type: 'object', required: ['code'], properties: { code: { $ref: '#/components/schemas/global_nonEmptyString' } } },
+                { type: 'object', required: ['url'], properties: { url: { $ref: '#/components/schemas/global_nonEmptyString' } } }
               ]
             },
-            miao: {
+            d_miao: {
               type: 'object',
               required: ['op'],
               oneOf: [
@@ -1324,23 +1339,23 @@ describe('utils', function() {
                   type: 'object',
 
                   required: ['miaos'],
-                  properties: { op: { enum: ['and', 'or'] }, miaos: { type: 'array', item: { $ref: '#/components/schemas/miao' } } }
+                  properties: { op: { enum: ['and', 'or'] }, miaos: { type: 'array', item: { $ref: '#/components/schemas/d_miao' } } }
                 },
                 {
                   type: 'object',
 
                   required: ['code'],
-                  properties: { op: { enum: ['js'] }, code: { $ref: '#/components/schemas/nonEmptyString' } }
+                  properties: { op: { enum: ['js'] }, code: { $ref: '#/components/schemas/global_nonEmptyString' } }
                 },
                 {
                   type: 'object',
 
                   required: ['leftId'],
-                  properties: { leftId: { $ref: '#/components/schemas/nonEmptyString' } },
+                  properties: { leftId: { $ref: '#/components/schemas/global_nonEmptyString' } },
                   allOf: [
                     {
                       oneOf: [
-                        { type: 'object', require: ['rightId'], properties: { rightId: { $ref: '#/components/schemas/nonEmptyString' } } },
+                        { type: 'object', require: ['rightId'], properties: { rightId: { $ref: '#/components/schemas/global_nonEmptyString' } } },
                         { type: 'object', require: ['right'] }
                       ]
                     },
@@ -1351,7 +1366,7 @@ describe('utils', function() {
 
                           properties: {
                             op: { enum: ['eq', 'ne', 'starts', 'ends', 'contains', 'matches'] },
-                            right: { $ref: '#/components/schemas/nonEmptyString' }
+                            right: { $ref: '#/components/schemas/global_nonEmptyString' }
                           }
                         },
                         {
@@ -1363,7 +1378,7 @@ describe('utils', function() {
                         {
                           type: 'object',
 
-                          properties: { op: { enum: ['eq', 'ne'] }, right: { $ref: '#/components/schemas/nonEmptyString' } }
+                          properties: { op: { enum: ['eq', 'ne'] }, right: { $ref: '#/components/schemas/global_nonEmptyString' } }
                         }
                       ]
                     }
@@ -1371,151 +1386,151 @@ describe('utils', function() {
                 }
               ]
             },
-            toywSettings: {
+            d_toywSettings: {
               type: 'object',
               required: ['ttplId'],
               properties: {
-                ttplId: { $ref: '#/components/schemas/nonEmptyString' },
-                ttplHash: { $ref: '#/components/schemas/nonEmptyString' },
+                ttplId: { $ref: '#/components/schemas/global_nonEmptyString' },
+                ttplHash: { $ref: '#/components/schemas/global_nonEmptyString' },
                 v_vs: { type: 'object', additionalProperties: { type: ['string', 'boolean'] } },
                 strings: { type: 'array', items: { $ref: '#/components/schemas/string' } },
-                customCss: { $ref: '#/components/schemas/nonEmptyString' },
-                selector: { $ref: '#/components/schemas/nonEmptyString' }
+                customCss: { $ref: '#/components/schemas/global_nonEmptyString' },
+                selector: { $ref: '#/components/schemas/global_nonEmptyString' }
               }
             },
-            gagtoywSettings: { $ref: '#/components/schemas/toywSettings' },
-            gagWebActions: {
+            d_gagtoywSettings: { $ref: '#/components/schemas/d_toywSettings' },
+            d_gagWebActions: {
               type: 'object',
               properties: {
-                'gag-init': { $ref: '#/components/schemas/webAction' }
+                'gag-init': { $ref: '#/components/schemas/d_webAction' }
               }
             },
-            chhWebActions: {
+            d_chhWebActions: {
               oneOf: [
-                { $ref: '#/components/schemas/gagWebActions' },
-                { type: 'object', properties: { 'page-load': { $ref: '#/components/schemas/webAction' } } }
+                { $ref: '#/components/schemas/d_gagWebActions' },
+                { type: 'object', properties: { 'page-load': { $ref: '#/components/schemas/d_webAction' } } }
               ]
             },
-            stringMatchingmiaos: {
+            d_stringMatchingmiaos: {
               type: 'array',
               items: {
                 type: 'object',
                 required: ['type', 'pattern'],
                 properties: {
                   type: { enum: ['equals', 'starts', 'ends', 'contains', 'matches'] },
-                  pattern: { $ref: '#/components/schemas/nonEmptyString' }
+                  pattern: { $ref: '#/components/schemas/global_nonEmptyString' }
                 }
               }
             },
-            epp: {
+            d_epp: {
               type: 'object',
               required: ['id', 'name'],
               allOf: [
-                { $ref: '#/components/schemas/canBeDisabled' },
-                { $ref: '#/components/schemas/commonSettings' },
-                { $ref: '#/components/schemas/todoListSettings' }
+                { $ref: '#/components/schemas/global_canBeDisabled' },
+                { $ref: '#/components/schemas/d_commonSettings' },
+                { $ref: '#/components/schemas/d_todoListSettings' }
               ],
               properties: {
-                id: { $ref: '#/components/schemas/nonEmptyString' },
-                name: { $ref: '#/components/schemas/nonEmptyString' },
-                language: { $ref: '#/components/schemas/languageSettings' },
+                id: { $ref: '#/components/schemas/global_nonEmptyString' },
+                name: { $ref: '#/components/schemas/global_nonEmptyString' },
+                language: { $ref: '#/components/schemas/d_languageSettings' },
                 settings: { type: 'object' },
                 settingsToken: { type: 'string' }
               }
             },
-            webepp: {
+            d_webepp: {
               type: 'object',
-              allOf: [{ $ref: '#/components/schemas/epp' }],
+              allOf: [{ $ref: '#/components/schemas/d_epp' }],
               properties: {
-                language: { $ref: '#/components/schemas/lemonSettings' },
-                includedUrls: { $ref: '#/components/schemas/stringMatchingmiaos' },
-                excludedUrls: { $ref: '#/components/schemas/stringMatchingmiaos' }
+                language: { $ref: '#/components/schemas/d_lemonSettings' },
+                includedUrls: { $ref: '#/components/schemas/d_stringMatchingmiaos' },
+                excludedUrls: { $ref: '#/components/schemas/d_stringMatchingmiaos' }
               }
             },
-            gag: {
+            d_gag: {
               type: 'object',
               required: ['name', 'eppIds'],
               allOf: [
-                { $ref: '#/components/schemas/canBeDisabled' },
-                { $ref: '#/components/schemas/commonSettings' },
-                { $ref: '#/components/schemas/todoListSettings' }
+                { $ref: '#/components/schemas/global_canBeDisabled' },
+                { $ref: '#/components/schemas/d_commonSettings' },
+                { $ref: '#/components/schemas/d_todoListSettings' }
               ],
-              properties: { name: { $ref: '#/components/schemas/nonEmptyString' }, eppIds: { $ref: '#/components/schemas/arrayOfStrings' } }
+              properties: { name: { $ref: '#/components/schemas/global_nonEmptyString' }, eppIds: { $ref: '#/components/schemas/global_arrayOfStrings' } }
             },
-            webgag: {
+            d_webgag: {
               type: 'object',
               required: ['toyw'],
-              allOf: [{ $ref: '#/components/schemas/gag' }],
+              allOf: [{ $ref: '#/components/schemas/d_gag' }],
               properties: {
-                actions: { $ref: '#/components/schemas/gagWebActions' },
-                miaos: { $ref: '#/components/schemas/miao' },
-                toyw: { $ref: '#/components/schemas/toywSettings' }
+                actions: { $ref: '#/components/schemas/d_gagWebActions' },
+                miaos: { $ref: '#/components/schemas/d_miao' },
+                toyw: { $ref: '#/components/schemas/d_toywSettings' }
               }
             },
-            chh: {
+            d_chh: {
               type: 'object',
               required: ['epps'],
               allOf: [
-                { $ref: '#/components/schemas/canBeDisabled' },
-                { $ref: '#/components/schemas/commonSettings' },
-                { $ref: '#/components/schemas/todoListSettings' }
+                { $ref: '#/components/schemas/global_canBeDisabled' },
+                { $ref: '#/components/schemas/d_commonSettings' },
+                { $ref: '#/components/schemas/d_todoListSettings' }
               ],
-              properties: { epps: { type: 'array', items: { $ref: '#/components/schemas/epp' } } }
+              properties: { epps: { type: 'array', items: { $ref: '#/components/schemas/d_epp' } } }
             },
-            webchh: {
+            d_webchh: {
               type: 'object',
               required: ['gags', 'pingPong'],
-              allOf: [{ $ref: '#/components/schemas/chh' }],
+              allOf: [{ $ref: '#/components/schemas/d_chh' }],
               properties: {
-                epps: { type: 'array', items: { $ref: '#/components/schemas/webepp' } },
-                gags: { type: 'array', items: { $ref: '#/components/schemas/webgag' } },
-                chhWebActions: { $ref: '#/components/schemas/chhWebActions' },
-                pingPong: { $ref: '#/components/schemas/toywSettings' }
+                epps: { type: 'array', items: { $ref: '#/components/schemas/d_webepp' } },
+                gags: { type: 'array', items: { $ref: '#/components/schemas/d_webgag' } },
+                chhWebActions: { $ref: '#/components/schemas/d_chhWebActions' },
+                pingPong: { $ref: '#/components/schemas/d_toywSettings' }
               }
             },
-            jimmy: {
+            d_jimmy: {
               type: 'object',
               additionalProperties: false,
               properties: {
-                abroad: { $ref: '#/components/schemas/nonEmptyString' },
-                memeHook: { $ref: '#/components/schemas/nonEmptyString' },
-                ctiEvents: { $ref: '#/components/schemas/arrayOfStrings' }
+                abroad: { $ref: '#/components/schemas/global_nonEmptyString' },
+                memeHook: { $ref: '#/components/schemas/global_nonEmptyString' },
+                ctiEvents: { $ref: '#/components/schemas/global_arrayOfStrings' }
               }
             },
-            todoList: {},
-            cccchh: {},
-            abstractmemoNemo: {
+            ccc_todoList: {},
+            ccc_cccchh: {},
+            qwerty_abstractmemoNemo: {
               type: 'object',
               required: ['type'],
               properties: {
-                id: { $ref: '#/components/schemas/nonEmptyString' },
-                type: { $ref: '#/components/schemas/nonEmptyString' },
-                labelId: { $ref: '#/components/schemas/nonEmptyString' },
-                format: { $ref: '#/components/schemas/nonEmptyString' }
+                id: { $ref: '#/components/schemas/global_nonEmptyString' },
+                type: { $ref: '#/components/schemas/global_nonEmptyString' },
+                labelId: { $ref: '#/components/schemas/global_nonEmptyString' },
+                format: { $ref: '#/components/schemas/global_nonEmptyString' }
               }
             },
-            metamemoNemo: {
+            qwerty_metamemoNemo: {
               type: 'object',
-              allOf: [{ $ref: '#/components/schemas/abstractmemoNemo' }],
+              allOf: [{ $ref: '#/components/schemas/qwerty_abstractmemoNemo' }],
               oneOf: [
                 { type: 'object', properties: { format: { enum: ['break'] } } },
                 {
                   type: 'object',
                   required: ['id'],
-                  properties: { format: { enum: ['message'] }, message: { $ref: '#/components/schemas/nonEmptyString' } }
+                  properties: { format: { enum: ['message'] }, message: { $ref: '#/components/schemas/global_nonEmptyString' } }
                 },
                 { type: 'object', required: ['id', 'labelId'], properties: { format: { enum: ['section'] }, implicit: { type: 'boolean' } } }
               ],
               properties: { type: { enum: ['meta'] } }
             },
-            promptIds: {
+            qwerty_promptIds: {
               type: 'array',
 
-              items: { $ref: '#/components/schemas/nonEmptyString' }
+              items: { $ref: '#/components/schemas/global_nonEmptyString' }
             },
-            dfdf: {
+            qwerty_dfdf: {
               type: 'object',
-              allOf: [{ $ref: '#/components/schemas/abstractmemoNemo' }],
+              allOf: [{ $ref: '#/components/schemas/qwerty_abstractmemoNemo' }],
               properties: {
                 placeholderId: { type: 'string' },
                 required: { type: 'boolean' },
@@ -1534,13 +1549,13 @@ describe('utils', function() {
 
                   default: false
                 },
-                promptIds: { $ref: '#/components/schemas/promptIds' }
+                promptIds: { $ref: '#/components/schemas/qwerty_promptIds' }
               }
             },
-            stringmemoNemo: {
+            qwerty_stringmemoNemo: {
               type: 'object',
               required: ['type'],
-              allOf: [{ $ref: '#/components/schemas/dfdf' }],
+              allOf: [{ $ref: '#/components/schemas/qwerty_dfdf' }],
               properties: {
                 type: { enum: ['string'] },
                 format: {
@@ -1553,19 +1568,19 @@ describe('utils', function() {
                 validation: { type: 'string' }
               }
             },
-            selectmemoNemo: {
+            qwerty_selectmemoNemo: {
               type: 'object',
               required: ['type'],
-              allOf: [{ $ref: '#/components/schemas/dfdf' }],
+              allOf: [{ $ref: '#/components/schemas/qwerty_dfdf' }],
               properties: {
                 type: { enum: ['dropdown'] },
                 options: { type: 'object', additionalProperties: { type: 'string' }, minProperties: 1 }
               }
             },
-            numbermemoNemo: {
+            qwerty_numbermemoNemo: {
               type: 'object',
               required: ['type'],
-              allOf: [{ $ref: '#/components/schemas/dfdf' }],
+              allOf: [{ $ref: '#/components/schemas/qwerty_dfdf' }],
               properties: {
                 type: { enum: ['number'] },
                 format: { enum: ['number', 'rating'], default: 'number' },
@@ -1574,16 +1589,16 @@ describe('utils', function() {
                 max: { type: 'integer' }
               }
             },
-            ratingmemoNemo: {
+            qwerty_ratingmemoNemo: {
               type: 'object',
               required: ['format', 'style'],
-              allOf: [{ $ref: '#/components/schemas/numbermemoNemo' }],
+              allOf: [{ $ref: '#/components/schemas/qwerty_numbermemoNemo' }],
               properties: { format: { enum: ['rating'] }, style: { type: 'string' } }
             },
-            booleanmemoNemo: {
+            qwerty_booleanmemoNemo: {
               type: 'object',
               required: ['type'],
-              allOf: [{ $ref: '#/components/schemas/dfdf' }],
+              allOf: [{ $ref: '#/components/schemas/qwerty_dfdf' }],
               properties: {
                 type: { enum: ['boolean'] },
                 format: { enum: ['checkbox', 'radio'], default: 'checkbox' },
@@ -1593,26 +1608,26 @@ describe('utils', function() {
                 validation: { type: 'boolean' }
               }
             },
-            multilingual: {
+            anp_multilingual: {
               oneOf: [{ type: 'string' }, { type: 'object', properties: { it: { type: 'string' }, en: { type: 'string' }, fr: { type: 'string' } } }]
             },
-            singlePrice: { type: 'integer', minimum: 0 },
-            price: {
+            anp_singlePrice: { type: 'integer', minimum: 0 },
+            anp_price: {
               type: 'object',
               required: ['eur', 'usd'],
-              properties: { eur: { $ref: '#/components/schemas/singlePrice' }, usd: { $ref: '#/components/schemas/singlePrice' } },
-              additionalProperties: { $ref: '#/components/schemas/singlePrice' }
+              properties: { eur: { $ref: '#/components/schemas/anp_singlePrice' }, usd: { $ref: '#/components/schemas/anp_singlePrice' } },
+              additionalProperties: { $ref: '#/components/schemas/anp_singlePrice' }
             },
-            interval: {
+            anp_interval: {
               type: 'object',
               properties: {
                 frequency: { enum: ['day', 'month', 'year'], type: 'string' },
                 period: { type: 'integer', minimum: 0 }
               }
             },
-            bucket: {
+            anp_bucket: {
               type: 'object',
-              allOf: [{ $ref: '#/components/schemas/interval' }],
+              allOf: [{ $ref: '#/components/schemas/anp_interval' }],
               properties: {
                 total: {
                   type: 'integer',
@@ -1626,7 +1641,7 @@ describe('utils', function() {
                 }
               }
             },
-            reddddOverage: {
+            anp_reddddOverage: {
               type: 'object',
               properties: {
                 unit: {
@@ -1647,41 +1662,41 @@ describe('utils', function() {
                     properties: {
                       from: { type: 'integer', minimum: 0 },
                       to: { type: 'integer', minimum: 0 },
-                      price: { $ref: '#/components/schemas/price' }
+                      price: { $ref: '#/components/schemas/anp_price' }
                     }
                   }
                 }
               }
             },
-            transmissionmiaos: { enum: ['required', 'optional', 'off'] },
-            transmissionVia: { enum: ['net', 'pstn'] },
-            cccmemeSpec: {
+            'super-show_transmissionmiaos': { enum: ['required', 'optional', 'off'] },
+            'super-show_transmissionVia': { enum: ['net', 'pstn'] },
+            'super-show_cccmemeSpec': {
               type: 'object',
               required: ['tx', 'rx'],
               properties: {
-                tx: { $ref: '#/components/schemas/transmissionmiaos' },
-                rx: { $ref: '#/components/schemas/transmissionmiaos' },
-                engine: { $ref: '#/components/schemas/nonEmptyString' },
-                via: { $ref: '#/components/schemas/transmissionVia' }
+                tx: { $ref: '#/components/schemas/super-show_transmissionmiaos' },
+                rx: { $ref: '#/components/schemas/super-show_transmissionmiaos' },
+                engine: { $ref: '#/components/schemas/global_nonEmptyString' },
+                via: { $ref: '#/components/schemas/super-show_transmissionVia' }
               }
             },
-            cccmemeOffer: {
+            'super-show_cccmemeOffer': {
               type: 'object',
               properties: {
-                icecream: { $ref: '#/components/schemas/cccmemeSpec' },
-                fruit: { $ref: '#/components/schemas/cccmemeSpec' },
-                songs: { $ref: '#/components/schemas/cccmemeSpec' },
-                Sharing: { $ref: '#/components/schemas/cccmemeSpec' }
+                icecream: { $ref: '#/components/schemas/super-show_cccmemeSpec' },
+                fruit: { $ref: '#/components/schemas/super-show_cccmemeSpec' },
+                songs: { $ref: '#/components/schemas/super-show_cccmemeSpec' },
+                Sharing: { $ref: '#/components/schemas/super-show_cccmemeSpec' }
               }
             },
-            amazingPropcopes: {
+            pfl_amazingPropcopes: {
               items: {
                 type: 'string',
                 pattern: '^-?(?:[*]|\\w+)(?:[.](?:[*]|\\w+))?$'
               },
               type: 'array'
             },
-            tw_lllService: {
+            terzo_tw_lllService: {
               type: 'object',
               required: ['auth'],
               properties: {
@@ -1689,51 +1704,51 @@ describe('utils', function() {
                 auth: {
                   type: 'object',
                   required: ['sid', 'token'],
-                  properties: { sid: { $ref: '#/components/schemas/nonEmptyString' }, token: { $ref: '#/components/schemas/nonEmptyString' } }
+                  properties: { sid: { $ref: '#/components/schemas/global_nonEmptyString' }, token: { $ref: '#/components/schemas/global_nonEmptyString' } }
                 }
               }
             },
-            TestService: {
+            terzo_TestService: {
               type: 'object',
               properties: {
-                url: { $ref: '#/components/schemas/nonEmptyString' },
+                url: { $ref: '#/components/schemas/global_nonEmptyString' },
                 auth: {
                   type: 'object',
                   required: ['type', 'amazingWow'],
-                  properties: { amazingWow: { $ref: '#/components/schemas/nonEmptyString' } },
+                  properties: { amazingWow: { $ref: '#/components/schemas/global_nonEmptyString' } },
                   oneOf: [
                     {
                       type: 'object',
                       required: ['xyz'],
-                      properties: { type: { enum: ['basic'] }, xyz: { $ref: '#/components/schemas/nonEmptyString' } }
+                      properties: { type: { enum: ['basic'] }, xyz: { $ref: '#/components/schemas/global_nonEmptyString' } }
                     },
                     { type: 'object', properties: { type: { enum: ['bearer'] } }, not: { type: 'object', required: ['xyz'] } }
                   ]
                 }
               }
             },
-            pull: {
+            terzo_pull: {
               type: 'object',
               required: ['url', 'events'],
-              allOf: [{ $ref: '#/components/schemas/TestService' }],
+              allOf: [{ $ref: '#/components/schemas/terzo_TestService' }],
               properties: {
                 type: { enum: ['pull'] },
                 events: { type: 'array', items: { enum: ['new', 'end', 'change', 'finalized', 'message'] }, minItems: 1 }
               }
             },
-            abroad: {
+            terzo_abroad: {
               type: 'object',
               required: ['url'],
-              allOf: [{ $ref: '#/components/schemas/TestService' }],
+              allOf: [{ $ref: '#/components/schemas/terzo_TestService' }],
               properties: { type: { enum: ['extrouter'] } }
             },
-            memeHook: {
+            terzo_memeHook: {
               type: 'object',
               required: ['url'],
-              allOf: [{ $ref: '#/components/schemas/TestService' }],
+              allOf: [{ $ref: '#/components/schemas/terzo_TestService' }],
               properties: { type: { enum: ['memehook'] } }
             },
-            carc: {
+            terzo_carc: {
               type: 'object',
               required: ['settings'],
               properties: {
@@ -1741,11 +1756,14 @@ describe('utils', function() {
                 settings: {
                   type: 'object',
                   required: ['token'],
-                  properties: { token: { $ref: '#/components/schemas/nonEmptyString' }, startEvent: { $ref: '#/components/schemas/nonEmptyString' } }
+                  properties: {
+                    token: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    startEvent: { $ref: '#/components/schemas/global_nonEmptyString' }
+                  }
                 }
               }
             },
-            carV2c: {
+            terzo_carV2c: {
               type: 'object',
               required: ['settings'],
               properties: {
@@ -1754,17 +1772,17 @@ describe('utils', function() {
                   type: 'object',
                   required: ['projectId', 'privateKey', 'eEmail', 'eId', 'startEvent'],
                   properties: {
-                    projectId: { $ref: '#/components/schemas/nonEmptyString' },
-                    privateKey: { $ref: '#/components/schemas/nonEmptyString' },
-                    eEmail: { $ref: '#/components/schemas/nonEmptyString' },
-                    eId: { $ref: '#/components/schemas/nonEmptyString' },
-                    languageCode: { $ref: '#/components/schemas/nonEmptyString' },
-                    startEvent: { $ref: '#/components/schemas/nonEmptyString' }
+                    projectId: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    privateKey: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    eEmail: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    eId: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    languageCode: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    startEvent: { $ref: '#/components/schemas/global_nonEmptyString' }
                   }
                 }
               }
             },
-            airplanec: {
+            terzo_airplanec: {
               type: 'object',
               required: ['settings'],
               properties: {
@@ -1773,16 +1791,16 @@ describe('utils', function() {
                   type: 'object',
                   required: ['placeId', 'username', 'mega'],
                   properties: {
-                    placeId: { $ref: '#/components/schemas/nonEmptyString' },
-                    username: { $ref: '#/components/schemas/nonEmptyString' },
-                    mega: { $ref: '#/components/schemas/nonEmptyString' },
-                    endEventKey: { $ref: '#/components/schemas/nonEmptyString' },
-                    version: { $ref: '#/components/schemas/nonEmptyString' }
+                    placeId: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    username: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    mega: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    endEventKey: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    version: { $ref: '#/components/schemas/global_nonEmptyString' }
                   }
                 }
               }
             },
-            sweetsc: {
+            terzo_sweetsc: {
               type: 'object',
               required: ['settings'],
               properties: {
@@ -1791,54 +1809,54 @@ describe('utils', function() {
                   type: 'object',
                   required: ['directLineSiteId', 'amazingWow', 'autoConvertMessages'],
                   properties: {
-                    directLineSiteId: { $ref: '#/components/schemas/nonEmptyString' },
-                    amazingWow: { $ref: '#/components/schemas/nonEmptyString' },
-                    startMessage: { $ref: '#/components/schemas/nonEmptyString' },
+                    directLineSiteId: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    amazingWow: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    startMessage: { $ref: '#/components/schemas/global_nonEmptyString' },
                     autoConvertMessages: { type: 'boolean' },
-                    videogameKey: { $ref: '#/components/schemas/nonEmptyString' },
-                    videogameValue: { $ref: '#/components/schemas/nonEmptyString' }
+                    videogameKey: { $ref: '#/components/schemas/global_nonEmptyString' },
+                    videogameValue: { $ref: '#/components/schemas/global_nonEmptyString' }
                   }
                 }
               }
             },
-            customc: { type: 'object', required: ['url'] },
-            cdonald: {
+            terzo_customc: { type: 'object', required: ['url'] },
+            terzo_cdonald: {
               type: 'object',
               required: ['engine'],
-              allOf: [{ $ref: '#/components/schemas/TestService' }],
+              allOf: [{ $ref: '#/components/schemas/terzo_TestService' }],
               properties: {
                 type: { enum: ['c.donald'] },
-                engine: { $ref: '#/components/schemas/nonEmptyString' },
-                requestFilters: { type: 'array', items: { $ref: '#/components/schemas/nonEmptyString' } },
-                responseFilters: { type: 'array', items: { $ref: '#/components/schemas/nonEmptyString' } }
+                engine: { $ref: '#/components/schemas/global_nonEmptyString' },
+                requestFilters: { type: 'array', items: { $ref: '#/components/schemas/global_nonEmptyString' } },
+                responseFilters: { type: 'array', items: { $ref: '#/components/schemas/global_nonEmptyString' } }
               },
               oneOf: [
-                { $ref: '#/components/schemas/carc' },
-                { $ref: '#/components/schemas/carV2c' },
-                { $ref: '#/components/schemas/airplanec' },
-                { $ref: '#/components/schemas/sweetsc' },
-                { $ref: '#/components/schemas/customc' }
+                { $ref: '#/components/schemas/terzo_carc' },
+                { $ref: '#/components/schemas/terzo_carV2c' },
+                { $ref: '#/components/schemas/terzo_airplanec' },
+                { $ref: '#/components/schemas/terzo_sweetsc' },
+                { $ref: '#/components/schemas/terzo_customc' }
               ]
             },
-            cFilter: {
+            terzo_cFilter: {
               type: 'object',
               required: ['url'],
-              allOf: [{ $ref: '#/components/schemas/TestService' }],
+              allOf: [{ $ref: '#/components/schemas/terzo_TestService' }],
               properties: { type: { enum: ['c.filter'] }, requests: { type: 'boolean' }, responses: { type: 'boolean' } }
             },
-            meme: {
+            xyz_meme: {
               anyOf: [{ type: 'boolean' }, { type: 'number', minimum: -1 }],
               default: 0
             },
-            sha256: { type: 'string', pattern: '[0-9a-fA-F]{64}' },
-            'toyw-v_v': {
+            toyw_sha256: { type: 'string', pattern: '[0-9a-fA-F]{64}' },
+            toyw_v_v: {
               type: 'object',
               required: ['id', 'type', 'nameId'],
               properties: {
-                id: { $ref: '#/components/schemas/nonEmptyString' },
-                nameId: { $ref: '#/components/schemas/nonEmptyString' },
-                categoryIds: { type: 'array', items: { $ref: '#/components/schemas/nonEmptyString' } },
-                descriptionId: { $ref: '#/components/schemas/nonEmptyString' },
+                id: { $ref: '#/components/schemas/global_nonEmptyString' },
+                nameId: { $ref: '#/components/schemas/global_nonEmptyString' },
+                categoryIds: { type: 'array', items: { $ref: '#/components/schemas/global_nonEmptyString' } },
+                descriptionId: { $ref: '#/components/schemas/global_nonEmptyString' },
                 priority: { type: 'integer' },
                 hidden: { type: 'boolean', default: false },
                 required: { type: 'boolean', default: false }
@@ -1848,7 +1866,7 @@ describe('utils', function() {
                   type: 'object',
                   properties: {
                     type: { enum: ['color', 'file', 'string', 'unit', 'border-style', 'multi-unit', 'border', 'box-shadow'] },
-                    defaultValue: { $ref: '#/components/schemas/nonEmptyString' }
+                    defaultValue: { $ref: '#/components/schemas/global_nonEmptyString' }
                   }
                 },
                 { type: 'object', properties: { type: { enum: ['boolean'] }, defaultValue: { type: 'boolean' } } },
@@ -1858,19 +1876,19 @@ describe('utils', function() {
                   properties: {
                     type: { enum: ['enum'] },
                     defaultValue: { type: 'string' },
-                    options: { type: 'array', items: { $ref: '#/components/schemas/nonEmptyString' } }
+                    options: { type: 'array', items: { $ref: '#/components/schemas/global_nonEmptyString' } }
                   }
                 }
               ]
             },
-            ssetttt: {
+            toyw_ssetttt: {
               type: 'object',
               required: ['id', 'path'],
               properties: {
-                id: { $ref: '#/components/schemas/nonEmptyString' },
-                path: { $ref: '#/components/schemas/nonEmptyString' },
-                hash: { $ref: '#/components/schemas/sha256' },
-                type: { $ref: '#/components/schemas/nonEmptyString' },
+                id: { $ref: '#/components/schemas/global_nonEmptyString' },
+                path: { $ref: '#/components/schemas/global_nonEmptyString' },
+                hash: { $ref: '#/components/schemas/toyw_sha256' },
+                type: { $ref: '#/components/schemas/global_nonEmptyString' },
                 size: { type: 'integer' }
               }
             }
@@ -3036,7 +3054,7 @@ describe('utils', function() {
                             type: 'object',
                             properties: {
                               id: { type: 'string' },
-                              lang: { $ref: '#/components/schemas/languageId' },
+                              lang: { $ref: '#/components/schemas/global_languageId' },
                               tw_lll: { type: 'object', properties: { sid: { type: 'string' }, token: { type: 'string' } } }
                             }
                           },
@@ -3790,32 +3808,32 @@ describe('utils', function() {
         info: { title: 'nestedDefinitionsSpec', version: '7.0.0-dev1' },
         components: {
           schemas: {
-            valueInterval: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } }, additionalProperties: false },
-            timeInterval: {
+            propertyA_valueInterval: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } }, additionalProperties: false },
+            propertyA_timeInterval: {
               type: 'object',
               properties: {
-                minutes: { $ref: '#/components/schemas/valueInterval' },
-                hours: { $ref: '#/components/schemas/valueInterval' },
-                dayOfMonth: { $ref: '#/components/schemas/valueInterval' },
-                dayOfWeek: { $ref: '#/components/schemas/valueInterval' },
-                month: { $ref: '#/components/schemas/valueInterval' },
-                year: { $ref: '#/components/schemas/valueInterval' }
+                minutes: { $ref: '#/components/schemas/propertyA_valueInterval' },
+                hours: { $ref: '#/components/schemas/propertyA_valueInterval' },
+                dayOfMonth: { $ref: '#/components/schemas/propertyA_valueInterval' },
+                dayOfWeek: { $ref: '#/components/schemas/propertyA_valueInterval' },
+                month: { $ref: '#/components/schemas/propertyA_valueInterval' },
+                year: { $ref: '#/components/schemas/propertyA_valueInterval' }
               },
               additionalProperties: false
             },
-            openingHours: {
+            propertyA_openingHours: {
               type: 'object',
               description: 'Opening hours of the propertyA',
               properties: {
-                intervals: { type: 'array', items: { $ref: '#/components/schemas/timeInterval' } },
-                exceptions: { type: 'array', items: { $ref: '#/components/schemas/timeInterval' } },
+                intervals: { type: 'array', items: { $ref: '#/components/schemas/propertyA_timeInterval' } },
+                exceptions: { type: 'array', items: { $ref: '#/components/schemas/propertyA_timeInterval' } },
                 aFoo: {
-                  $ref: '#/components/schemas/defA'
+                  $ref: '#/components/schemas/propertyA_openingHours_defA'
                 }
               },
               additionalProperties: false
             },
-            defA: {
+            propertyA_openingHours_defA: {
               type: 'object',
               properties: {
                 a1: {
@@ -3868,12 +3886,12 @@ describe('utils', function() {
                 }
               }
             },
-            A1: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
-            A2: {
+            A_A1: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+            A_A2: {
               type: 'object',
               description: 'A2',
               properties: {
-                a2Prop: { $ref: '#/components/schemas/A1' }
+                a2Prop: { $ref: '#/components/schemas/A_A1' }
               },
               additionalProperties: false
             },
@@ -3892,7 +3910,7 @@ describe('utils', function() {
               type: 'object',
               properties: {
                 name: {
-                  $ref: '#/components/schemas/A1'
+                  $ref: '#/components/schemas/A_A1'
                 },
                 description: {
                   type: 'string',
@@ -3900,22 +3918,22 @@ describe('utils', function() {
                 }
               }
             },
-            C1: {
+            C_C1: {
               type: 'object',
               properties: {
-                from: { $ref: '#/components/schemas/C11' },
-                to: { $ref: '#/components/schemas/C11' }
+                from: { $ref: '#/components/schemas/C_C1_C11' },
+                to: { $ref: '#/components/schemas/C_C1_C11' }
               },
               additionalProperties: false
             },
-            C11: {
+            C_C1_C11: {
               type: 'object',
               description: 'C11',
               properties: {
                 c11Prop: { type: 'string' }
               }
             },
-            C12: {
+            C_C1_C12: {
               type: 'object',
               description: 'C12',
               properties: {
@@ -3927,7 +3945,7 @@ describe('utils', function() {
         responses: {
           a: {
             description: 'Default/generic error response',
-            content: { 'application/json': { schema: { $ref: '#/components/schemas/A1' } } }
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A_A1' } } }
           },
           c: {
             description: 'The requested/specified resource was not found',
@@ -3939,6 +3957,159 @@ describe('utils', function() {
       rebased.should.deep.equal(expectedSpec);
     });
   });
+  describe('rebaseOASDefinitions() for a spec containing multi-level nested definitions with the same name', function() {
+    it('for a multi-level definitions spec, it should return the spec with moved definitions in #/components/schemas having unique names and $refs updated accordingly', function() {
+      const rebased = rebaseOASDefinitions(nestedSameNameDefSpec);
+      const expectedSpec = {
+        openapi: '3.0.2',
+        info: { title: 'nested multi def spec with the same name', version: '1.0.0' },
+        components: {
+          schemas: {
+            A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+            A_defB: {
+              type: 'object',
+              properties: {
+                abprop: { $ref: '#/components/schemas/A_defA' }
+              },
+              additionalProperties: false
+            },
+            B_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+            B_defB: {
+              type: 'object',
+              properties: {
+                abprop: { $ref: '#/components/schemas/B_defA' }
+              },
+              additionalProperties: false
+            },
+            C_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+            C_defB: {
+              type: 'object',
+              properties: {
+                abprop: { $ref: '#/components/schemas/C_defA' }
+              },
+              additionalProperties: false
+            },
+            A: {
+              description: 'A',
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string'
+                },
+                description: {
+                  type: 'string'
+                }
+              }
+            },
+            B: {
+              description: 'B',
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string'
+                },
+                description: {
+                  type: 'string'
+                }
+              }
+            },
+            C: {
+              description: 'B',
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string'
+                },
+                description: {
+                  type: 'string'
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          a: {
+            description: 'Default/generic error response',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } }
+          },
+          c: {
+            description: 'The requested/specified resource was not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/C' } } }
+          }
+        }
+      };
+      //console.dir(rebased, { colors: true, depth: 20 });
+      rebased.should.deep.equal(expectedSpec);
+    });
+    it('for a multi-level nested definitions spec, it should return the spec with moved definitions in #/components/schemas having unique names and $refs updated accordingly', function() {
+      const rebased = rebaseOASDefinitions(multiNestedSameNameDefSpec);
+      const expectedSpec = {
+        openapi: '3.0.2',
+        info: { title: 'nested multi def spec with the same name', version: '1.0.0' },
+        components: {
+          schemas: {
+            A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+            A_defB: {
+              type: 'object',
+              properties: {
+                abprop: { $ref: '#/components/schemas/A_defA' }
+              },
+              additionalProperties: false
+            },
+            B_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+            B_defB: {
+              type: 'object',
+              properties: {
+                abprop: { $ref: '#/components/schemas/B_defB_defA' }
+              },
+              additionalProperties: false
+            },
+            B_defB_defA: {
+              description: 'nested nested definition',
+              type: 'string'
+            },
+            A: {
+              description: 'A',
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string'
+                },
+                description: {
+                  type: 'string'
+                }
+              }
+            },
+            B: {
+              description: 'B',
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string'
+                },
+                description: {
+                  type: 'string'
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          a: {
+            description: 'Default/generic error response',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } }
+          },
+          c: {
+            description: 'The requested/specified resource was not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/B_defA' } } }
+          }
+        }
+      };
+      //console.dir(rebased, { colors: true, depth: 20 });
+      rebased.should.deep.equal(expectedSpec);
+    });
+  });
+  // tests for errors
   describe('rebaseOASDefinitions() errors', function() {
     it('should throw an Error in case of a not valid spec', function() {
       const spec = { components: { schemas: { a: null } } };

@@ -1,6 +1,17 @@
 import * as dot from 'dot-prop';
 import { OpenAPIV3 } from 'openapi-police';
 
+/*
+ * Rebasing patterns
+ */
+const otherRef = new RegExp('^(.+)#/definitions/(.+)', 'g');
+const selfRef = new RegExp('^#/definitions/(.+)', 'g');
+const otherPropRef = new RegExp('^(.+)#/properties/(.+)', 'g');
+const selfPropRef = new RegExp('^#/properties/(.+)', 'g');
+const nameRef = new RegExp('^([^#]+[^#]+)$', 'g');
+const namePlusHash = new RegExp('^([^#]+)#+$', 'g');
+const absoluteRef = new RegExp('^(http:|https:)', 'gi');
+
 /**
  * Rebase a obj.$ref value, following the rules:
  *
@@ -17,13 +28,6 @@ import { OpenAPIV3 } from 'openapi-police';
  * @returns {*} the modified obj with rebased $ref property
  */
 export function refsRebaser(schemaName: string, obj: any): any {
-  const otherRef = new RegExp('^(.+)#/definitions/(.+)', 'g');
-  const selfRef = new RegExp('^#/definitions/(.+)', 'g');
-  const otherPropRef = new RegExp('^(.+)#/properties/(.+)', 'g');
-  const selfPropRef = new RegExp('^#/properties/(.+)', 'g');
-  const nameRef = new RegExp('^([^#]+[^#]+)$', 'g');
-  const namePlusHash = new RegExp('^([^#]+)#+$', 'g');
-
   let rebasedRef = obj.$ref;
   if (obj.$ref.match(selfRef)) {
     rebasedRef = obj.$ref.replace(selfRef, `#/components/schemas/${schemaName}/definitions/$1`);
@@ -33,9 +37,9 @@ export function refsRebaser(schemaName: string, obj: any): any {
     rebasedRef = obj.$ref.replace(otherPropRef, '#/components/schemas/$1/properties/$2');
   } else if (obj.$ref.match(selfPropRef)) {
     rebasedRef = obj.$ref.replace(selfPropRef, `#/components/schemas/${schemaName}/properties/$1`);
-  } else if (obj.$ref.match(nameRef)) {
+  } else if (obj.$ref.match(nameRef) && !obj.$ref.match(absoluteRef)) {
     rebasedRef = obj.$ref.replace(nameRef, '#/components/schemas/$1');
-  } else if (obj.$ref.match(namePlusHash)) {
+  } else if (obj.$ref.match(namePlusHash) && !obj.$ref.match(absoluteRef)) {
     rebasedRef = obj.$ref.replace(namePlusHash, '#/components/schemas/$1');
   }
   obj['$ref'] = rebasedRef;
@@ -57,7 +61,7 @@ export function rebaseOASDefinitions(fullSpec: any): OpenAPIV3.Document {
       for (const schemaKey in components.schemas) {
         let schemas = components.schemas;
         let path = `components.schemas.${schemaKey}`;
-        specCopy = rebaseOASDefinition(specCopy, schemaKey, schemas[schemaKey], path);
+        specCopy = rebaseOASDefinition(specCopy, schemaKey, schemas[schemaKey], path, [schemaKey]);
       }
     }
     return specCopy;
@@ -66,13 +70,15 @@ export function rebaseOASDefinitions(fullSpec: any): OpenAPIV3.Document {
   }
 }
 
-function rebaseOASDefinition(fullSpec: any, schemaKey: string, schema: any, path: string): any {
+function rebaseOASDefinition(fullSpec: any, schemaKey: string, schema: any, path: string, definitionsPath: string[]): any {
   if (schema.definitions) {
     for (const defKey in schema.definitions) {
+      // current recursive definition path chain
+      const chain = [...definitionsPath, defKey];
       const newPath = `${path}.definitions.${defKey}`;
       const definition = dot.get(fullSpec, newPath);
-      fullSpec = rebaseOASDefinition(fullSpec, defKey, definition, newPath);
-      const newSchemaName = fullSpec.components.schemas[defKey] ? `${schemaKey}-${defKey}` : defKey;
+      fullSpec = rebaseOASDefinition(fullSpec, defKey, definition, newPath, chain);
+      const newSchemaName = `${chain.join('_')}`;
       // move to components/schemas and get a new ref related to the new path
       fullSpec = moveDefinition(fullSpec, newSchemaName, newPath);
     }

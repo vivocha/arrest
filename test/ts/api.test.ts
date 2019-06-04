@@ -464,7 +464,7 @@ describe('API', function() {
         .expect(400)
         .expect('Content-Type', /json/)
         .then(({ body: data }) => {
-          console.log(JSON.stringify(data, null, 2));
+          // console.log(JSON.stringify(data, null, 2));
           data.info.errors[0].errors[0].type.should.equal('level3');
           spy.should.have.been.called.once();
         });
