@@ -14,7 +14,7 @@ import { Resource } from './resource';
 import { SchemaResource } from './schema';
 import { Scopes } from './scopes';
 import { APIRequest, APIResponse } from './types';
-import { rebaseOASDefinitions, refsRebaser } from './utils';
+import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration } from './utils';
 import request = require('request');
 
 let reqId: number = 0;
@@ -87,7 +87,7 @@ export class API {
     if (!this.document.components.schemas) {
       this.document.components.schemas = {};
     }
-    this.document.components.schemas[name] = refs.rebase(name, schema, refsRebaser);
+    this.document.components.schemas[name] = removeSchemaDeclaration(refs.rebase(name, schema, refsRebaser));
   }
   registerDynamicSchema(name: string, schema: SchemaObject) {
     this.dynamicSchemas[name] = schema;

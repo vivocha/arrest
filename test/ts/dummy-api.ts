@@ -2,7 +2,9 @@ import { API } from '../../dist/api';
 import { Operation } from '../../dist/operation';
 import { Resource } from '../../dist/resource';
 
-const api = new API();
+/*
+ * Simple TEST API instances
+ */
 
 class Op1 extends Operation {
   count = 0;
@@ -19,7 +21,19 @@ class Op1 extends Operation {
   }
   attach(api) {
     api.registerSchema('op1_schema1', {
+      $schema: 'http://json-schema.org/schema#',
       type: 'object',
+      definitions: {
+        defA: {
+          type: 'string'
+        },
+        defB: {
+          type: 'object',
+          properties: {
+            propA: { $ref: '#/definitions/defA' }
+          }
+        }
+      },
       properties: {
         a: {
           type: 'boolean'
@@ -32,6 +46,7 @@ class Op1 extends Operation {
       required: ['a']
     });
     api.registerSchema('op1_schema2', {
+      $schema: 'http://json-schema.org/schema#',
       type: 'object',
       properties: {
         c: {
@@ -49,6 +64,8 @@ class Op1 extends Operation {
     res.json({ body: req.body, count: ++this.count });
   }
 }
+const simpleAPI: API = new API();
+simpleAPI.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
 
-api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
-api.listen(8888);
+export default simpleAPI;
+// api.listen(8888);

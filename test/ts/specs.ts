@@ -4077,3 +4077,54 @@ export const multiNestedSameNameDefSpec = {
     }
   }
 };
+export const jsonSchema = {
+  $schema: 'http://json-schema.org/schema#',
+  title: 'A JSON Schema',
+  type: 'object',
+  definitions: {
+    A1: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+    A2: {
+      type: 'object',
+      description: 'A2',
+      properties: {
+        a2Prop: { $ref: '#/components/schemas/A/definitions/A1' }
+      },
+      additionalProperties: false
+    }
+  },
+  properties: {
+    name: {
+      type: 'string',
+      description: 'A name'
+    },
+    description: {
+      type: 'string',
+      description: 'A descr'
+    }
+  }
+};
+export const notAJsonSchema = {
+  title: 'A JSON Schema',
+  type: 'object',
+  definitions: {
+    A1: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+    A2: {
+      type: 'object',
+      description: 'A2',
+      properties: {
+        a2Prop: { $ref: '#/components/schemas/A/definitions/A1' }
+      },
+      additionalProperties: false
+    }
+  },
+  properties: {
+    name: {
+      type: 'string',
+      description: 'A name'
+    },
+    description: {
+      type: 'string',
+      description: 'A descr'
+    }
+  }
+};

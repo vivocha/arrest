@@ -104,3 +104,16 @@ function updateRefs(spec: any, originalRef: string, newRef: string): any {
   let newSpec = JSON.parse(newSpecString);
   return newSpec;
 }
+
+/**
+ * Remove $schema property from a JSON Schema
+ *
+ * @param obj - the JSON Schema object
+ * @returns Object - the JSON Schema without $schema definition property
+ */
+export function removeSchemaDeclaration(obj: any): any {
+  if (obj.hasOwnProperty('$schema')) {
+    delete obj['$schema'];
+  }
+  return obj;
+}

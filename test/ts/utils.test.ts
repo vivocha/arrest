@@ -1,6 +1,6 @@
 import * as chai from 'chai';
-import { rebaseOASDefinitions, refsRebaser } from '../../dist/utils';
-import { complexSpec, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, simpleSpec } from './specs';
+import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration } from '../../dist/utils';
+import { complexSpec, jsonSchema, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, notAJsonSchema, simpleSpec } from './specs';
 
 const should = chai.should();
 
@@ -4108,6 +4108,67 @@ describe('utils', function() {
       //console.dir(rebased, { colors: true, depth: 20 });
       rebased.should.deep.equal(expectedSpec);
     });
+  });
+  describe('removeSchemaDeclaration()', function() {
+    it('should return the JSON Schema without the $schema declaration property for a JSON Schema in input with $schema property', function() {
+      const result = removeSchemaDeclaration(jsonSchema);
+      const expected = {
+        title: 'A JSON Schema',
+        type: 'object',
+        definitions: {
+          A1: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+          A2: {
+            type: 'object',
+            description: 'A2',
+            properties: {
+              a2Prop: { $ref: '#/components/schemas/A/definitions/A1' }
+            },
+            additionalProperties: false
+          }
+        },
+        properties: {
+          name: {
+            type: 'string',
+            description: 'A name'
+          },
+          description: {
+            type: 'string',
+            description: 'A descr'
+          }
+        }
+      }
+      result.should.deep.equal(expected);
+    });
+    it('should return the JSON Schema without the $schema declaration property for a JSON Schema in input without $schema property', function() {
+      const result = removeSchemaDeclaration(notAJsonSchema);
+      const expected = {
+        title: 'A JSON Schema',
+        type: 'object',
+        definitions: {
+          A1: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+          A2: {
+            type: 'object',
+            description: 'A2',
+            properties: {
+              a2Prop: { $ref: '#/components/schemas/A/definitions/A1' }
+            },
+            additionalProperties: false
+          }
+        },
+        properties: {
+          name: {
+            type: 'string',
+            description: 'A name'
+          },
+          description: {
+            type: 'string',
+            description: 'A descr'
+          }
+        }
+      }
+      result.should.deep.equal(expected);
+    });
+   
   });
   // tests for errors
   describe('rebaseOASDefinitions() errors', function() {
