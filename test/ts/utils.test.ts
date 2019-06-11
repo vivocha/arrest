@@ -1,6 +1,6 @@
 import * as chai from 'chai';
-import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration } from '../../dist/utils';
-import { complexSpec, jsonSchema, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, notAJsonSchema, simpleSpec } from './specs';
+import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/utils';
+import { complexSpec, jsonSchema, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, notAJsonSchema, simpleSpec, specWithReferencedParams, specWithReferencedSchemaProperty, specWithUnreferencedSchemas, specWithUnreferencedSchemas2, specWithUnreferencedSchemasButWrongRef, wrongSpec } from './specs';
 
 const should = chai.should();
 
@@ -4136,7 +4136,7 @@ describe('utils', function() {
             description: 'A descr'
           }
         }
-      }
+      };
       result.should.deep.equal(expected);
     });
     it('should return the JSON Schema without the $schema declaration property for a JSON Schema in input without $schema property', function() {
@@ -4165,16 +4165,326 @@ describe('utils', function() {
             description: 'A descr'
           }
         }
-      }
+      };
       result.should.deep.equal(expected);
     });
-   
   });
   // tests for errors
   describe('rebaseOASDefinitions() errors', function() {
     it('should throw an Error in case of a not valid spec', function() {
       const spec = { components: { schemas: { a: null } } };
       should.throw(() => rebaseOASDefinitions(spec), Error);
+    });
+  });
+  describe('removeUnusedSchemas()', function() {
+    it('should return an openapi spec clean from not referenced schemas and params', function() {
+      const result = removeUnusedSchemas(specWithUnreferencedSchemas);
+      const expected = {
+        openapi: '3.0.2',
+        info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+        components: {
+          schemas: {
+            A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } }
+          },
+          parameters: {},
+          responses: {
+            a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+            defaultError: {
+              description: 'error',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      err: { type: 'string' },
+                      msg: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        paths: {
+          '/test': {
+            get: {
+              operationId: 'a.query',
+              tags: ['a'],
+              responses: {
+                '200': {
+                  description: 'a get',
+                  content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } }
+                },
+                default: { $ref: '#/components/responses/defaultError' }
+              }
+            },
+            post: {
+              operationId: 'a.create',
+              tags: ['a'],
+              responses: {
+                '200': { description: 'a post', content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+            }
+          }
+        }
+      };
+      //console.dir(result, {colors: true, depth: 20});
+      result.should.deep.equal(expected);
+    });
+    it('should return an openapi spec clean from not referenced schemas and params, also in case of referencing properties', function() {
+      const result = removeUnusedSchemas(specWithUnreferencedSchemas2);
+      const expected = {
+        openapi: '3.0.2',
+        info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+        components: {
+          schemas: {
+            A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } }
+          },
+          parameters: {},
+          responses: {
+            a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+            defaultError: {
+              description: 'error',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      err: { type: 'string' },
+                      msg: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        paths: {
+          '/test': {
+            get: {
+              operationId: 'a.query',
+              tags: ['a'],
+              responses: {
+                '200': {
+                  description: 'a get',
+                  content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } }
+                },
+                default: { $ref: '#/components/responses/defaultError' }
+              }
+            },
+            post: {
+              operationId: 'a.create',
+              tags: ['a'],
+              responses: {
+                '200': { description: 'a post', content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+            }
+          }
+        }
+      };
+      //console.dir(result, {colors: true, depth: 20});
+      result.should.deep.equal(expected);
+    });
+    it('should return an openapi spec clean from not referenced schemas and params, also in case of referencing properties with wrong ref', function() {
+      const result = removeUnusedSchemas(specWithUnreferencedSchemasButWrongRef);
+      const expected = {
+        openapi: '3.0.2',
+        info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+        components: {
+          schemas: {
+            A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } }
+          },
+          parameters: {},
+          responses: {
+            a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+            defaultError: {
+              description: 'error',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      err: { type: 'string' },
+                      msg: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        paths: {
+          '/test': {
+            get: {
+              operationId: 'a.query',
+              tags: ['a'],
+              responses: {
+                '200': {
+                  description: 'a get',
+                  content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } }
+                },
+                default: { $ref: '#/components/responses/defaultError' }
+              }
+            },
+            post: {
+              operationId: 'a.create',
+              tags: ['a'],
+              responses: {
+                '200': { description: 'a post', content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+            }
+          }
+        }
+      };
+      //console.dir(result, {colors: true, depth: 20});
+      result.should.deep.equal(expected);
+    });
+    it('should return an openapi spec clean from not referenced schemas and params, also in case of references to a schema property', function() {
+      const result = removeUnusedSchemas(specWithReferencedSchemaProperty);
+      const expected = {
+        openapi: '3.0.2',
+        info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+        components: {
+          schemas: {
+            A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } }
+          },
+          parameters: {},
+          responses: {
+            a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+            defaultError: {
+              description: 'error',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      err: { type: 'string' },
+                      msg: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        paths: {
+          '/test': {
+            get: {
+              operationId: 'a.query',
+              tags: ['a'],
+              responses: {
+                '200': {
+                  description: 'a get',
+                  content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } }
+                },
+                default: { $ref: '#/components/responses/defaultError' }
+              }
+            },
+            post: {
+              operationId: 'a.create',
+              tags: ['a'],
+              responses: {
+                '200': { description: 'a post', content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+            }
+          }
+        }
+      };
+      //console.dir(result, {colors: true, depth: 20});
+      result.should.deep.equal(expected);
+    });
+    it('should return an openapi spec clean from not referenced schemas and params, leaving untouched the referenced ones', function() {
+      const result = removeUnusedSchemas(specWithReferencedParams);
+      const expected = {
+        openapi: '3.0.2',
+        info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+        components: {
+          schemas: {
+            A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } }
+          },
+          parameters: {
+            sort: {
+              name: 'sort',
+              in: 'query',
+              schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+            }
+          },
+          responses: {
+            a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+            defaultError: {
+              description: 'error',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      err: { type: 'string' },
+                      msg: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        paths: {
+          '/test': {
+            get: {
+              operationId: 'a.query',
+              tags: ['a'],
+              responses: {
+                '200': {
+                  description: 'a get',
+                  content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } }
+                },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              parameters: [
+                {
+                  $ref: '#/components/parameters/sort'
+                }
+              ]
+            },
+            post: {
+              operationId: 'a.create',
+              tags: ['a'],
+              responses: {
+                '200': { description: 'a post', content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+            }
+          }
+        }
+      };
+      //console.dir(result, {colors: true, depth: 20});
+      result.should.deep.equal(expected);
+    });
+    it('should throw in case of not valid spec', function() {      
+      should.throw(() => removeUnusedSchemas(wrongSpec), Error);
     });
   });
 });

@@ -1,4 +1,5 @@
 import * as dot from 'dot-prop';
+import * as _ from 'lodash';
 import { OpenAPIV3 } from 'openapi-police';
 
 /*
@@ -116,4 +117,137 @@ export function removeSchemaDeclaration(obj: any): any {
     delete obj['$schema'];
   }
   return obj;
+}
+
+export interface OccurrencesTable {
+  schemas: Occurrence | {};
+  parameters: Occurrence | {};
+  responses: Occurrence | {};
+}
+export interface Occurrence {
+  count: number;
+  referencedBy: string[];
+}
+/**
+ * Remove all schema definitions from spec.components.schemas, from spec.components.parameters,
+ * and from spec.components.responses when there isn't any $ref poiting to them.
+ * The functions modifies the document in input.
+ *
+ * @param spec - the OpenAPIV3.Document to "clean"
+ * @returns the clean OpenAPIV3.Document
+ */
+export function removeUnusedSchemas(spec: OpenAPIV3.Document): OpenAPIV3.Document {
+  // init occurrences table object
+  const occurrences: OccurrencesTable = { schemas: {}, parameters: {}, responses: {} };
+  if (spec.components && spec.components.schemas) {
+    for (const schema of Object.keys(spec.components.schemas)) {
+      occurrences.schemas[schema] = { count: 0, referencedBy: [] };
+    }
+  }
+  if (spec.components && spec.components.parameters) {
+    for (const param of Object.keys(spec.components.parameters)) {
+      occurrences.parameters[param] = { count: 0, referencedBy: [] };
+    }
+  }
+  if (spec.components && spec.components.responses) {
+    for (const response of Object.keys(spec.components.responses)) {
+      occurrences.responses[response] = { count: 0, referencedBy: [] };
+    }
+  }
+  // visited objects properties registry
+  const parsedProps: any[] = [];
+  try {
+    // build occurrences table
+    (function findAndCount(obj: any, path: string[] = []) {
+      for (const key of Object.keys(obj)) {
+        const currentPath = [...path, key];
+        if (key === '$ref') {
+          const refPath = obj[key].split('/');
+          let type;
+          let schemaName;
+          // set the type of the reference: to schemas, to parameters, or to responses
+          // in case of a reference to a property, type it is set to schemas.
+          if (refPath[refPath.length - 2] !== 'properties') {
+            type = refPath[refPath.length - 2];
+          } else {
+            type = refPath[refPath.length - 4];
+          }
+          // in case of a ref like #/components/schemas/A or #/components/parameters/A or #/components/responses/A
+          if (['schemas', 'parameters', 'responses'].includes(refPath[refPath.length - 2])) {
+            schemaName = refPath[refPath.length - 1];
+          } else if (refPath[refPath.length - 2] === 'properties') {
+            // in case of a ref like #/components/schemas/A/properties/B
+            // schema name is A, then:
+            schemaName = refPath[refPath.length - 3];
+          }
+          if (['schemas', 'parameters', 'responses'].includes(type)) {
+            occurrences[type][schemaName]['count'] += 1;
+            occurrences[type][schemaName]['referencedBy'].push(currentPath.slice(0, 3).join('.'));
+          }
+        }
+        const prop = obj[key];
+        if (prop && typeof prop === 'object') {
+          if (!Array.isArray(prop)) {
+            if (!parsedProps.find(p => p === prop)) {
+              parsedProps.push(prop);
+              findAndCount(prop, currentPath);
+            }
+          } else {
+            // the property value is an array
+            for (let i = 0; i < prop.length; i++) {
+              findAndCount(prop[i], currentPath);
+            }
+          }
+        }
+      }
+    })(spec);
+    // delete unreferenced elements from openapi spec
+    spec = deleteUnreferencedElements(occurrences, spec);
+  } catch (error) {
+    throw new Error(error);
+  }
+  return spec;
+}
+
+function deleteUnreferencedElements(occurrences: any, spec: OpenAPIV3.Document): OpenAPIV3.Document {
+  spec = deleteUnreferencedSchemas(occurrences, spec);
+  spec = deleteUnreferencedParameters(occurrences, spec);
+  return spec;
+}
+
+function deleteUnreferencedSchemas(occurrences: any, spec: OpenAPIV3.Document): OpenAPIV3.Document {
+  // remove all schemas with count === 0 in occurrences table
+  let toDelete = Object.keys(_.pickBy(occurrences['schemas'], value => value.count === 0));
+  for (const key of toDelete) {
+    // current schema path to delete from spec
+    const pathToDelete = `components.schemas.${key}`;
+    // first, find if the current schema is referenced by other schemas
+    const referencedBy = _.pickBy(occurrences['schemas'], (value, key) => _.find(value.referencedBy, value => value === pathToDelete));
+    if (referencedBy && !_.isEmpty(referencedBy)) {
+      // in case of existing references to the current schema
+      const referencedByKey = Object.keys(referencedBy)[0];
+      const referencedByPath = `components.schemas.${referencedByKey}`;
+      if (referencedBy[referencedByKey].count - 1 === 0) {
+        // current schema was the last reference in the other schema referencing it, then remove also that schema
+        dot.delete(spec as any, referencedByPath);
+      } else {
+        // or, update the referencing schema removing the current schema
+        dot.set(occurrences['schemas'] as any, referencedByKey, {
+          count: referencedBy[referencedByKey].count - 1,
+          referencedBy: _.remove(referencedBy[referencedByKey].referencedBy, v => v === referencedByPath)
+        });
+      }
+    }
+    // finally, delete the current schema with count === 0
+    dot.delete(spec as any, pathToDelete);
+  }
+  return spec;
+}
+
+function deleteUnreferencedParameters(occurrences: any, spec: OpenAPIV3.Document): OpenAPIV3.Document {
+  const toDelete = Object.keys(_.pickBy(occurrences['parameters'], value => value.count === 0));
+  for (const paramName of toDelete) {
+    dot.delete(spec as any, `components.parameters.${paramName}`);
+  }
+  return spec;
 }

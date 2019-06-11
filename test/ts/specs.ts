@@ -1,3 +1,5 @@
+import { OpenAPIV3 } from 'openapi-police';
+
 export const complexSpec = {
   openapi: '3.0.2',
   info: { title: 'Test Server REST API v3 complete, as created by ARREST', version: '7.0.0-dev1' },
@@ -4125,6 +4127,530 @@ export const notAJsonSchema = {
     description: {
       type: 'string',
       description: 'A descr'
+    }
+  }
+};
+export const specWithUnreferencedSchemas: OpenAPIV3.Document = {
+  openapi: '3.0.2',
+  info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+  components: {
+    schemas: {
+      A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      C: { description: 'C', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      A_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/A_defA' } }, additionalProperties: false },
+      B_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      B_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/B_defA' } }, additionalProperties: false },
+      C_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      C_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/C_defA' } }, additionalProperties: false }
+    },
+    responses: {
+      a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+  
+      defaultError: {
+        description: 'error',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                err: { type: 'string' },
+                msg: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    },
+    parameters: {
+      id: { name: 'id', in: 'path', schema: { type: 'string' }, required: true },
+      limit: {
+        name: 'limit',
+        in: 'query',
+
+        schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 }
+      },
+      skip: { name: 'skip', in: 'query', schema: { type: 'integer', default: 0, minimum: 0 } },
+      memoNemos: {
+        name: 'memoNemos',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+      sort: {
+        name: 'sort',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+
+      version: { name: 'version', in: 'path', schema: { type: 'integer' }, required: true }
+    }
+  },  
+  paths: {
+    '/test': {
+      get: {
+        operationId: 'a.query',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a get',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' }
+        }
+      },
+      post: {
+        operationId: 'a.create',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a post', 
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' },
+        },       
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+      }
+    }
+  }
+};
+export const specWithUnreferencedSchemas2: OpenAPIV3.Document = {
+  openapi: '3.0.2',
+  info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+  components: {
+    schemas: {
+      A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      C: { description: 'C', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      D: { description: 'D', type: 'object', properties: { name: { $ref:'#/components/schemas/C' }, description: { type: 'string' } } },
+      A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      A_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/A_defA' } }, additionalProperties: false },
+      B_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      B_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/B_defA' } }, additionalProperties: false },
+      C_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      C_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/C_defA' } }, additionalProperties: false }
+    },
+    responses: {
+      a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+  
+      defaultError: {
+        description: 'error',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                err: { type: 'string' },
+                msg: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    },
+    parameters: {
+      id: { name: 'id', in: 'path', schema: { type: 'string' }, required: true },
+      limit: {
+        name: 'limit',
+        in: 'query',
+
+        schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 }
+      },
+      skip: { name: 'skip', in: 'query', schema: { type: 'integer', default: 0, minimum: 0 } },
+      memoNemos: {
+        name: 'memoNemos',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+      sort: {
+        name: 'sort',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+
+      version: { name: 'version', in: 'path', schema: { type: 'integer' }, required: true }
+    }
+  },  
+  paths: {
+    '/test': {
+      get: {
+        operationId: 'a.query',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a get',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' }
+        }
+      },
+      post: {
+        operationId: 'a.create',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a post', 
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' },
+        },       
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+      }
+    }
+  }
+};
+export const specWithReferencedParams: OpenAPIV3.Document = {
+  openapi: '3.0.2',
+  info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+  components: {
+    schemas: {
+      A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      C: { description: 'C', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      D: { description: 'D', type: 'object', properties: { name: { $ref:'#/components/schemas/C' }, description: { type: 'string' } } },
+      A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      A_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/A_defA' } }, additionalProperties: false },
+      B_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      B_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/B_defA' } }, additionalProperties: false },
+      C_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      C_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/C_defA' } }, additionalProperties: false }
+    },
+    responses: {
+      a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+  
+      defaultError: {
+        description: 'error',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                err: { type: 'string' },
+                msg: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    },
+    parameters: {
+      id: { name: 'id', in: 'path', schema: { type: 'string' }, required: true },
+      limit: {
+        name: 'limit',
+        in: 'query',
+
+        schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 }
+      },
+      skip: { name: 'skip', in: 'query', schema: { type: 'integer', default: 0, minimum: 0 } },
+      memoNemos: {
+        name: 'memoNemos',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+      sort: {
+        name: 'sort',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+
+      version: { name: 'version', in: 'path', schema: { type: 'integer' }, required: true }
+    }
+  },  
+  paths: {
+    '/test': {
+      get: {
+        operationId: 'a.query',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a get',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' }
+        },
+        parameters: [{
+          $ref: '#/components/parameters/sort'
+        }]
+      },
+      post: {
+        operationId: 'a.create',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a post', 
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' },
+        },       
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+      }
+    }
+  }
+};
+export const specWithReferencedSchemaProperty: OpenAPIV3.Document = {
+  openapi: '3.0.2',
+  info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+  components: {
+    schemas: {
+      A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      C: { description: 'C', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      D: { description: 'D', type: 'object', properties: { name: { $ref:'#/components/schemas/C/properties/name' }, description: { type: 'string' } } },
+      A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      A_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/A_defA' } }, additionalProperties: false },
+      B_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      B_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/B_defA' } }, additionalProperties: false },
+      C_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      C_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/C_defA' } }, additionalProperties: false }
+    },
+    responses: {
+      a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+  
+      defaultError: {
+        description: 'error',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                err: { type: 'string' },
+                msg: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    },
+    parameters: {
+      id: { name: 'id', in: 'path', schema: { type: 'string' }, required: true },
+      limit: {
+        name: 'limit',
+        in: 'query',
+
+        schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 }
+      },
+      skip: { name: 'skip', in: 'query', schema: { type: 'integer', default: 0, minimum: 0 } },
+      memoNemos: {
+        name: 'memoNemos',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+      sort: {
+        name: 'sort',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+
+      version: { name: 'version', in: 'path', schema: { type: 'integer' }, required: true }
+    }
+  },  
+  paths: {
+    '/test': {
+      get: {
+        operationId: 'a.query',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a get',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' }
+        }
+      },
+      post: {
+        operationId: 'a.create',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a post', 
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' },
+        },       
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+      }
+    }
+  }
+};
+export const specWithUnreferencedSchemasButWrongRef: OpenAPIV3.Document = {
+  openapi: '3.0.2',
+  info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+  components: {
+    schemas: {
+      A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      C: { description: 'C', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      D: { description: 'D', type: 'object', properties: { name: { $ref:'#/components/other/C' }, description: { type: 'string' } } },
+      A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      A_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/A_defA' } }, additionalProperties: false },
+      B_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      B_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/B_defA' } }, additionalProperties: false },
+      C_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      C_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/C_defA' } }, additionalProperties: false }
+    },
+    responses: {
+      a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+  
+      defaultError: {
+        description: 'error',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                err: { type: 'string' },
+                msg: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    },
+    parameters: {
+      id: { name: 'id', in: 'path', schema: { type: 'string' }, required: true },
+      limit: {
+        name: 'limit',
+        in: 'query',
+
+        schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 }
+      },
+      skip: { name: 'skip', in: 'query', schema: { type: 'integer', default: 0, minimum: 0 } },
+      memoNemos: {
+        name: 'memoNemos',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+      sort: {
+        name: 'sort',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+
+      version: { name: 'version', in: 'path', schema: { type: 'integer' }, required: true }
+    }
+  },  
+  paths: {
+    '/test': {
+      get: {
+        operationId: 'a.query',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a get',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' }
+        }
+      },
+      post: {
+        operationId: 'a.create',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a post', 
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' },
+        },       
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+      }
+    }
+  }
+};
+export const wrongSpec: any = {
+  openapi: '3.0.2',
+  info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+  components: {
+    schemas: {
+      A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      C: { description: 'C', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      D: { description: 'D', type: 'object', properties: { name: { $ref:[] }, description: { type: 'string' } } },
+      A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      A_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/A_defA' } }, additionalProperties: false },
+      B_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      B_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/B_defA' } }, additionalProperties: false },
+      C_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      C_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/C_defA' } }, additionalProperties: false }
+    },
+    responses: {
+      a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+  
+      defaultError: {
+        description: 'error',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                err: { type: 'string' },
+                msg: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    },
+    parameters: {
+      id: { name: 'id', in: 'path', schema: { type: 'string' }, required: true },
+      limit: {
+        name: 'limit',
+        in: 'query',
+
+        schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 }
+      },
+      skip: { name: 'skip', in: 'query', schema: { type: 'integer', default: 0, minimum: 0 } },
+      memoNemos: {
+        name: 'memoNemos',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+      sort: {
+        name: 'sort',
+        in: 'query',
+
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+
+      version: { name: 'version', in: 'path', schema: { type: 'integer' }, required: true }
+    }
+  },  
+  paths: {
+    '/test': {
+      get: {
+        operationId: 'a.query',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a get',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' }
+        }
+      },
+      post: {
+        operationId: 'a.create',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a post', 
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' },
+        },       
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+      }
     }
   }
 };
