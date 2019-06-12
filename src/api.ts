@@ -14,7 +14,7 @@ import { Resource } from './resource';
 import { SchemaResource } from './schema';
 import { Scopes } from './scopes';
 import { APIRequest, APIResponse } from './types';
-import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration } from './utils';
+import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from './utils';
 import request = require('request');
 
 let reqId: number = 0;
@@ -183,6 +183,8 @@ export class API {
 
         // Move definitions into #/components/schemas/ as schemas
         this.document = rebaseOASDefinitions(this.document);
+        // Remove unused schemas and parameters from openapi spec
+        this.document = removeUnusedSchemas(this.document);
 
         const originalDocument = _.cloneDeep(this.document);
         router.get('/openapi.json', (req: APIRequest, res: APIResponse, next: NextFunction) => {

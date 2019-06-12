@@ -1123,14 +1123,6 @@ describe('API', function() {
         },
         components: {
           schemas: {
-            metadata: {
-              description: 'Metadata associated with the resource',
-              type: 'object'
-            },
-            objectId: {
-              description: 'Name of the property storing the unique identifier of the resource',
-              type: 'string'
-            },
             errorResponse: {
               type: 'object',
               properties: {
@@ -1175,17 +1167,6 @@ describe('API', function() {
               },
               additionalProperties: false,
               required: ['d']
-            },
-            op1_schema1_defA: {
-              type: 'string'
-            },
-            op1_schema1_defB: {
-              type: 'object',
-              properties: {
-                propA: {
-                  $ref: '#/components/schemas/op1_schema1_defA'
-                }
-              }
             }
           },
           responses: {
@@ -1219,60 +1200,6 @@ describe('API', function() {
                 type: 'string'
               },
               required: true
-            },
-            limit: {
-              name: 'limit',
-              in: 'query',
-              description: 'Maximum number of items to return',
-              schema: {
-                type: 'integer',
-                default: 20,
-                minimum: 1,
-                maximum: 100
-              }
-            },
-            skip: {
-              name: 'skip',
-              in: 'query',
-              description: 'Skip the specified number of items',
-              schema: {
-                type: 'integer',
-                default: 0,
-                minimum: 0
-              }
-            },
-            fields: {
-              name: 'fields',
-              in: 'query',
-              description: 'Return only the specified properties',
-              schema: {
-                type: 'array',
-                items: {
-                  type: 'string'
-                },
-                uniqueItems: true
-              }
-            },
-            sort: {
-              name: 'sort',
-              in: 'query',
-              description: 'Sorting criteria, using RQL syntax (a,-b,+c)',
-              schema: {
-                type: 'array',
-                items: {
-                  type: 'string'
-                },
-                uniqueItems: true
-              }
-            },
-            query: {
-              name: 'q',
-              in: 'query',
-              description:
-                'Return only items matching the specified [RQL](https://github.com/persvr/rql) query. This parameter can also be used to specify the ordering criteria of the results',
-              schema: {
-                type: 'string'
-              }
             }
           }
         },
