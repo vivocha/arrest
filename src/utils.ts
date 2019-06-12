@@ -181,8 +181,13 @@ export function removeUnusedSchemas(spec: OpenAPIV3.Document): OpenAPIV3.Documen
             schemaName = refPath[refPath.length - 3];
           }
           if (['schemas', 'parameters', 'responses'].includes(type)) {
-            occurrences[type][schemaName]['count'] += 1;
-            occurrences[type][schemaName]['referencedBy'].push(currentPath.slice(0, 3).join('.'));
+            // check if the reference points to an existing path in spec
+            if (!dot.get(spec as any, refPath.slice(1).join('.'))) {
+              throw new Error(`Referenced path "${obj[key]}" doesn't exist in spec.`);
+            } else {
+              occurrences[type][schemaName]['count'] += 1;
+              occurrences[type][schemaName]['referencedBy'].push(currentPath.slice(0, 3).join('.'));
+            }
           }
         }
         const prop = obj[key];
@@ -204,7 +209,7 @@ export function removeUnusedSchemas(spec: OpenAPIV3.Document): OpenAPIV3.Documen
     // delete unreferenced elements from openapi spec
     spec = deleteUnreferencedElements(occurrences, spec);
   } catch (error) {
-    throw new Error(error);
+    throw new Error('Error removing unreferenced schemas. Check openapi spec document and schemas.' + error.message);
   }
   return spec;
 }

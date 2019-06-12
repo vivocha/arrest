@@ -1,6 +1,6 @@
 import * as chai from 'chai';
 import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/utils';
-import { complexSpec, jsonSchema, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, notAJsonSchema, simpleSpec, specWithReferencedParams, specWithReferencedSchemaProperty, specWithUnreferencedSchemas, specWithUnreferencedSchemas2, specWithUnreferencedSchemasButWrongRef, wrongSpec } from './specs';
+import { complexSpec, jsonSchema, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, notAJsonSchema, simpleSpec, specWithReferencedParams, specWithReferencedSchemaProperty, specWithUnreferencedSchemas, specWithUnreferencedSchemas2, specWithUnreferencedSchemasAndReferencingParams, specWithUnreferencedSchemasButWrongRef, specWithWrongParamRef, wrongSpec } from './specs';
 
 const should = chai.should();
 
@@ -4482,9 +4482,74 @@ describe('utils', function() {
       };
       //console.dir(result, {colors: true, depth: 20});
       result.should.deep.equal(expected);
+    });    
+    it('should throw in case of not valid spec', function() {
+      should.throw(() => removeUnusedSchemas(wrongSpec), Error, 'Error removing unreferenced schemas. Check openapi spec document and schemas.');
     });
-    it('should throw in case of not valid spec', function() {      
-      should.throw(() => removeUnusedSchemas(wrongSpec), Error);
+    it('should return an openapi spec clean from not referenced schemas and params, also in case of referencing properties', function() {
+      const result = removeUnusedSchemas(specWithUnreferencedSchemasAndReferencingParams);
+      const expected = {
+        openapi: '3.0.2',
+        info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+        components: {
+          schemas: {
+            A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+            C: { description: 'C', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+            D: { description: 'D', type: 'object', properties: { name: { $ref:'#/components/schemas/C' }, description: { type: 'string' } } },
+          },
+          parameters: { aParam: {name: 'aParam', in: 'path', schema: {$ref: '#/components/schemas/D'}}},
+          responses: {
+            a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },
+            defaultError: {
+              description: 'error',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      err: { type: 'string' },
+                      msg: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        paths: {
+          '/test': {
+            get: {
+              operationId: 'a.query',
+              tags: ['a'],
+              responses: {
+                '200': {
+                  description: 'a get',
+                  content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+                },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              parameters: [{$ref: '#/components/parameters/aParam'}]
+            },
+            post: {
+              operationId: 'a.create',
+              tags: ['a'],
+              responses: {
+                '200': { description: 'a post', content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+            }
+          }
+        }
+      };
+      //console.dir(result, {colors: true, depth: 20});
+      result.should.deep.equal(expected);
+    });
+    it('should throw in case of a not existing path in spec', function() {
+      should.throw(() => removeUnusedSchemas(specWithWrongParamRef), Error, 'Referenced path "#/components/responses/aParam" doesn\'t exist in spec.');
     });
   });
 });
