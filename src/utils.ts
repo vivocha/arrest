@@ -119,6 +119,9 @@ export function removeSchemaDeclaration(obj: any): any {
   return obj;
 }
 
+/**
+ *  Types for counting occurrences of schemas and parameters in openapi specs
+ */
 export interface OccurrencesTable {
   schemas: Occurrence | {};
   parameters: Occurrence | {};
@@ -130,8 +133,8 @@ export interface Occurrence {
 }
 /**
  * Remove all schema definitions from spec.components.schemas, from spec.components.parameters,
- * and from spec.components.responses when there isn't any $ref poiting to them.
- * The functions modifies the document in input.
+ * and from spec.components.responses when there isn't any $ref pointing to them.
+ * The function modifies the document passed in input.
  *
  * @param spec - the OpenAPIV3.Document to "clean"
  * @returns the clean OpenAPIV3.Document
@@ -157,23 +160,27 @@ export function removeUnusedSchemas(spec: OpenAPIV3.Document): OpenAPIV3.Documen
   // visited objects properties registry
   const parsedProps: any[] = [];
   try {
-    // build occurrences table
+    // build the occurrences table
     (function findAndCount(obj: any, path: string[] = []) {
       for (const key of Object.keys(obj)) {
         const currentPath = [...path, key];
         if (key === '$ref') {
           const refPath = obj[key].split('/');
-          let type;
+          let type: string;
           let schemaName;
-          // set the type of the reference: to schemas, to parameters, or to responses
-          // in case of a reference to a property, type it is set to schemas.
+          // set the type of the reference: to "schemas", to "parameters", or to "responses"
+          // in case of a reference to a property, type is set to "schemas".
           if (refPath[refPath.length - 2] !== 'properties') {
+            // if ref path is like:  #/components/schemas/A
             type = refPath[refPath.length - 2];
           } else {
+            // or, if ref path is like:  #/components/schemas/A/properties/a
             type = refPath[refPath.length - 4];
           }
-          // in case of a ref like #/components/schemas/A or #/components/parameters/A or #/components/responses/A
+
           if (['schemas', 'parameters', 'responses'].includes(refPath[refPath.length - 2])) {
+            // in case of a ref like #/components/schemas/A or #/components/parameters/A or #/components/responses/A
+            // schema name is the last element of the path
             schemaName = refPath[refPath.length - 1];
           } else if (refPath[refPath.length - 2] === 'properties') {
             // in case of a ref like #/components/schemas/A/properties/B
@@ -191,6 +198,7 @@ export function removeUnusedSchemas(spec: OpenAPIV3.Document): OpenAPIV3.Documen
           }
         }
         const prop = obj[key];
+        // recursively find and count...
         if (prop && typeof prop === 'object') {
           if (!Array.isArray(prop)) {
             if (!parsedProps.find(p => p === prop)) {
@@ -236,11 +244,15 @@ function deleteUnreferencedSchemas(occurrences: any, spec: OpenAPIV3.Document): 
         // current schema was the last reference in the other schema referencing it, then remove also that schema
         dot.delete(spec as any, referencedByPath);
       } else {
-        // or, update the referencing schema removing the current schema
-        dot.set(occurrences['schemas'] as any, referencedByKey, {
+        // or, update the referencing schema removing the current schema:
+        // remove the entry from the referencedBy array in occurrences table
+        _.remove(referencedBy[referencedByKey].referencedBy, v => v === referencedByPath);
+        // update occurrence to save in occurrences table
+        const updatedOccurrence = {
           count: referencedBy[referencedByKey].count - 1,
-          referencedBy: _.remove(referencedBy[referencedByKey].referencedBy, v => v === referencedByPath)
-        });
+          referencedBy: referencedBy[referencedByKey].referencedBy
+        };
+        dot.set(occurrences['schemas'] as any, referencedByKey, updatedOccurrence);
       }
     }
     // finally, delete the current schema with count === 0

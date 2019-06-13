@@ -4822,3 +4822,118 @@ export const specWithWrongParamRef: OpenAPIV3.Document = {
     }
   }
 };
+
+export const specWithSchemaWithMultipleRefs: OpenAPIV3.Document = { 
+  openapi: '3.0.2',
+    info:
+    { title: 'simpleAPI4',
+      version: '1.1.1',
+      contact: { email: 'me@test.org' } },
+    components:
+    { schemas:
+        { metadata:
+          { description: 'Metadata associated with the resource',
+            type: 'object' },
+          objectId:
+          { description:
+              'Name of the property storing the unique identifier of the resource',
+            type: 'string' },
+          errorResponse:
+          { type: 'object',
+            properties:
+              { error: { type: 'integer', minimum: 100 },
+                message: { type: 'string' },
+                info: { type: 'string' } },
+            required: [ 'error', 'message' ] },
+          op1_schema1:
+          { type: 'object',
+            properties: { a: { type: 'boolean' }, b: { type: 'integer' } },
+            additionalProperties: false,
+            required: [ 'a' ] },
+          op1_schema2:
+          { type: 'object',
+            properties:
+              { c: { '$ref': '#/components/schemas/op1_schema1_defA_settings' },
+                d: { '$ref': '#/components/schemas/op1_schema1' },
+                e: { '$ref': '#/components/schemas/op1_schema1/properties/b' } },
+            additionalProperties: false,
+            required: [ 'd' ] },
+          op1_schema1_defA_settings: { type: 'object' },
+          op1_schema1_defA: { type: 'string' },
+          op1_schema1_defB:
+          { type: 'object',
+            properties:
+              { propA: { '$ref': '#/components/schemas/op1_schema1_defA' } } },
+          op1_schema1_defC:
+          { type: 'object',
+            properties:
+              { propA: { '$ref': '#/components/schemas/op1_schema1_defA' } } } },
+      responses:
+        { defaultError:
+          { description: 'Default/generic error response',
+            content:
+              { 'application/json': { schema: { '$ref': '#/components/schemas/errorResponse' } } } },
+          notFound:
+          { description: 'The requested/specified resource was not found',
+            content:
+              { 'application/json': { schema: { '$ref': '#/components/schemas/errorResponse' } } } } },
+      parameters:
+        { id:
+          { description: 'Unique identifier of the resource',
+            name: 'id',
+            in: 'path',
+            schema: { type: 'string' },
+            required: true },
+          limit:
+          { name: 'limit',
+            in: 'query',
+            description: 'Maximum number of items to return',
+            schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 } },
+          skip:
+          { name: 'skip',
+            in: 'query',
+            description: 'Skip the specified number of items',
+            schema: { type: 'integer', default: 0, minimum: 0 } },
+          fields:
+          { name: 'fields',
+            in: 'query',
+            description: 'Return only the specified properties',
+            schema:
+              { type: 'array', items: { type: 'string' }, uniqueItems: true } },
+          sort:
+          { name: 'sort',
+            in: 'query',
+            description: 'Sorting criteria, using RQL syntax (a,-b,+c)',
+            schema:
+              { type: 'array', items: { type: 'string' }, uniqueItems: true } },
+          query:
+          { name: 'q',
+            in: 'query',
+            description:
+              'Return only items matching the specified [RQL](https://github.com/persvr/rql) query. This parameter can also be used to specify the ordering criteria of the results',
+            schema: { type: 'string' } } } },
+    paths:
+    { '/things/foo':
+        { post:
+          { operationId: 'thing.anOperation',
+            tags: [ 'thing' ],
+            responses:
+              { default: { '$ref': '#/components/responses/defaultError' } },
+            requestBody:
+              { content:
+                { 'application/json': { schema: { '$ref': '#/components/schemas/op1_schema2' } } },
+                required: true } } },
+      '/schemas/{id}':
+        { get:
+          { operationId: 'Schema.read',
+            tags: [ 'Schema' ],
+            responses:
+              { '200':
+                { description: 'The requested JSON Schema',
+                  content: { 'application/json': { schema: { type: 'object' } } } },
+                '404': { '$ref': '#/components/responses/notFound' },
+                default: { '$ref': '#/components/responses/defaultError' } },
+            summary: 'Retrieve a JSON Schema by id',
+            parameters: [ { '$ref': '#/components/parameters/id' } ] } } },
+    tags: [ { name: 'thing' }, { name: 'Schema' } ] 
+}

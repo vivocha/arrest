@@ -1,6 +1,6 @@
 import * as chai from 'chai';
 import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/utils';
-import { complexSpec, jsonSchema, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, notAJsonSchema, simpleSpec, specWithReferencedParams, specWithReferencedSchemaProperty, specWithUnreferencedSchemas, specWithUnreferencedSchemas2, specWithUnreferencedSchemasAndReferencingParams, specWithUnreferencedSchemasButWrongRef, specWithWrongParamRef, wrongSpec } from './specs';
+import { complexSpec, jsonSchema, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, notAJsonSchema, simpleSpec, specWithReferencedParams, specWithReferencedSchemaProperty, specWithSchemaWithMultipleRefs, specWithUnreferencedSchemas, specWithUnreferencedSchemas2, specWithUnreferencedSchemasAndReferencingParams, specWithUnreferencedSchemasButWrongRef, specWithWrongParamRef, wrongSpec } from './specs';
 
 const should = chai.should();
 
@@ -4236,6 +4236,165 @@ describe('utils', function() {
       //console.dir(result, {colors: true, depth: 20});
       result.should.deep.equal(expected);
     });
+    it('should return an openapi spec clean also in case of multiple references to a schema', function() {
+      const result = removeUnusedSchemas(specWithSchemaWithMultipleRefs);
+      const expected = {
+        openapi: '3.0.2',
+        info: {
+          title: 'simpleAPI4',
+          version: '1.1.1',
+          contact: { email: 'me@test.org' }
+        },
+        components: {
+          schemas: {
+            errorResponse: {
+              type: 'object',
+              properties: {
+                error: {
+                  type: 'integer',
+                  minimum: 100
+                },
+                message: {
+                  type: 'string'
+                },
+                info: {
+                  type: 'string'
+                }
+              },
+              required: ['error', 'message']
+            },
+            op1_schema1: {
+              type: 'object',
+              properties: {
+                a: {
+                  type: 'boolean'
+                },
+                b: {
+                  type: 'integer'
+                }
+              },
+              additionalProperties: false,
+              required: ['a']
+            },
+            op1_schema1_defA_settings: {
+              type: 'object'
+            },
+            op1_schema2: {
+              type: 'object',
+              properties: {
+                c: {
+                  $ref: '#/components/schemas/op1_schema1_defA_settings'
+                },
+                d: {
+                  $ref: '#/components/schemas/op1_schema1'
+                },
+                e: {
+                  $ref: '#/components/schemas/op1_schema1/properties/b'
+                }
+              },
+              additionalProperties: false,
+              required: ['d']
+            }
+          },
+          responses: {
+            defaultError: {
+              description: 'Default/generic error response',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/errorResponse'
+                  }
+                }
+              }
+            },
+            notFound: {
+              description: 'The requested/specified resource was not found',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/errorResponse'
+                  }
+                }
+              }
+            }
+          },
+          parameters: {
+            id: {
+              description: 'Unique identifier of the resource',
+              name: 'id',
+              in: 'path',
+              schema: {
+                type: 'string'
+              },
+              required: true
+            }
+          }
+        },
+        paths: {
+          '/things/foo': {
+            post: {
+              operationId: 'thing.anOperation',
+              tags: ['thing'],
+              responses: {
+                default: {
+                  $ref: '#/components/responses/defaultError'
+                }
+              },
+              requestBody: {
+                content: {
+                  'application/json': {
+                    schema: {
+                      $ref: '#/components/schemas/op1_schema2'
+                    }
+                  }
+                },
+                required: true
+              }
+            }
+          },
+          '/schemas/{id}': {
+            get: {
+              operationId: 'Schema.read',
+              tags: ['Schema'],
+              responses: {
+                '200': {
+                  description: 'The requested JSON Schema',
+                  content: {
+                    'application/json': {
+                      schema: {
+                        type: 'object'
+                      }
+                    }
+                  }
+                },
+                '404': {
+                  $ref: '#/components/responses/notFound'
+                },
+                default: {
+                  $ref: '#/components/responses/defaultError'
+                }
+              },
+              summary: 'Retrieve a JSON Schema by id',
+              parameters: [
+                {
+                  $ref: '#/components/parameters/id'
+                }
+              ]
+            }
+          }
+        },
+        tags: [
+          {
+            name: 'thing'
+          },
+          {
+            name: 'Schema'
+          }
+        ]
+      };
+      //console.dir(result, {colors: true, depth: 20});
+      result.should.deep.equal(expected);
+    });
     it('should return an openapi spec clean from not referenced schemas and params, also in case of referencing properties', function() {
       const result = removeUnusedSchemas(specWithUnreferencedSchemas2);
       const expected = {
@@ -4482,7 +4641,7 @@ describe('utils', function() {
       };
       //console.dir(result, {colors: true, depth: 20});
       result.should.deep.equal(expected);
-    });    
+    });
     it('should throw in case of not valid spec', function() {
       should.throw(() => removeUnusedSchemas(wrongSpec), Error, 'Error removing unreferenced schemas. Check openapi spec document and schemas.');
     });
