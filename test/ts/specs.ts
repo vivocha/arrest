@@ -4822,7 +4822,6 @@ export const specWithWrongParamRef: OpenAPIV3.Document = {
     }
   }
 };
-
 export const specWithSchemaWithMultipleRefs: OpenAPIV3.Document = { 
   openapi: '3.0.2',
     info:
@@ -4937,3 +4936,87 @@ export const specWithSchemaWithMultipleRefs: OpenAPIV3.Document = {
             parameters: [ { '$ref': '#/components/parameters/id' } ] } } },
     tags: [ { name: 'thing' }, { name: 'Schema' } ] 
 }
+export const specWithWrongComplexRef: OpenAPIV3.Document = {
+  openapi: '3.0.2',
+  info: { title: 'openspec with unreferenced schemas', version: '1.0.0' },
+  components: {
+    schemas: {
+      A: { description: 'A', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      B: { description: 'B', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      C: { description: 'C', type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      D: { description: 'D', type: 'object', properties: { name: { $ref:'#/components/schemas/C' }, description: { type: 'string' } } },
+      A_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      A_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/A_defA' } }, additionalProperties: false },
+      B_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      B_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/B_defA' } }, additionalProperties: false },
+      C_defA: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } },
+      C_defB: { type: 'object', properties: { abprop: { $ref: '#/components/schemas/C_defA' } }, additionalProperties: false }
+    },
+    responses: {
+      a: { description: 'Default/generic error response', content: { 'application/json': { schema: { $ref: '#/components/schemas/A_defA' } } } },  
+      defaultError: {
+        description: 'error',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                err: { type: 'string' },
+                msg: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    },
+    parameters: {
+      id: { name: 'id', in: 'path', schema: { type: 'string' }, required: true },
+      limit: {
+        name: 'limit',
+        in: 'query',
+        schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 }
+      },
+      skip: { name: 'skip', in: 'query', schema: { type: 'integer', default: 0, minimum: 0 } },
+      memoNemos: {
+        name: 'memoNemos',
+        in: 'query',
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+      sort: {
+        name: 'sort',
+        in: 'query',
+        schema: { type: 'array', items: { type: 'string' }, uniqueItems: true }
+      },
+      version: { name: 'version', in: 'path', schema: { type: 'integer' }, required: true },
+      aParam: {name: 'aParam', in: 'path', schema: {$ref: '#/components/schemas/D'}}
+    }
+  },  
+  paths: {
+    '/test': {
+      get: {
+        operationId: 'a.query',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a get',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A/definitions/AA/definitions/AAA' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' }
+        },
+        parameters: []
+      },
+      post: {
+        operationId: 'a.create',
+        tags: ['a'],
+        responses: {
+          '200': {
+            description: 'a post', 
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } 
+          },
+          default: { $ref: '#/components/responses/defaultError' },
+        },       
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/B' } } } }
+      }
+    }
+  }
+};

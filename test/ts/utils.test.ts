@@ -1,6 +1,6 @@
 import * as chai from 'chai';
 import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/utils';
-import { complexSpec, jsonSchema, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, notAJsonSchema, simpleSpec, specWithReferencedParams, specWithReferencedSchemaProperty, specWithSchemaWithMultipleRefs, specWithUnreferencedSchemas, specWithUnreferencedSchemas2, specWithUnreferencedSchemasAndReferencingParams, specWithUnreferencedSchemasButWrongRef, specWithWrongParamRef, wrongSpec } from './specs';
+import { complexSpec, jsonSchema, multiDefSpec, multiNestedSameNameDefSpec, nestedDefinitionsSpec, nestedSameNameDefSpec, notAJsonSchema, simpleSpec, specWithReferencedParams, specWithReferencedSchemaProperty, specWithSchemaWithMultipleRefs, specWithUnreferencedSchemas, specWithUnreferencedSchemas2, specWithUnreferencedSchemasAndReferencingParams, specWithUnreferencedSchemasButWrongRef, specWithWrongComplexRef, specWithWrongParamRef, wrongSpec } from './specs';
 
 const should = chai.should();
 
@@ -36,14 +36,12 @@ describe('utils', function() {
       const rebased = refsRebaser('unused_name', obj);
       rebased.$ref.should.equal('#/components/schemas/global');
     });
-    it('should leave absolute urls unchanged (http)', function() {
-      debugger;
+    it('should leave absolute urls unchanged (http)', function() {      
       const obj = { $ref: 'http://example.com' };
       const rebased = refsRebaser('unused_name', obj);
       rebased.$ref.should.equal('http://example.com');
     });
     it('should leave absolute urls unchanged (https)', function() {
-      debugger;
       const obj = { $ref: 'https://example.com' };
       const rebased = refsRebaser('unused_name', obj);
       rebased.$ref.should.equal('https://example.com');
@@ -4109,6 +4107,7 @@ describe('utils', function() {
       rebased.should.deep.equal(expectedSpec);
     });
   });
+  
   describe('removeSchemaDeclaration()', function() {
     it('should return the JSON Schema without the $schema declaration property for a JSON Schema in input with $schema property', function() {
       const result = removeSchemaDeclaration(jsonSchema);
@@ -4709,6 +4708,9 @@ describe('utils', function() {
     });
     it('should throw in case of a not existing path in spec', function() {
       should.throw(() => removeUnusedSchemas(specWithWrongParamRef), Error, 'Referenced path "#/components/responses/aParam" doesn\'t exist in spec.');
+    });
+    it('should throw in case of a not existing complex path in spec', function() {
+      should.throw(() => removeUnusedSchemas(specWithWrongComplexRef), Error, 'Referenced path "#/components/schemas/A/definitions/AA/definitions/AAA" doesn\'t exist in spec.');
     });
   });
 });
