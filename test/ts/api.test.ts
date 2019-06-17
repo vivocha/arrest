@@ -11,7 +11,7 @@ import { RESTError } from '../../dist/error';
 import { Operation } from '../../dist/operation';
 import { Resource } from '../../dist/resource';
 import { Scopes } from '../../dist/scopes';
-import { simpleAPI, simpleAPI2, simpleAPI3, simpleAPI4, simpleAPI5 } from './dummy-api';
+import { simpleAPI, simpleAPI2, simpleAPI3, simpleAPI4, simpleAPI5, simpleAPI6, simpleAPI7 } from './dummy-api';
 
 const should = chai.should();
 chai.use(spies);
@@ -1837,6 +1837,291 @@ describe('API', function() {
   describe("openapi spec for an API with a reference to a schema that doesn't exist", function() {
     it('should raise an error', async function() {
       return simpleAPI5.listen(8888).should.be.rejectedWith(Error);
+    });
+  });
+  describe('openapi spec for a Things API with composite schemas ', function() {
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    let server;
+
+    before(async function() {
+      server = await simpleAPI6.listen(port);
+      return server;
+    });
+    after(function() {
+      if (server) {
+        server.close();
+        server = undefined;
+      }
+    });
+    it('should have a well-composed openapi spec and all references rebased and rewritten', async function() {
+      const expectedSpec = {
+        openapi: '3.0.2',
+        info: { title: 'simpleAPI6', version: '2.2.22', contact: { email: 'me@test.org' } },
+        components: {
+          schemas: {
+            errorResponse: {
+              type: 'object',
+              properties: { error: { type: 'integer', minimum: 100 }, message: { type: 'string' }, info: { type: 'string' } },
+              required: ['error', 'message']
+            },
+            common_notEmptyString: {
+              type: 'string',
+              minLength: 1
+            },
+            thing_info_name: {
+              $ref: '#/components/schemas/common_notEmptyString'
+            },
+            thing_info: {
+              type: 'object'
+            },
+            thing_notes: {
+              type: 'object',
+              properties: {
+                text: { $ref: '#/components/schemas/common_notEmptyString' }
+              }
+            },
+            thing_model: {
+              type: 'object',
+              properties: {
+                name: { $ref: '#/components/schemas/thing_info_name' },
+                code: { type: 'integer' }
+              }
+            },
+            thing: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'integer',
+                  readOnly: true
+                },
+                info: {
+                  $ref: '#/components/schemas/thing_info'
+                },
+                model: {
+                  $ref: '#/components/schemas/thing_model'
+                },
+                notes: {
+                  $ref: '#/components/schemas/thing_notes'
+                }
+              },
+              additionalProperties: false,
+              required: ['model']
+            },
+            result: {
+              type: 'object',
+              properties: { message: 'common#/definitions/notEmptyString', thing: { $ref: '#/components/schemas/thing' } },
+              additionalProperties: false
+            }
+          },
+          responses: {
+            defaultError: {
+              description: 'Default/generic error response',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/errorResponse'
+                  }
+                }
+              }
+            },
+            notFound: {
+              description: 'The requested/specified resource was not found',
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/errorResponse' } } }
+            }
+          },
+          parameters: { id: { description: 'Unique identifier of the resource', name: 'id', in: 'path', schema: { type: 'string' }, required: true } }
+        },
+        paths: {
+          '/things': {
+            post: {
+              operationId: 'thing.createThing',
+              tags: ['thing'],
+              responses: { '200': { description: 'result...', content: { 'application/json': { schema: { $ref: '#/components/schemas/result' } } } } },
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/thing' } } }, required: true }
+            },
+            get: {
+              operationId: 'thing.getThings',
+              tags: ['thing'],
+              responses: {
+                '200': {
+                  description: ' a list of things',
+                  content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/thing' } } } }
+                }
+              }
+            }
+          },
+          '/schemas/{id}': {
+            get: {
+              operationId: 'Schema.read',
+              tags: ['Schema'],
+              responses: {
+                '200': { description: 'The requested JSON Schema', content: { 'application/json': { schema: { type: 'object' } } } },
+                '404': { $ref: '#/components/responses/notFound' },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              summary: 'Retrieve a JSON Schema by id',
+              parameters: [{ $ref: '#/components/parameters/id' }]
+            }
+          }
+        },
+        tags: [{ name: 'thing' }, { name: 'Schema' }],
+        servers: [{ url: 'http://localhost:9876' }]
+      };
+
+      return request
+        .get('/openapi.json')
+        .expect(200)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.should.deep.equal(expectedSpec);
+        });
+    });
+  });
+  describe('openapi spec for a Things API with several schemas and cross references ', function() {
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    let server;
+
+    before(async function() {
+      server = await simpleAPI7.listen(port);
+      return server;
+    });
+    after(function() {
+      if (server) {
+        server.close();
+        server = undefined;
+      }
+    });
+    it('should have a well-composed openapi spec and all references rebased and rewritten', async function() {
+      const expectedSpec = {
+        openapi: '3.0.2',
+        info: { title: 'simpleAPI7', version: '2.2.22', contact: { email: 'me@test.org' } },
+        components: {
+          schemas: {
+            errorResponse: {
+              type: 'object',
+              properties: { error: { type: 'integer', minimum: 100 }, message: { type: 'string' }, info: { type: 'string' } },
+              required: ['error', 'message']
+            },
+            common_notEmptyString: {
+              type: 'string',
+              minLength: 1
+            },
+            thing_info_name: {
+              $ref: '#/components/schemas/common_notEmptyString'
+            },
+            thing_info: {
+              type: 'object'
+            },
+            thing_notes: {
+              type: 'object',
+              properties: {
+                model: { $ref: '#/components/schemas/thing_model' }
+              }
+            },
+            thing_model: {
+              type: 'object',
+              properties: {
+                name: { $ref: '#/components/schemas/thing_info_name' },
+                code: { type: 'integer' },
+                notes: { $ref: '#/components/schemas/thing_notes' },
+                models: { type: 'array', items: { $ref: '#/components/schemas/thing_model' } }
+              }
+            },
+            thing: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'integer',
+                  readOnly: true
+                },
+                info: {
+                  $ref: '#/components/schemas/thing_info'
+                },
+                model: {
+                  $ref: '#/components/schemas/thing_model'
+                },
+                notes: {
+                  $ref: '#/components/schemas/thing_notes'
+                },
+                other: { $ref: '#/components/schemas/thing/properties/notes' }
+              },
+              additionalProperties: true,
+              required: ['model']
+            },
+            result: {
+              type: 'object',
+              properties: { message: 'common#/definitions/notEmptyString', thing: { $ref: '#/components/schemas/thing' } },
+              additionalProperties: false
+            }
+          },
+          responses: {
+            defaultError: {
+              description: 'Default/generic error response',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/errorResponse'
+                  }
+                }
+              }
+            },
+            notFound: {
+              description: 'The requested/specified resource was not found',
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/errorResponse' } } }
+            }
+          },
+          parameters: { id: { description: 'Unique identifier of the resource', name: 'id', in: 'path', schema: { type: 'string' }, required: true } }
+        },
+        paths: {
+          '/things': {
+            post: {
+              operationId: 'thing.createThing',
+              tags: ['thing'],
+              responses: { '200': { description: 'result...', content: { 'application/json': { schema: { $ref: '#/components/schemas/result' } } } } },
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/thing' } } }, required: true }
+            },
+            get: {
+              operationId: 'thing.getThings',
+              tags: ['thing'],
+              responses: {
+                '200': {
+                  description: ' a list of things',
+                  content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/thing' } } } }
+                }
+              }
+            }
+          },
+          '/schemas/{id}': {
+            get: {
+              operationId: 'Schema.read',
+              tags: ['Schema'],
+              responses: {
+                '200': { description: 'The requested JSON Schema', content: { 'application/json': { schema: { type: 'object' } } } },
+                '404': { $ref: '#/components/responses/notFound' },
+                default: { $ref: '#/components/responses/defaultError' }
+              },
+              summary: 'Retrieve a JSON Schema by id',
+              parameters: [{ $ref: '#/components/parameters/id' }]
+            }
+          }
+        },
+        tags: [{ name: 'thing' }, { name: 'Schema' }],
+        servers: [{ url: 'http://localhost:9876' }]
+      };
+
+      return request
+        .get('/openapi.json')
+        .expect(200)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.should.deep.equal(expectedSpec);
+        });
     });
   });
 });
