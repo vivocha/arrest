@@ -1,3 +1,4 @@
+export * from 'openapi-police';
 export * from './api';
 export * from './error';
 export * from './mongo';
