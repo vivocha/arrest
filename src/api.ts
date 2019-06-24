@@ -87,7 +87,7 @@ export class API {
     if (!this.document.components.schemas) {
       this.document.components.schemas = {};
     }
-    this.document.components.schemas[name] = removeSchemaDeclaration(refs.rebase(name, schema, refsRebaser));
+    this.document.components.schemas[name] = removeSchemaDeclaration(refs.rebase(name, _.cloneDeep(schema), refsRebaser));
   }
   registerDynamicSchema(name: string, schema: SchemaObject) {
     this.dynamicSchemas[name] = schema;
