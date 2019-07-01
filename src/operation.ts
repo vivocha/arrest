@@ -91,6 +91,25 @@ export abstract class Operation {
       }
     };
   }
+  protected createBodyValidators(): undefined | APIRequestHandler[] {
+    if (this.info.requestBody) {
+      const body: OpenAPIV3.RequestBodyObject = this.info.requestBody as OpenAPIV3.RequestBodyObject;
+      if (!body.content) {
+        throw new Error('Invalid request body'); // TODO maybe use another error type
+      }
+      if (body.content['application/json']) {
+        return [jsonParser(), this.createBodyValidator('application/json', body.content['application/json'], body.required)];
+      }
+      if (body.content['application/x-www-form-urlencoded']) {
+        return [
+          urlencodedParser({ extended: true }),
+          this.createBodyValidator('application/x-www-form-urlencoded', body.content['application/x-www-form-urlencoded'], body.required)
+        ];
+      }
+    } else if (['put', 'post', 'patch'].includes(this.method)) {
+      return [jsonParser()];
+    }
+  }
   protected createBodyValidator(type: string, bodySpec: OpenAPIV3.MediaTypeObject, required: boolean = false): APIRequestHandler {
     if (!bodySpec.schema) {
       throw new Error(`Schema missing for content type ${type}`);
@@ -193,21 +212,9 @@ export abstract class Operation {
     if (params.query) {
       middlewares.push(this.createParameterValidators('query', params.query));
     }
-    if (this.info.requestBody) {
-      const body: OpenAPIV3.RequestBodyObject = this.info.requestBody as OpenAPIV3.RequestBodyObject;
-      if (!body.content) {
-        throw new Error('Invalid request body'); // TODO maybe use another error type
-      }
-      if (body.content['application/json']) {
-        middlewares.push(jsonParser());
-        middlewares.push(this.createBodyValidator('application/json', body.content['application/json'], body.required));
-      }
-      if (body.content['application/x-www-form-urlencoded']) {
-        middlewares.push(urlencodedParser({ extended: true }));
-        middlewares.push(this.createBodyValidator('application/x-www-form-urlencoded', body.content['application/x-www-form-urlencoded'], body.required));
-      }
-    } else if (['put', 'post', 'patch'].includes(this.method)) {
-      middlewares.push(jsonParser());
+    const bodyMiddlewares = this.createBodyValidators();
+    if (bodyMiddlewares) {
+      middlewares.push(...bodyMiddlewares);
     }
 
     router[this.method](this.path, ...middlewares, this.handler.bind(this));
