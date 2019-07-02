@@ -157,6 +157,9 @@ export abstract class Operation {
       next();
     }
   }
+  protected errorHandler(err: any, req: APIRequest, res: APIResponse, next: NextFunction) {
+    next(err);
+  }
 
   attach(api: API) {
     this.api = api;
@@ -217,7 +220,7 @@ export abstract class Operation {
       middlewares.push(...bodyMiddlewares);
     }
 
-    router[this.method](this.path, ...middlewares, this.handler.bind(this));
+    router[this.method](this.path, ...middlewares, this.handler.bind(this), this.errorHandler.bind(this));
     return router;
   }
 
