@@ -187,6 +187,7 @@ export class API {
         this.document = removeUnusedSchemas(this.document);
 
         const originalDocument = _.cloneDeep(this.document);
+
         router.get('/openapi.json', (req: APIRequest, res: APIResponse, next: NextFunction) => {
           if (!req.headers['host']) {
             next(API.newError(400, 'Bad Request', 'Missing Host header in the request'));
@@ -194,7 +195,7 @@ export class API {
             res.set('Access-Control-Allow-Origin', '*');
             res.set('Access-Control-Allow-Methods', 'GET');
             const out: OpenAPIV3.Document = _.cloneDeep(originalDocument);
-            const baseUrl = `${req.protocol}://${req.headers['host']}${req.baseUrl}`;
+            const baseUrl = `${req.headers['x-forwarded-proto'] || req.protocol}://${req.headers['host']}${req.baseUrl}`;
             out.servers = [
               {
                 url: baseUrl
