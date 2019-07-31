@@ -38,7 +38,7 @@ export class API {
     if (!semver.valid(this.document.info.version)) {
       throw new Error('Invalid version');
     }
-    this.logger = getLogger(this.getDebugLabel());
+    this.logger = getLogger(this.getDebugLabel(), undefined, false);
     this.resources = [];
     this.parseOptions = {
       scope: 'http://vivocha.com/api/v3',
@@ -167,7 +167,7 @@ export class API {
         router.use((_req: Request, res: Response, next: NextFunction) => {
           let req: APIRequest = _req as APIRequest;
           if (!req.logger) {
-            req.logger = getLogger(this.getDebugLabel(), this.getDebugContext());
+            req.logger = getLogger(this.getDebugLabel(), this.getDebugContext(), false);
           }
           next();
         });
