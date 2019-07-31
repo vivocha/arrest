@@ -128,7 +128,7 @@ export class Resource implements ResourceDefinition {
       promises.push(operation.router(r));
     });
     await Promise.all(promises);
-    knownPaths.forEach(path => {
+    knownPaths.forEach((path: string | RegExp) => {
       r.all(path, (req: APIRequest, res: APIResponse, next: NextFunction) => {
         next(API.newError(405, 'Method Not Allowed', "The API Endpoint doesn't support the specified HTTP method for the given resource"));
       });
