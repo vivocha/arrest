@@ -99,7 +99,7 @@
     "body-parser": "^1.18.3",
     "camelcase": "^5.0.0",
     "debug": "^4.1.0",
-    "debuggo": "^1.1.3",
+    "debuggo": "^1.1.4",
     "decamelize": "^2.0.0",
     "eredita": "^1.1.4",
     "express": "^4.16.4",
