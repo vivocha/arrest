@@ -12,7 +12,7 @@ import { DEFAULT_DOCUMENT } from './defaults';
 import { RESTError } from './error';
 import { Resource } from './resource';
 import { SchemaResource } from './schema';
-import { Scopes } from './scopes';
+import { Scopes } from '@vivocha/scopes';
 import { APIRequest, APIResponse } from './types';
 import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from './utils';
 import request = require('request');

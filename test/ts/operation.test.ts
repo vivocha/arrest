@@ -5,7 +5,7 @@ import * as supertest from 'supertest';
 import { API } from '../../dist/api';
 import { Operation } from '../../dist/operation';
 import { Resource } from '../../dist/resource';
-import { Scopes } from '../../dist/scopes';
+import { Scopes } from '@vivocha/scopes';
 import { APIRequest, APIResponse } from '../../dist/types';
 
 const should = chai.should();

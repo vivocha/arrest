@@ -10,7 +10,7 @@ import { DEFAULT_DOCUMENT } from '../../dist/defaults';
 import { RESTError } from '../../dist/error';
 import { Operation } from '../../dist/operation';
 import { Resource } from '../../dist/resource';
-import { Scopes } from '../../dist/scopes';
+import { Scopes } from '@vivocha/scopes';
 import { simpleAPI, simpleAPI2, simpleAPI3, simpleAPI4, simpleAPI5, simpleAPI6, simpleAPI7 } from './dummy-api';
 
 const should = chai.should();

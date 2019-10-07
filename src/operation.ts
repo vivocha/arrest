@@ -6,7 +6,7 @@ import * as _ from 'lodash';
 import { OpenAPIV3, ParameterObject, StaticSchemaObject } from 'openapi-police';
 import { API } from './api';
 import { Resource } from './resource';
-import { Scopes } from './scopes';
+import { Scopes } from '@vivocha/scopes';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
 import cookieParser = require('cookie-parser');
 
