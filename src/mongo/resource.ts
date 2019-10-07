@@ -64,7 +64,7 @@ export class MongoResource extends Resource {
         const props = ['unique', 'sparse', 'min', 'max', 'expireAfterSeconds', 'key'];
 
         let c_i = currIndexes.find(t => {
-          return (typeof i.name === 'undefined' || i.name === t.name) && _.isEqual(_.pick(i, props), _.pick(t, props));
+          return _.isEqual(_.pick(i, props), _.pick(t, props));
         });
         if (!c_i) {
           if (this.info.createIndexes) {
