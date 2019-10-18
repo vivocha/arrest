@@ -5,4 +5,5 @@ export * from './error';
 export * from './mongo';
 export * from './operation';
 export * from './resource';
+export * from './rpc';
 export * from './types';
