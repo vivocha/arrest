@@ -1,15 +1,14 @@
 {
   "compilerOptions": {
-      "module": "commonjs",
-      "target": "es2017",
-      "noImplicitAny": false,
-      "sourceMap": true,
-      "declaration": true,
-      "outDir": "dist",
-      "strictNullChecks": true,
-      "allowJs": false
+    "module": "commonjs",
+    "target": "es2017",
+    "noImplicitAny": false,
+    "sourceMap": true,
+    "declaration": true,
+    "outDir": "dist",
+    "strictNullChecks": true,
+    "allowJs": false,
+    "experimentalDecorators": true
   },
-  "include": [
-      "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }
