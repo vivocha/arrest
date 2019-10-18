@@ -90,7 +90,7 @@ export abstract class JSONRPC extends Operation {
     } else {
       (async () => {
         try {
-          const out = await this[req.body.method](req.body.params);
+          const out = await this[req.body.method](req.body.params, req, res);
           if (req.body.id) {
             res.json({
               jsonrpc: '2.0',
