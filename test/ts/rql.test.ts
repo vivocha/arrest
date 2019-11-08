@@ -1,16 +1,14 @@
-var chai = require('chai')
-  , spies = require('chai-spies')
-  , should = chai.should()
-  , rql = require('../dist/mongo/rql').default
+import * as chai from 'chai';
+import * as spies from 'chai-spies';
+import rql from '../../dist/mongo/rql';
 
-
+chai.should();
 chai.use(spies);
 
 describe('rql', function() {
-
   it('should parse "in"', function() {
     let query = rql({}, {}, 'in(x,a,b,c)');
-    query.x.should.deep.equal({ $in: [ 'a', 'b', 'c'] });
+    query.x.should.deep.equal({ $in: ['a', 'b', 'c'] });
   });
 
   it('should parse "contains"', function() {
@@ -18,7 +16,7 @@ describe('rql', function() {
     query.x.should.equal('aaa');
 
     query = rql({}, {}, 'contains(x,aaa,bbb,ccc)');
-    query.x.should.deep.equal(['aaa','bbb','ccc']);
+    query.x.should.deep.equal(['aaa', 'bbb', 'ccc']);
   });
 
   it('should parse "and"', function() {
@@ -27,9 +25,9 @@ describe('rql', function() {
     query1.should.deep.equal(query2);
     query1.should.deep.equal({ x: 'b' });
     let query3 = rql({}, {}, 'and(eq(x,b),eq(y,c))');
-    query3.should.deep.equal({ x: 'b', y: 'c'});
+    query3.should.deep.equal({ x: 'b', y: 'c' });
     let query4 = rql({}, {}, 'and(and(eq(x,b),eq(y,c)),in(z,a,b),aggregate())');
-    query4.should.deep.equal({ $and: [ { x: 'b', y: 'c'}, { z: { $in: [ 'a', 'b'] } } ] });
+    query4.should.deep.equal({ $and: [{ x: 'b', y: 'c' }, { z: { $in: ['a', 'b'] } }] });
     let query5 = rql({}, {}, 'and(and(eq(x,b)),aggregate())');
     query5.should.deep.equal({ x: 'b' });
   });
@@ -40,9 +38,9 @@ describe('rql', function() {
     query1.should.deep.equal(query2);
     query1.should.deep.equal({ x: 'b' });
     let query3 = rql({}, {}, 'or(eq(x,b),eq(y,c))');
-    query3.should.deep.equal({ $or: [ { x: 'b' }, { y: 'c'}] });
+    query3.should.deep.equal({ $or: [{ x: 'b' }, { y: 'c' }] });
     let query4 = rql({}, {}, 'or(and(eq(x,b),eq(y,c)),in(z,a,b),aggregate())');
-    query4.should.deep.equal({ $or: [ { x: 'b', y: 'c'}, { z: { $in: [ 'a', 'b'] } } ] });
+    query4.should.deep.equal({ $or: [{ x: 'b', y: 'c' }, { z: { $in: ['a', 'b'] } }] });
     let query5 = rql({}, {}, 'or(or(eq(x,b)),aggregate())');
     query5.should.deep.equal({ x: 'b' });
   });
@@ -83,22 +81,21 @@ describe('rql', function() {
   });
 
   it('should parse "sort"', function() {
-    let opts = {};
+    let opts: any = {};
     rql({}, opts, 'sort(a,b)');
-    opts.sort.should.deep.equal([ 'a', 'b' ]);
+    opts.sort.should.deep.equal(['a', 'b']);
   });
 
   it('should parse "select"', function() {
-    let opts = {};
+    let opts: any = {};
     rql({}, opts, 'select(a,b)');
-    opts.fields.should.deep.equal([ 'a', 'b' ]);
+    opts.fields.should.deep.equal(['a', 'b']);
   });
 
   it('should parse "limit"', function() {
-    let opts = {};
+    let opts: any = {};
     rql({}, opts, 'limit(a,b)');
     opts.skip.should.equal('a');
     opts.limit.should.equal('b');
   });
-
 });

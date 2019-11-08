@@ -2,12 +2,12 @@ import * as _ from 'lodash';
 
 const rqlParser = require('rql/parser').parseQuery;
 
-export default function(query:any, opts:any, data:string) {
+export default function(query: any, opts: any, data: string) {
   return _rqlToMongo(query, opts, rqlParser(data));
 }
 
-function _rqlToMongo(query:any, opts:any, data:any) {
-  switch(data.name) {
+function _rqlToMongo(query: any, opts: any, data: any) {
+  switch (data.name) {
     case 'in':
       query[data.args[0]] = { $in: data.args.slice(1) };
       break;
@@ -37,7 +37,7 @@ function _rqlToMongo(query:any, opts:any, data:any) {
         query = _rqlToMongo(query, opts, data.args[0]);
       } else {
         query.$or = [];
-        _.each(data.args, function (i) {
+        _.each(data.args, function(i) {
           let _p = _rqlToMongo({}, opts, i);
           if (_p) query.$or.push(_p);
         });

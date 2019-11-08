@@ -3,12 +3,10 @@
     "module": "commonjs",
     "target": "es2017",
     "noImplicitAny": false,
-    "sourceMap": true,
-    "declaration": true,
-    "outDir": "dist",
+    "sourceMap": false,
+    "declaration": false,
     "strictNullChecks": true,
-    "allowJs": false,
     "experimentalDecorators": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["./**/*"]
 }

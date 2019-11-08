@@ -1,32 +1,31 @@
-import * as camelcase from 'camelcase';
-import * as decamelize from 'decamelize';
+import camelcase from 'camelcase';
+import decamelize from 'decamelize';
 import { NextFunction, Router, RouterOptions } from 'express';
-import { API, APIRequest, APIRequestHandler, APIResponse } from './api';
-import { Method, Operation, SimpleOperation } from './operation';
-import { Swagger } from './swagger';
-
-const __operations = Symbol();
+import { OpenAPIV3 } from 'openapi-police';
+import { API } from './api';
+import { Operation, SimpleOperation } from './operation';
+import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
 
 export interface OperationFactory {
-  new(resource:Resource, path:string, method:Method): Operation
+  new (resource: Resource, path: string, method: Method): Operation;
 }
 
 export interface Routes {
-  [path:string]: {
-    ["get"]?: OperationFactory | APIRequestHandler;
-    ["put"]?: OperationFactory | APIRequestHandler;
-    ["post"]?: OperationFactory | APIRequestHandler;
-    ["delete"]?: OperationFactory | APIRequestHandler;
-    ["options"]?: OperationFactory | APIRequestHandler;
-    ["head"]?: OperationFactory | APIRequestHandler;
-    ["patch"]?: OperationFactory | APIRequestHandler;
+  [path: string]: {
+    ['get']?: OperationFactory | APIRequestHandler;
+    ['put']?: OperationFactory | APIRequestHandler;
+    ['post']?: OperationFactory | APIRequestHandler;
+    ['delete']?: OperationFactory | APIRequestHandler;
+    ['options']?: OperationFactory | APIRequestHandler;
+    ['head']?: OperationFactory | APIRequestHandler;
+    ['patch']?: OperationFactory | APIRequestHandler;
   };
 }
 
 export interface ResourceDefinition {
   name?: string;
   description?: string;
-  externalDocs?: Swagger.ExternalDocs;
+  externalDocs?: OpenAPIV3.ExternalDocumentationObject;
   namePlural?: string;
   id?: string;
   title?: string;
@@ -35,58 +34,48 @@ export interface ResourceDefinition {
   [ext: string]: any;
 }
 
-export class Resource implements ResourceDefinition {
-  name?: string;
-  description?: string;
-  externalDocs?: Swagger.ExternalDocs;
-  namePlural?: string;
-  path?: string;
-  id?: string;
-  title?: string;
-  summaryFields?: string[];
-  [__operations]: Operation[];
-  [ext: string]: any;
+export class Resource {
+  protected operations: Operation[] = [];
 
-  constructor(info?: ResourceDefinition, routes?: Routes) {
-    if (info && info.routes) {
+  constructor(public info: ResourceDefinition = {}, routes?: Routes) {
+    if (this.info.routes) {
       if (routes) {
         throw new Error('double routes specification');
       }
-      routes = info.routes;
-      delete info.routes;
+      routes = this.info.routes;
+      delete this.info.routes;
     }
-    Object.assign(this, info);
-    if (!this.name) {
-      this.name = Resource.capitalize(camelcase(this.constructor.name));
-    }
-    if (!this.namePlural) {
-      this.namePlural = this.name + 's';
-    }
-    this[__operations] = [];
+    this.initInfo();
     if (routes) {
       for (let path in routes) {
         let handlers = routes[path];
         for (let method in handlers) {
-          this.addOperation(path, method as  Method, handlers[method]);
+          this.addOperation(path, method as Method, handlers[method]);
         }
       }
     }
   }
 
+  protected initInfo() {
+    if (!this.info.name) {
+      this.info.name = Resource.capitalize(camelcase(this.constructor.name));
+    }
+    if (!this.info.namePlural) {
+      this.info.namePlural = this.info.name + 's';
+    }
+  }
+
   get basePath(): string {
-    return '/' + (this.path ? this.path : decamelize('' + this.namePlural, '-'));
+    return '/' + (this.info.path ? this.info.path : decamelize('' + this.info.namePlural, '-'));
   }
-  get operations():Operation[] {
-    return this[__operations];
-  }
-  get scopeDescription():string {
-    return `Unrestricted access to all ${this.namePlural}`;
+  get scopeDescription(): string {
+    return `Unrestricted access to all ${this.info.namePlural}`;
   }
 
   addOperation(op: Operation): this;
   addOperation(path: string, method: Method, handler: OperationFactory | APIRequestHandler, id?: string): this;
   addOperation(pathOrOp: any, method?: Method, handler?: OperationFactory | APIRequestHandler, id?: string): this {
-    let op:Operation;
+    let op: Operation;
     if (typeof pathOrOp === 'string') {
       if (!method) {
         throw new Error('invalid method');
@@ -105,30 +94,28 @@ export class Resource implements ResourceDefinition {
   }
 
   attach(api: API) {
-    let tag:Swagger.Tag = {
-      name: '' + this.name
+    let tag: OpenAPIV3.TagObject = {
+      name: '' + this.info.name
     };
-    if (this.description) tag.description = this.description;
-    if (this.externalDocs) tag.externalDocs = this.externalDocs;
-    if (this.id) tag['x-id'] = this.id;
-    if (this.title) tag['x-title'] = this.title;
-    if (this.summaryFields) tag['x-summary-fields'] = this.summaryFields;
+    if (this.info.description) tag.description = this.info.description;
+    if (this.info.externalDocs) tag.externalDocs = this.info.externalDocs;
+    if (this.info.id) tag['x-id'] = this.info.id;
+    if (this.info.title) tag['x-title'] = this.info.title;
+    if (this.info.summaryFields) tag['x-summary-fields'] = this.info.summaryFields;
     api.registerTag(tag);
 
-    api.registerOauth2Scope('' + this.name, this.scopeDescription);
+    api.registerOauth2Scope('' + this.info.name, this.scopeDescription);
 
-    this.operations.forEach((op:Operation) => op.attach(api));
+    this.operations.forEach((op: Operation) => op.attach(api));
   }
-  async router(base:Router, options?: RouterOptions): Promise<Router> {
+  async router(base: Router, options?: RouterOptions): Promise<Router> {
     let r = Router(options);
-    let knownPaths = new Set();
-    let promises: Promise<Router>[] = [];
-    this.operations.forEach((operation: Operation) => {
-      knownPaths.add(operation.path);
-      promises.push(operation.router(r));
-    });
-    await Promise.all(promises);
-    knownPaths.forEach((path: string | RegExp) => {
+    let knownPaths: Set<string | RegExp> = new Set();
+    for (let op of this.operations) {
+      knownPaths.add(op.path);
+      await op.router(r);
+    }
+    knownPaths.forEach(path => {
       r.all(path, (req: APIRequest, res: APIResponse, next: NextFunction) => {
         next(API.newError(405, 'Method Not Allowed', "The API Endpoint doesn't support the specified HTTP method for the given resource"));
       });
