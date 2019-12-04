@@ -1,3 +1,4 @@
+import { Scopes } from '@vivocha/scopes';
 import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser';
 import { Eredita } from 'eredita';
 import { NextFunction, Router } from 'express';
@@ -6,7 +7,6 @@ import * as _ from 'lodash';
 import { OpenAPIV3, ParameterObject, StaticSchemaObject } from 'openapi-police';
 import { API } from './api';
 import { Resource } from './resource';
-import { Scopes } from '@vivocha/scopes';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
 import cookieParser = require('cookie-parser');
 
@@ -91,6 +91,12 @@ export abstract class Operation {
       }
     };
   }
+  protected createJSONParser() {
+    return jsonParser();
+  }
+  protected createUrlencodedParser() {
+    return urlencodedParser({ extended: true });
+  }
   protected createBodyValidators(): undefined | APIRequestHandler[] {
     if (this.info.requestBody) {
       const body: OpenAPIV3.RequestBodyObject = this.info.requestBody as OpenAPIV3.RequestBodyObject;
@@ -98,16 +104,16 @@ export abstract class Operation {
         throw new Error('Invalid request body'); // TODO maybe use another error type
       }
       if (body.content['application/json']) {
-        return [jsonParser(), this.createBodyValidator('application/json', body.content['application/json'], body.required)];
+        return [this.createJSONParser(), this.createBodyValidator('application/json', body.content['application/json'], body.required)];
       }
       if (body.content['application/x-www-form-urlencoded']) {
         return [
-          urlencodedParser({ extended: true }),
+          this.createUrlencodedParser(),
           this.createBodyValidator('application/x-www-form-urlencoded', body.content['application/x-www-form-urlencoded'], body.required)
         ];
       }
     } else if (['put', 'post', 'patch'].includes(this.method)) {
-      return [jsonParser()];
+      return [this.createJSONParser()];
     }
   }
   protected createBodyValidator(type: string, bodySpec: OpenAPIV3.MediaTypeObject, required: boolean = false): APIRequestHandler {

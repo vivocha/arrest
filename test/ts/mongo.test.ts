@@ -17,8 +17,7 @@ describe('mongo', function() {
 
   before(async function() {
     this.timeout(0);
-    let db = await md.getDB('local');
-    return db.close();
+    await md.getDB('local');
   });
 
   describe('MongoResource', function() {
