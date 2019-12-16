@@ -50,19 +50,19 @@ describe('mongo', function() {
       });
 
       it('should fail to connect to a wrong connection uri', function() {
-        const r = new MongoResource('mongodb://localhost:57017/local', { name: 'Test' });
+        const r = new MongoResource('mongodb://localhost:57017/local?serverSelectionTimeoutMS=1000', { name: 'Test' });
         return r.db.should.be.rejected;
       });
 
       it('should use an existing valid db connection', async function() {
-        const c = MongoClient.connect('mongodb://localhost:27017/local', { useNewUrlParser: true }).then(c => c.db());
+        const c = MongoClient.connect('mongodb://localhost:27017/local', { useUnifiedTopology: true }).then(c => c.db());
         let r = new MongoResource(c, { name: 'Test' });
         db = r.db;
         return r.db;
       });
 
       it('should fail with an existing failed db connection', function() {
-        const c = MongoClient.connect('mongodb://localhost:57017/local', { useNewUrlParser: true }).then(c => c.db());
+        const c = MongoClient.connect('mongodb://localhost:57017/local?serverSelectionTimeoutMS=1000', { useUnifiedTopology: true }).then(c => c.db());
         const r = new MongoResource(c, { name: 'Test' });
         return r.db.should.be.rejected;
       });
@@ -171,7 +171,7 @@ describe('mongo', function() {
     let db, id, coll, coll2, r1, r2, r3, r4, server;
 
     before(async function() {
-      db = await MongoClient.connect('mongodb://localhost:27017/local', { useNewUrlParser: true }).then(c => c.db());
+      db = await MongoClient.connect('mongodb://localhost:27017/local', { useUnifiedTopology: true }).then(c => c.db());
       r1 = new MongoResource(db, { name: 'Test', collection: collectionName });
       r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false });
       r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 }, '/2': { get: FakeOp2 } });

@@ -21,7 +21,7 @@ export class MongoResource extends Resource {
   constructor(db: string | Db | Promise<Db>, public info: MongoResourceDefinition, routes: Routes = MongoResource.defaultRoutes()) {
     super(info, routes);
     if (typeof db === 'string') {
-      this.db = MongoClient.connect(db as string, { useNewUrlParser: true }).then(client => client.db());
+      this.db = MongoClient.connect(db as string, { useUnifiedTopology: true }).then(client => client.db());
     } else {
       this.db = Promise.resolve(db as Db | Promise<Db>);
     }
