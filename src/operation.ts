@@ -169,7 +169,12 @@ export abstract class Operation {
 
   attach(api: API) {
     this.api = api;
-    api.registerOperation(this.resource.basePath + this.swaggerPath, this.method, this.info);
+
+    const originalInfo = this.info;
+    const infoGetter = api.registerOperation(this.resource.basePath + this.swaggerPath, this.method, this.info);
+    Object.defineProperty(this, 'info', {
+      get: () => infoGetter() || originalInfo
+    });
 
     let swaggerScopes = this.swaggerScopes;
     let scopeNames: string[] = [];

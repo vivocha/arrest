@@ -1,3 +1,4 @@
+import { Scopes } from '@vivocha/scopes';
 import * as chai from 'chai';
 import * as spies from 'chai-spies';
 import * as express from 'express';
@@ -5,7 +6,6 @@ import * as supertest from 'supertest';
 import { API } from '../../dist/api';
 import { Operation } from '../../dist/operation';
 import { Resource } from '../../dist/resource';
-import { Scopes } from '@vivocha/scopes';
 import { APIRequest, APIResponse } from '../../dist/types';
 
 const should = chai.should();
@@ -926,6 +926,143 @@ describe('Operation', function() {
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             data.body.test.should.equal(5);
+          });
+      });
+    });
+
+    describe('parameters as refs', function() {
+      const port = 9876;
+      const host = 'localhost:' + port;
+      const basePath = 'http://' + host;
+      const request = supertest(basePath);
+      const app = express();
+      let server;
+
+      const api = new API();
+      if (!api.document.components) api.document.components = {};
+      if (!api.document.components.schemas) api.document.components.schemas = {};
+      api.document.components.schemas.test = <any>{
+        definitions: {
+          bool: {
+            type: 'boolean'
+          }
+        }
+      };
+      if (!api.document.components.parameters) api.document.components.parameters = {};
+      api.document.components.parameters.p1 = {
+        name: 'p1',
+        in: 'query',
+        schema: { $ref: '#/components/schemas/test/definitions/bool' },
+        required: true
+      };
+      api.document.components.parameters.p2 = {
+        name: 'p2',
+        in: 'query',
+        schema: {
+          type: 'number'
+        }
+      };
+      api.document.components.parameters.p3 = {
+        name: 'p3',
+        in: 'query',
+        style: 'pipeDelimited',
+        schema: {
+          type: 'array',
+          items: { type: 'integer' }
+        }
+      };
+
+      const spy = chai.spy(function(req, res) {
+        res.send({ query: req.query });
+      });
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+          this.info.parameters = [{ $ref: '#/components/parameters/p1' }, { $ref: '#/components/parameters/p2' }, { $ref: '#/components/parameters/p3' }];
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
+      api.addResource(r);
+
+      before(function() {
+        debugger;
+        return api.router().then(router => {
+          app.use(router);
+          server = app.listen(port);
+        });
+      });
+
+      after(function() {
+        server.close();
+      });
+
+      it('should fail if a required query parameter is missing', function() {
+        return request
+          .get('/tests/')
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('required');
+            data.info.path.should.equal('query.p1');
+            spy.should.not.have.been.called.once;
+          });
+      });
+
+      it('should fail if a query parameter has the wrong scalar type (1)', function() {
+        return request
+          .get('/tests/?p1=aaa')
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('query.p1');
+            spy.should.not.have.been.called.once;
+          });
+      });
+
+      it('should fail if a query parameter has the wrong scalar type (2)', function() {
+        return request
+          .get('/tests/?p1=true&p2=aaa')
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('type');
+            data.info.path.should.equal('query.p2');
+            spy.should.not.have.been.called.once;
+          });
+      });
+
+      it('should fail if a query parameter has the wrong item type', function() {
+        return request
+          .get('/tests/?p1=false&p3=1|aaa')
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('items');
+            data.info.errors[0].type.should.equal('type');
+            data.info.errors[0].path.should.equal('query.p3/1');
+            spy.should.not.have.been.called.once;
+          });
+      });
+
+      it('should correctly return all query parameter', function() {
+        return request
+          .get('/tests/?p1=true&p2=5&p3=1|2|3')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.query.p1.should.equal(true);
+            data.query.p2.should.equal(5);
+            data.query.p3.should.deep.equal([1, 2, 3]);
+            spy.should.have.been.called.once;
           });
       });
     });

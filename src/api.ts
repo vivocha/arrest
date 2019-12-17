@@ -92,7 +92,7 @@ export class API {
   registerDynamicSchema(name: string, schema: SchemaObject) {
     this.dynamicSchemas[name] = schema;
   }
-  registerOperation(path: string, method: string, operation: OpenAPIV3.OperationObject) {
+  registerOperation(path: string, method: string, operation: OpenAPIV3.OperationObject): () => OpenAPIV3.OperationObject {
     if (!this.document.paths) {
       this.document.paths = {};
     }
@@ -104,6 +104,7 @@ export class API {
       this.document.paths[_path] = {};
     }
     this.document.paths[_path][method] = operation;
+    return () => this.document.paths[_path][method];
   }
   registerTag(tag: OpenAPIV3.TagObject) {
     if (!this.document.tags) {
