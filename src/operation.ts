@@ -1,7 +1,7 @@
 import { Scopes } from '@vivocha/scopes';
 import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser';
 import { Eredita } from 'eredita';
-import { NextFunction, Router } from 'express';
+import { NextFunction, RequestHandler, Router } from 'express';
 import * as jp from 'jsonpolice';
 import * as _ from 'lodash';
 import { OpenAPIV3, ParameterObject, StaticSchemaObject } from 'openapi-police';
@@ -91,11 +91,11 @@ export abstract class Operation {
       }
     };
   }
-  protected createJSONParser() {
-    return jsonParser();
+  protected createJSONParser(): RequestHandler {
+    return jsonParser() as RequestHandler;
   }
-  protected createUrlencodedParser() {
-    return urlencodedParser({ extended: true });
+  protected createUrlencodedParser(): RequestHandler {
+    return urlencodedParser({ extended: true }) as RequestHandler;
   }
   protected createBodyValidators(): undefined | APIRequestHandler[] {
     if (this.info.requestBody) {
