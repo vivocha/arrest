@@ -1,6 +1,5 @@
-import { NextFunction } from 'connect';
 import { Logger } from 'debuggo';
-import { Request, RequestHandler, Response } from 'express';
+import { NextFunction, Request, RequestHandler, Response } from 'express';
 import { Scopes } from '@vivocha/scopes';
 
 export interface APIRequest extends Request {
