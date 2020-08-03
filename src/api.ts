@@ -1,20 +1,20 @@
 import { Scopes } from '@vivocha/scopes';
 import { getLogger, Logger } from 'debuggo';
 import { Eredita } from 'eredita';
-import * as express from 'express';
-import { NextFunction, Request, Response, Router, RouterOptions } from 'express';
+import express, { NextFunction, Request, Response, Router, RouterOptions } from 'express';
 import * as http from 'http';
 import * as https from 'https';
 import * as refs from 'jsonref'; // TODO include everything from openapi-police
 import * as _ from 'lodash';
 import { OpenAPIV3, SchemaObject, ValidationError } from 'openapi-police';
 import * as semver from 'semver';
+import { deprecate } from 'util';
 import { DEFAULT_DOCUMENT } from './defaults';
 import { RESTError } from './error';
 import { Resource } from './resource';
 import { SchemaResource } from './schema';
 import { APIRequest, APIResponse } from './types';
-import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from './utils';
+import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from './util';
 import request = require('request');
 
 let reqId: number = 0;
@@ -42,7 +42,7 @@ export class API {
     this.resources = [];
     this.parseOptions = {
       scope: 'http://vivocha.com/api/v3',
-      retriever: this.defaultSchemaRetriever.bind(this)
+      retriever: this.defaultSchemaRetriever.bind(this),
     };
   }
 
@@ -53,14 +53,14 @@ export class API {
     return `#${++reqId}`;
   }
   protected async defaultSchemaRetriever(url: string): Promise<any> {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
       request(
         {
           url: url,
           method: 'GET',
-          json: true
+          json: true,
         },
-        function(err, response, data) {
+        function (err, response, data) {
           if (err) {
             reject(err);
           } else if (response.statusCode !== 200) {
@@ -114,7 +114,7 @@ export class API {
   }
   registerOauth2Scope(name: string, description: string): void {
     const oauth2Defs: OpenAPIV3.OAuth2SecurityScheme[] = this.getOauth2Schemes();
-    oauth2Defs.forEach(i => {
+    oauth2Defs.forEach((i) => {
       for (let f in i.flows) {
         const flow = i.flows[f];
         if (!flow.scopes) {
@@ -172,7 +172,12 @@ export class API {
           }
           next();
         });
-        router.use(this.securityValidator.bind(this));
+
+        if (this.securityValidator !== API.prototype.securityValidator) {
+          router.use(deprecate(this.securityValidator, 'API.securityValidator is deprecated. Use API.initSecurity instead.').bind(this));
+        } else {
+          router.use(this.initSecurity.bind(this));
+        }
 
         for (let name in this.dynamicSchemas) {
           this.registerSchema(name, await this.dynamicSchemas[name].spec());
@@ -199,8 +204,8 @@ export class API {
             const baseUrl = `${req.headers['x-forwarded-proto'] || req.protocol}://${req.headers['host']}${req.baseUrl}`;
             out.servers = [
               {
-                url: baseUrl
-              }
+                url: baseUrl,
+              },
             ];
 
             // Normalize OAuth2 urls
@@ -210,7 +215,7 @@ export class API {
                 if (s.type === 'oauth2' && s.flows) {
                   for (let j in s.flows) {
                     const f = s.flows[j];
-                    ['authorizationUrl', 'tokenUrl', 'refreshUrl'].forEach(k => {
+                    ['authorizationUrl', 'tokenUrl', 'refreshUrl'].forEach((k) => {
                       if (f[k]) {
                         f[k] = new URL(f[k], baseUrl).toString();
                       }
@@ -239,7 +244,7 @@ export class API {
     base.use('/v' + semver.major(this.document.info.version), router);
     return base;
   }
-  securityValidator(req: APIRequest, res: APIResponse, next: NextFunction) {
+  initSecurity(req: APIRequest, _res: APIResponse, next: NextFunction) {
     req.logger.warn('using default security validator');
     if (!req.scopes) {
       req.logger.warn('scopes not set, setting default to *');
@@ -247,6 +252,10 @@ export class API {
     }
     next();
   }
+  securityValidator(req: APIRequest, res: APIResponse, next: NextFunction) {
+    this.initSecurity(req, res, next);
+  }
+
   handleError(err: any, req: APIRequest, res: APIResponse, next?: NextFunction) {
     if (err.name === 'RESTError') {
       req.logger.error('REST ERROR', err);
@@ -260,7 +269,7 @@ export class API {
           out.path = verr.path;
           out.scope = verr.scope;
           if (verr.errors) {
-            out.errors = verr.errors.map(e => _convertError(e));
+            out.errors = verr.errors.map((e) => _convertError(e));
           }
         }
         return out;

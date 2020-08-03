@@ -1,9 +1,11 @@
+import { Ability } from '@casl/ability';
+import { Scopes } from '@vivocha/scopes';
 import { Logger } from 'debuggo';
 import { NextFunction, Request, RequestHandler, Response } from 'express';
-import { Scopes } from '@vivocha/scopes';
 
 export interface APIRequest extends Request {
-  scopes: Scopes;
+  scopes?: Scopes;
+  ability?: Ability;
   logger: Logger;
 }
 export interface APIResponse extends Response {

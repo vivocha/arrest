@@ -1,0 +1,6 @@
+export * from './base';
+export { CreateMongoOperation } from './create';
+export { QueryMongoOperation } from './query';
+export { ReadMongoOperation } from './read';
+export { RemoveMongoOperation } from './remove';
+export { UpdateMongoOperation } from './update';

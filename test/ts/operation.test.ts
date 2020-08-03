@@ -1,3 +1,4 @@
+import { defineAbility } from '@casl/ability';
 import { Scopes } from '@vivocha/scopes';
 import * as chai from 'chai';
 import * as spies from 'chai-spies';
@@ -11,9 +12,9 @@ import { APIRequest, APIResponse } from '../../dist/types';
 const should = chai.should();
 chai.use(spies);
 
-describe('Operation', function() {
-  describe('constructor', function() {
-    it('should fail if no info is available', function() {
+describe('Operation', function () {
+  describe('constructor', function () {
+    it('should fail if no info is available', function () {
       class Op extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op');
@@ -23,11 +24,11 @@ describe('Operation', function() {
         }
         handler(req, res) {}
       }
-      (function() {
+      (function () {
         new Op(undefined, '', 'get');
       }.should.throw(Error, /Required operationId/));
     });
-    it('should fail if no operationId is available', function() {
+    it('should fail if no operationId is available', function () {
       class Op extends Operation {
         constructor(resource, path, method) {
           super(resource, path, method, 'op');
@@ -37,14 +38,14 @@ describe('Operation', function() {
         }
         handler(req, res) {}
       }
-      (function() {
+      (function () {
         new Op(undefined, '', 'get');
       }.should.throw(Error, /Required operationId/));
     });
   });
 
-  describe('attach', function() {
-    it('should create document.paths in API if it does not exist', function() {
+  describe('attach', function () {
+    it('should create document.paths in API if it does not exist', function () {
       const api = new API();
       class Op1 extends Operation {
         constructor(resource, path, method) {
@@ -58,7 +59,7 @@ describe('Operation', function() {
       should.exist(api.document.paths['/tests']);
     });
 
-    it('should add the scope names', function() {
+    it('should add the scope names', function () {
       const api = new API();
       api.document.components = {
         securitySchemes: {
@@ -68,18 +69,18 @@ describe('Operation', function() {
               authorizationCode: {
                 tokenUrl: 'token',
                 authorizationUrl: '/a/b/authorize',
-                scopes: {}
+                scopes: {},
               },
               implicit: {
-                authorizationUrl: '/a/b/authorize'
-              }
-            }
+                authorizationUrl: '/a/b/authorize',
+              },
+            },
           },
           myBasic: {
             type: 'http',
-            scheme: 'Basic'
-          }
-        }
+            scheme: 'Basic',
+          },
+        },
       } as any;
       class Op1 extends Operation {
         constructor(resource, path, method) {
@@ -111,8 +112,8 @@ describe('Operation', function() {
     });
   });
 
-  describe('router', function() {
-    it('should add an handler that gets requests', function() {
+  describe('router', function () {
+    it('should add an handler that gets requests', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -121,7 +122,7 @@ describe('Operation', function() {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function(req, res) {
+      const spy = chai.spy(function (req, res) {
         res.send({ a: 5 });
       });
       class Op1 extends Operation {
@@ -138,7 +139,7 @@ describe('Operation', function() {
 
       return api
         .router()
-        .then(router => {
+        .then((router) => {
           app.use(router);
           server = app.listen(port);
 
@@ -156,13 +157,13 @@ describe('Operation', function() {
           () => {
             server.close();
           },
-          err => {
+          (err) => {
             server.close();
             throw err;
           }
         );
     });
-    it('should automatically parse json bodies for put, post and patch is no requestBody is specified in the spec', function() {
+    it('should automatically parse json bodies for put, post and patch is no requestBody is specified in the spec', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -186,7 +187,7 @@ describe('Operation', function() {
 
       return api
         .router()
-        .then(router => {
+        .then((router) => {
           app.use(router);
           server = app.listen(port);
 
@@ -199,7 +200,7 @@ describe('Operation', function() {
           () => {
             server.close();
           },
-          err => {
+          (err) => {
             server.close();
             throw err;
           }
@@ -207,8 +208,8 @@ describe('Operation', function() {
     });
   });
 
-  describe('validators', function() {
-    describe('header', function() {
+  describe('validators', function () {
+    describe('header', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -217,7 +218,7 @@ describe('Operation', function() {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function(req, res) {
+      const spy = chai.spy(function (req, res) {
         res.send({ headers: req.headers });
       });
       class Op1 extends Operation {
@@ -228,25 +229,25 @@ describe('Operation', function() {
               name: 'x-test-p1',
               in: 'header',
               schema: {
-                type: 'boolean'
+                type: 'boolean',
               },
-              required: true
+              required: true,
             },
             {
               name: 'x-test-p2',
               in: 'header',
               schema: {
-                type: 'number'
-              }
+                type: 'number',
+              },
             },
             {
               name: 'x-test-p3',
               in: 'header',
               schema: {
                 type: 'array',
-                items: { type: 'integer' }
-              }
-            }
+                items: { type: 'integer' },
+              },
+            },
           ];
         }
         handler(req, res) {
@@ -257,20 +258,20 @@ describe('Operation', function() {
       let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
       api.addResource(r);
 
-      before(function() {
-        return api.router().then(router => {
+      before(function () {
+        return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function() {
+      after(function () {
         if (server) {
           server.close();
         }
       });
 
-      it('should fail if a required header is missing', function() {
+      it('should fail if a required header is missing', function () {
         return request
           .get('/tests/')
           .expect(400)
@@ -283,7 +284,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a header has the wrong scalar type (1)', function() {
+      it('should fail if a header has the wrong scalar type (1)', function () {
         return request
           .get('/tests/')
           .set('x-test-p1', 'test')
@@ -297,7 +298,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a header has the wrong scalar type (2)', function() {
+      it('should fail if a header has the wrong scalar type (2)', function () {
         return request
           .get('/tests/')
           .set('x-test-p1', 'false')
@@ -312,7 +313,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a header has the wrong item type', function() {
+      it('should fail if a header has the wrong item type', function () {
         return request
           .get('/tests/')
           .set('x-test-p1', 'true')
@@ -329,7 +330,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should correctly return all header parameters', function() {
+      it('should correctly return all header parameters', function () {
         return request
           .get('/tests/')
           .set('x-test-p1', 'true')
@@ -346,7 +347,7 @@ describe('Operation', function() {
       });
     });
 
-    describe('cookie', function() {
+    describe('cookie', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -355,7 +356,7 @@ describe('Operation', function() {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function(req, res) {
+      const spy = chai.spy(function (req, res) {
         res.send({ cookies: req.cookies });
       });
       class Op1 extends Operation {
@@ -366,25 +367,25 @@ describe('Operation', function() {
               name: 'test-p1',
               in: 'cookie',
               schema: {
-                type: 'boolean'
+                type: 'boolean',
               },
-              required: true
+              required: true,
             },
             {
               name: 'test-p2',
               in: 'cookie',
               schema: {
-                type: 'number'
-              }
+                type: 'number',
+              },
             },
             {
               name: 'test-p3',
               in: 'cookie',
               schema: {
                 type: 'array',
-                items: { type: 'integer' }
-              }
-            }
+                items: { type: 'integer' },
+              },
+            },
           ];
         }
         handler(req, res) {
@@ -395,20 +396,20 @@ describe('Operation', function() {
       let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
       api.addResource(r);
 
-      before(function() {
-        return api.router().then(router => {
+      before(function () {
+        return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function() {
+      after(function () {
         if (server) {
           server.close();
         }
       });
 
-      it('should fail if a required cookie is missing', function() {
+      it('should fail if a required cookie is missing', function () {
         return request
           .get('/tests/')
           .expect(400)
@@ -421,7 +422,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a cookie has the wrong scalar type (1)', function() {
+      it('should fail if a cookie has the wrong scalar type (1)', function () {
         return request
           .get('/tests/')
           .set('Cookie', ['test-p1=test'])
@@ -435,7 +436,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a cookie has the wrong scalar type (2)', function() {
+      it('should fail if a cookie has the wrong scalar type (2)', function () {
         return request
           .get('/tests/')
           .set('Cookie', ['test-p1=false;test-p2=test'])
@@ -449,7 +450,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a cookie has the wrong item type', function() {
+      it('should fail if a cookie has the wrong item type', function () {
         return request
           .get('/tests/')
           .set('Cookie', ['test-p1=true;test-p2=5;test-p3=test'])
@@ -464,7 +465,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should correctly return all cookie parameters', function() {
+      it('should correctly return all cookie parameters', function () {
         return request
           .get('/tests/')
           .set('Cookie', ['test-p1=true;test-p2=5;test-p3=1,2,3'])
@@ -479,7 +480,7 @@ describe('Operation', function() {
       });
     });
 
-    describe('path', function() {
+    describe('path', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -488,7 +489,7 @@ describe('Operation', function() {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function(req, res) {
+      const spy = chai.spy(function (req, res) {
         res.send({ params: req.params });
       });
       class Op1 extends Operation {
@@ -499,16 +500,16 @@ describe('Operation', function() {
               name: 'p1',
               in: 'path',
               schema: {
-                type: 'boolean'
-              }
+                type: 'boolean',
+              },
             },
             {
               name: 'p2',
               in: 'path',
               schema: {
-                type: 'number'
-              }
-            }
+                type: 'number',
+              },
+            },
           ];
         }
         handler(req, res) {
@@ -519,18 +520,18 @@ describe('Operation', function() {
       let r = new Resource({ name: 'Test' }, { '/:p1': { get: Op1 }, '/:p1/:p2': { get: Op1 } });
       api.addResource(r);
 
-      before(function() {
-        return api.router().then(router => {
+      before(function () {
+        return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should fail if a path parameter is missing', function() {
+      it('should fail if a path parameter is missing', function () {
         return request
           .get('/tests/true')
           .expect(400)
@@ -543,7 +544,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a path parameter has the wrong type (1)', function() {
+      it('should fail if a path parameter has the wrong type (1)', function () {
         return request
           .get('/tests/aaa')
           .expect(400)
@@ -556,7 +557,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a path parameter has the wrong type (2)', function() {
+      it('should fail if a path parameter has the wrong type (2)', function () {
         return request
           .get('/tests/true/aaa')
           .expect(400)
@@ -569,7 +570,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should correctly return all path parameters', function() {
+      it('should correctly return all path parameters', function () {
         return request
           .get('/tests/true/5')
           .expect(200)
@@ -582,7 +583,7 @@ describe('Operation', function() {
       });
     });
 
-    describe('query', function() {
+    describe('query', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -591,7 +592,7 @@ describe('Operation', function() {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function(req, res) {
+      const spy = chai.spy(function (req, res) {
         res.send({ query: req.query });
       });
       class Op1 extends Operation {
@@ -602,16 +603,16 @@ describe('Operation', function() {
               name: 'p1',
               in: 'query',
               schema: {
-                type: 'boolean'
+                type: 'boolean',
               },
-              required: true
+              required: true,
             },
             {
               name: 'p2',
               in: 'query',
               schema: {
-                type: 'number'
-              }
+                type: 'number',
+              },
             },
             {
               name: 'p3',
@@ -619,9 +620,9 @@ describe('Operation', function() {
               style: 'pipeDelimited',
               schema: {
                 type: 'array',
-                items: { type: 'integer' }
-              }
-            }
+                items: { type: 'integer' },
+              },
+            },
           ];
         }
         handler(req, res) {
@@ -632,18 +633,18 @@ describe('Operation', function() {
       let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
       api.addResource(r);
 
-      before(function() {
-        return api.router().then(router => {
+      before(function () {
+        return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should fail if a required query parameter is missing', function() {
+      it('should fail if a required query parameter is missing', function () {
         return request
           .get('/tests/')
           .expect(400)
@@ -656,7 +657,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a query parameter has the wrong scalar type (1)', function() {
+      it('should fail if a query parameter has the wrong scalar type (1)', function () {
         return request
           .get('/tests/?p1=aaa')
           .expect(400)
@@ -669,7 +670,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a query parameter has the wrong scalar type (2)', function() {
+      it('should fail if a query parameter has the wrong scalar type (2)', function () {
         return request
           .get('/tests/?p1=true&p2=aaa')
           .expect(400)
@@ -682,7 +683,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a query parameter has the wrong item type', function() {
+      it('should fail if a query parameter has the wrong item type', function () {
         return request
           .get('/tests/?p1=false&p3=1|aaa')
           .expect(400)
@@ -696,7 +697,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should correctly return all query parameter', function() {
+      it('should correctly return all query parameter', function () {
         return request
           .get('/tests/?p1=true&p2=5&p3=1|2|3')
           .expect(200)
@@ -710,7 +711,7 @@ describe('Operation', function() {
       });
     });
 
-    describe('body', function() {
+    describe('body', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -719,7 +720,7 @@ describe('Operation', function() {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function(req, res) {
+      const spy = chai.spy(function (req, res) {
         res.send({ body: req.body });
       });
       class Op1 extends Operation {
@@ -732,18 +733,18 @@ describe('Operation', function() {
                   type: 'object',
                   properties: {
                     a: {
-                      type: 'boolean'
+                      type: 'boolean',
                     },
                     b: {
-                      type: 'integer'
-                    }
+                      type: 'integer',
+                    },
                   },
                   additionalProperties: false,
-                  required: ['a']
-                }
-              }
+                  required: ['a'],
+                },
+              },
             },
-            required: true
+            required: true,
           };
         }
         handler(req, res) {
@@ -757,10 +758,10 @@ describe('Operation', function() {
             content: {
               'application/json': {
                 schema: {
-                  type: 'object'
-                }
-              }
-            }
+                  type: 'object',
+                },
+              },
+            },
           };
         }
         handler(req, res) {
@@ -779,12 +780,12 @@ describe('Operation', function() {
                   additionalProperties: false,
                   properties: {
                     test: {
-                      type: 'integer'
-                    }
-                  }
-                }
-              }
-            }
+                      type: 'integer',
+                    },
+                  },
+                },
+              },
+            },
           };
         }
         handler(req, res) {
@@ -792,21 +793,37 @@ describe('Operation', function() {
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }, '/c': { post: Op3 } });
+      class Op4 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op4');
+          this.info.requestBody = {
+            content: {
+              'unsupported/body-type': {
+                schema: {},
+              },
+            },
+          };
+        }
+        handler(req, res) {
+          spy(req, res);
+        }
+      }
+
+      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }, '/c': { post: Op3 }, '/d': { post: Op4 } });
       api.addResource(r);
 
-      before(function() {
-        return api.router().then(router => {
+      before(function () {
+        return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should throw is a requestBody is missing the content', function() {
+      it('should throw is a requestBody is missing the content', function () {
         class Op1 extends Operation {
           constructor(resource, path, method) {
             super(resource, path, method, 'op');
@@ -820,15 +837,15 @@ describe('Operation', function() {
         return api.router().should.be.rejectedWith(Error, /Invalid request body/);
       });
 
-      it('should throw is a requestBody is missing the schema', function() {
+      it('should throw is a requestBody is missing the schema', function () {
         class Op1 extends Operation {
           constructor(resource, path, method) {
             super(resource, path, method, 'op');
             this.info.requestBody = {
               content: {
-                'application/json': {}
+                'application/json': {},
               },
-              required: true
+              required: true,
             };
           }
           handler(req, res) {}
@@ -839,7 +856,7 @@ describe('Operation', function() {
         return api.router().should.be.rejectedWith(Error, /Schema missing/);
       });
 
-      it('should fail if a requested body is missing', function() {
+      it('should fail if a requested body is missing', function () {
         return request
           .post('/tests/a')
           .expect(400)
@@ -852,7 +869,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should not fail if an optional body is missing', function() {
+      it('should not fail if an optional body is missing', function () {
         return request
           .post('/tests/b')
           .expect(200)
@@ -860,7 +877,7 @@ describe('Operation', function() {
           .then(({ body: data }) => {});
       });
 
-      it('should fail if the body has the wrong type (1)', function() {
+      it('should fail if the body has the wrong type (1)', function () {
         return request
           .post('/tests/a')
           .send({})
@@ -874,7 +891,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if the body has the wrong type (2)', function() {
+      it('should fail if the body has the wrong type (2)', function () {
         return request
           .post('/tests/a')
           .send({ a: 'aaa' })
@@ -889,7 +906,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if the body has the wrong type (3)', function() {
+      it('should fail if the body has the wrong type (3)', function () {
         return request
           .post('/tests/a')
           .send({ a: true, b: 'aaa' })
@@ -904,7 +921,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should correctly return the body', function() {
+      it('should correctly return the body', function () {
         return request
           .post('/tests/a')
           .send({ a: true, b: 5 })
@@ -917,7 +934,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should accept and parse urlencoded bodies', function() {
+      it('should accept and parse urlencoded bodies', function () {
         return request
           .post('/tests/c')
           .set('Content-Type', 'application/x-www-form-urlencoded')
@@ -928,9 +945,21 @@ describe('Operation', function() {
             data.body.test.should.equal(5);
           });
       });
+
+      it('should ignore insupported body types', function () {
+        return request
+          .post('/tests/d')
+          .set('Content-Type', 'usupported/body-type')
+          .send('test=5')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal({});
+          });
+      });
     });
 
-    describe('parameters as refs', function() {
+    describe('parameters as refs', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -944,23 +973,23 @@ describe('Operation', function() {
       api.document.components.schemas.test = <any>{
         definitions: {
           bool: {
-            type: 'boolean'
-          }
-        }
+            type: 'boolean',
+          },
+        },
       };
       if (!api.document.components.parameters) api.document.components.parameters = {};
       api.document.components.parameters.p1 = {
         name: 'p1',
         in: 'query',
         schema: { $ref: '#/components/schemas/test/definitions/bool' },
-        required: true
+        required: true,
       };
       api.document.components.parameters.p2 = {
         name: 'p2',
         in: 'query',
         schema: {
-          type: 'number'
-        }
+          type: 'number',
+        },
       };
       api.document.components.parameters.p3 = {
         name: 'p3',
@@ -968,11 +997,11 @@ describe('Operation', function() {
         style: 'pipeDelimited',
         schema: {
           type: 'array',
-          items: { type: 'integer' }
-        }
+          items: { type: 'integer' },
+        },
       };
 
-      const spy = chai.spy(function(req, res) {
+      const spy = chai.spy(function (req, res) {
         res.send({ query: req.query });
       });
       class Op1 extends Operation {
@@ -988,19 +1017,19 @@ describe('Operation', function() {
       let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
       api.addResource(r);
 
-      before(function() {
+      before(function () {
         debugger;
-        return api.router().then(router => {
+        return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should fail if a required query parameter is missing', function() {
+      it('should fail if a required query parameter is missing', function () {
         return request
           .get('/tests/')
           .expect(400)
@@ -1013,7 +1042,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a query parameter has the wrong scalar type (1)', function() {
+      it('should fail if a query parameter has the wrong scalar type (1)', function () {
         return request
           .get('/tests/?p1=aaa')
           .expect(400)
@@ -1026,7 +1055,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a query parameter has the wrong scalar type (2)', function() {
+      it('should fail if a query parameter has the wrong scalar type (2)', function () {
         return request
           .get('/tests/?p1=true&p2=aaa')
           .expect(400)
@@ -1039,7 +1068,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if a query parameter has the wrong item type', function() {
+      it('should fail if a query parameter has the wrong item type', function () {
         return request
           .get('/tests/?p1=false&p3=1|aaa')
           .expect(400)
@@ -1053,7 +1082,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should correctly return all query parameter', function() {
+      it('should correctly return all query parameter', function () {
         return request
           .get('/tests/?p1=true&p2=5&p3=1|2|3')
           .expect(200)
@@ -1068,8 +1097,8 @@ describe('Operation', function() {
     });
   });
 
-  describe('scopes', function() {
-    describe('no scopes supplied', function() {
+  describe('scopes', function () {
+    describe('no scopes supplied', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -1078,12 +1107,12 @@ describe('Operation', function() {
       let server;
 
       class API1 extends API {
-        securityValidator(req, res, next) {
+        initSecurity(req, res, next) {
           next();
         }
       }
       const api = new API1();
-      const spy = chai.spy(function(req, res) {
+      const spy = chai.spy(function (req, res) {
         res.send({});
       });
       class Op1 extends Operation {
@@ -1101,18 +1130,18 @@ describe('Operation', function() {
       let r = new Resource({ name: 'Test' }, { '/1': { get: Op1 }, '/2': { get: spy } });
       api.addResource(r);
 
-      before(function() {
-        return api.router().then(router => {
+      before(function () {
+        return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should not perform any scope validation, if the resource does not define scopes', function() {
+      it('should not perform any scope validation, if the resource does not define scopes', function () {
         return request
           .get('/tests/1')
           .expect(200)
@@ -1122,7 +1151,7 @@ describe('Operation', function() {
           });
       });
 
-      it('should fail if scopes are required and none are supplied', function() {
+      it('should fail if scopes are required and none are supplied', function () {
         return request
           .get('/tests/2')
           .expect(401)
@@ -1133,7 +1162,7 @@ describe('Operation', function() {
       });
     });
 
-    describe('scopes supplied', function() {
+    describe('scopes supplied', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -1142,13 +1171,13 @@ describe('Operation', function() {
       let server;
 
       class API1 extends API {
-        securityValidator(req, res, next) {
+        initSecurity(req, res, next) {
           req.scopes = new Scopes(['a.*', '*.x', '-a.x', 'c.y']);
           next();
         }
       }
       const api = new API1();
-      const spy = chai.spy(function(req, res) {
+      const spy = chai.spy(function (req, res) {
         res.send({});
       });
       api.addResource(
@@ -1156,11 +1185,11 @@ describe('Operation', function() {
           { name: 'a', namePlural: 'a' },
           {
             '/x': {
-              get: spy
+              get: spy,
             },
             '/y': {
-              get: spy
-            }
+              get: spy,
+            },
           }
         )
       );
@@ -1169,11 +1198,11 @@ describe('Operation', function() {
           { name: 'b', namePlural: 'b' },
           {
             '/x': {
-              get: spy
+              get: spy,
             },
             '/y': {
-              get: spy
-            }
+              get: spy,
+            },
           }
         )
       );
@@ -1182,59 +1211,126 @@ describe('Operation', function() {
           { name: 'c', namePlural: 'c' },
           {
             '/x': {
-              get: spy
+              get: spy,
             },
             '/y': {
-              get: spy
-            }
+              get: spy,
+            },
           }
         )
       );
 
-      before(function() {
-        return api.router().then(router => {
+      before(function () {
+        return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should fail if a required scope is missing', function() {
-        return Promise.all([
-          request
-            .get('/a/x')
-            .expect(403)
-            .expect('Content-Type', /json/),
-          request
-            .get('/b/y')
-            .expect(403)
-            .expect('Content-Type', /json/)
-        ]);
+      it('should fail if a required scope is missing', function () {
+        return Promise.all([request.get('/a/x').expect(403).expect('Content-Type', /json/), request.get('/b/y').expect(403).expect('Content-Type', /json/)]);
       });
 
-      it('should succeed if required scopes are present', function() {
+      it('should succeed if required scopes are present', function () {
         return Promise.all([
-          request
-            .get('/a/y')
-            .expect(200)
-            .expect('Content-Type', /json/),
-          request
-            .get('/b/x')
-            .expect(200)
-            .expect('Content-Type', /json/),
-          request
-            .get('/c/x')
-            .expect(200)
-            .expect('Content-Type', /json/),
-          request
-            .get('/c/y')
-            .expect(200)
-            .expect('Content-Type', /json/)
+          request.get('/a/y').expect(200).expect('Content-Type', /json/),
+          request.get('/b/x').expect(200).expect('Content-Type', /json/),
+          request.get('/c/x').expect(200).expect('Content-Type', /json/),
+          request.get('/c/y').expect(200).expect('Content-Type', /json/),
         ]);
       });
+    });
+  });
+
+  describe('ability', function () {
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    const app = express();
+    let server;
+
+    class API1 extends API {
+      initSecurity(req, res, next) {
+        req.ability = defineAbility((can, cannot) => {
+          can('manage', 'a');
+          can('x', 'all');
+          cannot('x', 'a');
+          can('y', 'c');
+        });
+        next();
+      }
+    }
+    const api = new API1();
+    const spy = chai.spy(function (req, res) {
+      res.send({});
+    });
+    api.addResource(
+      new Resource(
+        { name: 'a', namePlural: 'a' },
+        {
+          '/x': {
+            get: spy,
+          },
+          '/y': {
+            get: spy,
+          },
+        }
+      )
+    );
+    api.addResource(
+      new Resource(
+        { name: 'b', namePlural: 'b' },
+        {
+          '/x': {
+            get: spy,
+          },
+          '/y': {
+            get: spy,
+          },
+        }
+      )
+    );
+    api.addResource(
+      new Resource(
+        { name: 'c', namePlural: 'c' },
+        {
+          '/x': {
+            get: spy,
+          },
+          '/y': {
+            get: spy,
+          },
+        }
+      )
+    );
+
+    before(function () {
+      return api.router().then((router) => {
+        app.use(router);
+        server = app.listen(port);
+      });
+    });
+
+    after(function () {
+      server.close();
+    });
+
+    it('should fail if a required ability is not granted', function () {
+      return Promise.all([request.get('/a/x').expect(403).expect('Content-Type', /json/), request.get('/b/y').expect(403).expect('Content-Type', /json/)]);
+    });
+
+    it('should succeed if required abilities are present', function () {
+      return Promise.all([
+        request.get('/a/y').expect(200).expect('Content-Type', /json/),
+        request.get('/b/x').expect(200).expect('Content-Type', /json/),
+        request.get('/c/x').expect(200).expect('Content-Type', /json/),
+        request.get('/c/y').expect(200).expect('Content-Type', /json/),
+      ]);
     });
   });
 });

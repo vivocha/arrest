@@ -21,7 +21,7 @@ export class MongoResource extends Resource {
   constructor(db: string | Db | Promise<Db>, public info: MongoResourceDefinition, routes: Routes = MongoResource.defaultRoutes()) {
     super(info, routes);
     if (typeof db === 'string') {
-      this.db = MongoClient.connect(db as string, { useUnifiedTopology: true }).then(client => client.db());
+      this.db = MongoClient.connect(db as string, { useUnifiedTopology: true }).then((client) => client.db());
     } else {
       this.db = Promise.resolve(db as Db | Promise<Db>);
     }
@@ -63,7 +63,7 @@ export class MongoResource extends Resource {
       for (let i of indexes) {
         const props = ['unique', 'sparse', 'min', 'max', 'expireAfterSeconds', 'key'];
 
-        let c_i = currIndexes.find(t => {
+        let c_i = currIndexes.find((t) => {
           return _.isEqual(_.pick(i, props), _.pick(t, props));
         });
         if (!c_i) {
@@ -103,10 +103,10 @@ export class MongoResource extends Resource {
       ? [
           {
             key: {
-              [this.info.id]: 1
+              [this.info.id]: 1,
             },
-            unique: true
-          }
+            unique: true,
+          },
         ]
       : undefined;
   }
@@ -115,13 +115,13 @@ export class MongoResource extends Resource {
     return {
       '/': {
         get: QueryMongoOperation,
-        post: CreateMongoOperation
+        post: CreateMongoOperation,
       },
       '/:id': {
         get: ReadMongoOperation,
         put: UpdateMongoOperation,
-        delete: RemoveMongoOperation
-      }
+        delete: RemoveMongoOperation,
+      },
     };
   }
 }

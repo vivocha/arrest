@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import { Scopes } from '@vivocha/scopes';
 import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser';
 import { Eredita } from 'eredita';
@@ -8,6 +9,7 @@ import { OpenAPIV3, ParameterObject, StaticSchemaObject } from 'openapi-police';
 import { API } from './api';
 import { Resource } from './resource';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
+import { checkAbility } from './util';
 import cookieParser = require('cookie-parser');
 
 const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
@@ -42,7 +44,7 @@ export abstract class Operation {
   }
   get swaggerScopes(): OpenAPIV3.OAuth2SecurityScopes {
     return {
-      [this.info.operationId as string]: this.info.summary || `Execute ${this.info.operationId} on a ${this.resource.info.name}`
+      [this.info.operationId as string]: this.info.summary || `Execute ${this.info.operationId} on a ${this.resource.info.name}`,
     };
   }
 
@@ -55,9 +57,9 @@ export abstract class Operation {
       tags: ['' + this.resource.info.name],
       responses: {
         default: {
-          $ref: '#/components/responses/defaultError'
-        }
-      }
+          $ref: '#/components/responses/defaultError',
+        },
+      },
     };
   }
   protected getCustomInfo(opts?: any): OpenAPIV3.OperationObject {
@@ -68,7 +70,7 @@ export abstract class Operation {
       let required = parameter.required || false;
       let schema: ParameterObject = new ParameterObject(parameter);
 
-      return async function(req: APIRequest) {
+      return async function (req: APIRequest) {
         req.logger.debug(`validator ${key}.${parameter.name}, required ${required}, value ${req[key][parameter.name]}`);
         if (typeof req[key][parameter.name] === 'undefined') {
           if (required === true) {
@@ -80,7 +82,7 @@ export abstract class Operation {
       };
     });
 
-    return async function(req: APIRequest, res: APIResponse, next: NextFunction) {
+    return async function (req: APIRequest, res: APIResponse, next: NextFunction) {
       try {
         for (let v of validators) {
           await v(req);
@@ -109,7 +111,7 @@ export abstract class Operation {
       if (body.content['application/x-www-form-urlencoded']) {
         return [
           this.createUrlencodedParser(),
-          this.createBodyValidator('application/x-www-form-urlencoded', body.content['application/x-www-form-urlencoded'], body.required)
+          this.createBodyValidator('application/x-www-form-urlencoded', body.content['application/x-www-form-urlencoded'], body.required),
         ];
       }
     } else if (['put', 'post', 'patch'].includes(this.method)) {
@@ -135,7 +137,7 @@ export abstract class Operation {
             {
               setDefault: true,
               coerceTypes: type !== 'application/json',
-              context: 'write'
+              context: 'write',
             },
             'body'
           );
@@ -151,16 +153,27 @@ export abstract class Operation {
     return !!this.scopes;
   }
   protected securityValidator(req: APIRequest, res: APIResponse, next: NextFunction) {
-    req.logger.debug(`checking scope, required: ${this.scopes}`);
-    if (!req.scopes) {
+    req.logger.debug(`checking ability/scope, required: ${this.scopes}`);
+    if (req.ability) {
+      try {
+        this.checkAbility(req.ability);
+      } catch (err) {
+        req.logger.warn(`insufficient ability`, err);
+        next(API.newError(403, 'insufficient privileges'));
+      }
+      req.logger.debug('ability ok');
+      next();
+    } else if (req.scopes) {
+      if (!req.scopes.match(this.scopes)) {
+        req.logger.warn('insufficient scope', req.scopes);
+        next(API.newError(403, 'insufficient privileges'));
+      } else {
+        req.logger.debug('scope ok');
+        next();
+      }
+    } else {
       req.logger.warn('no scope');
       next(API.newError(401, 'no scope'));
-    } else if (!req.scopes.match(this.scopes)) {
-      req.logger.warn('insufficient scope', req.scopes);
-      next(API.newError(403, 'insufficient privileges'));
-    } else {
-      req.logger.debug('scope ok');
-      next();
     }
   }
   protected errorHandler(err: any, req: APIRequest, res: APIResponse, next: NextFunction) {
@@ -170,10 +183,9 @@ export abstract class Operation {
   attach(api: API) {
     this.api = api;
 
-    const originalInfo = this.info;
     const infoGetter = api.registerOperation(this.resource.basePath + this.swaggerPath, this.method, this.info);
     Object.defineProperty(this, 'info', {
-      get: () => infoGetter() || originalInfo
+      get: infoGetter,
     });
 
     let swaggerScopes = this.swaggerScopes;
@@ -191,7 +203,7 @@ export abstract class Operation {
         }
         const s = schemes[k] as OpenAPIV3.OAuth2SecurityScheme;
         this.info.security.push({
-          [k]: s.type === 'oauth2' ? scopeNames : []
+          [k]: s.type === 'oauth2' ? scopeNames : [],
         });
       }
     }
@@ -218,7 +230,7 @@ export abstract class Operation {
       middlewares.push(this.createParameterValidators('cookies', params.cookie));
     }
     if (params.path) {
-      _.each(params.path, function(i) {
+      _.each(params.path, function (i) {
         i.required = true;
       });
       middlewares.push(this.createParameterValidators('params', params.path));
@@ -236,6 +248,20 @@ export abstract class Operation {
   }
 
   abstract handler(req: APIRequest, res: APIResponse, next?: NextFunction);
+
+  checkAbility(ability: Ability, data?: any, filter?: boolean): any {
+    if (this.scopes) {
+      for (let resource in this.scopes) {
+        for (let action in this.scopes[resource]) {
+          checkAbility(ability, resource, action, data, filter);
+        }
+      }
+    }
+    return data;
+  }
+  filterFields(ability: Ability, data: any): any {
+    return this.checkAbility(ability, data, true);
+  }
 }
 
 export class SimpleOperation extends Operation {

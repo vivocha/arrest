@@ -8,7 +8,8 @@
     "outDir": "dist",
     "strictNullChecks": true,
     "allowJs": false,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "esModuleInterop": true
   },
   "include": ["src/**/*.ts"]
 }

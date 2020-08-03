@@ -1,3 +1,4 @@
+import { Scopes } from '@vivocha/scopes';
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import * as spies from 'chai-spies';
@@ -10,37 +11,36 @@ import { DEFAULT_DOCUMENT } from '../../dist/defaults';
 import { RESTError } from '../../dist/error';
 import { Operation } from '../../dist/operation';
 import { Resource } from '../../dist/resource';
-import { Scopes } from '@vivocha/scopes';
 import { simpleAPI, simpleAPI2, simpleAPI3, simpleAPI4, simpleAPI5, simpleAPI6, simpleAPI7 } from './dummy-api';
 
 const should = chai.should();
 chai.use(spies);
 chai.use(chaiAsPromised);
 
-describe('API', function() {
-  describe('constructor', function() {
-    it('should fail to create an API instance if an invalid version is specified', function() {
-      (function() {
+describe('API', function () {
+  describe('constructor', function () {
+    it('should fail to create an API instance if an invalid version is specified', function () {
+      (function () {
         new API(({ version: true } as any) as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
-      (function() {
+      (function () {
         new API(({ version: 'a' } as any) as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
-      (function() {
+      (function () {
         new API(({ version: 1 } as any) as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
-      (function() {
+      (function () {
         new API(({ version: '1' } as any) as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
-      (function() {
+      (function () {
         new API(({ version: '1.0' } as any) as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
-      (function() {
+      (function () {
         new API();
       }.should.not.throw);
     });
 
-    it('should create an API instance', function() {
+    it('should create an API instance', function () {
       let api = new API();
       api.document.openapi.should.equal('3.0.2');
       api.document.info.version.should.equal('1.0.0');
@@ -48,26 +48,75 @@ describe('API', function() {
     });
   });
 
-  describe('router', function() {
-    it('should return an Expressjs router', function() {
+  describe('router', function () {
+    it('should return an Expressjs router', function () {
       let api = new API();
-      return api.router().then(router => {
+      return api.router().then((router) => {
         router.should.be.a('function');
       });
     });
 
-    it('should return the same object when called twice', function() {
+    it('should return the same object when called twice', function () {
       let api = new API();
-      return api.router().then(router1 => {
-        return api.router().then(router2 => {
+      return api.router().then((router1) => {
+        return api.router().then((router2) => {
           router1.should.equal(router2);
         });
       });
     });
+
+    describe('securityValidator', function () {
+      const port = 9876;
+      const host = 'localhost:' + port;
+      const basePath = 'http://' + host;
+      const request = supertest(basePath);
+      const app = express();
+      const spy1 = chai.spy();
+      const spy2 = chai.spy();
+      let server;
+
+      class DeprecatedAPI extends API {
+        initSecurity(req, res, next) {
+          spy1.should.have.been.called;
+          spy2();
+          super.initSecurity(req, res, next);
+        }
+        securityValidator(req, res, next) {
+          spy2.should.not.have.been.called;
+          spy1();
+          super.securityValidator(req, res, next);
+        }
+      }
+
+      const api = new DeprecatedAPI();
+
+      before(function () {
+        api.addResource(new Resource({ routes: { '/': { get: (_req, res) => res.json({}) } } }));
+        return api.router().then((router) => {
+          app.use(router);
+          server = app.listen(port);
+        });
+      });
+
+      after(function () {
+        server.close();
+      });
+
+      it('should detect an overriden securityValidator and warn that it is deprecated', function () {
+        return request
+          .get('/resources')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            spy1.should.have.been.called.once;
+            spy2.should.have.been.called.once;
+          });
+      });
+    });
   });
 
-  describe('plain api (no resources)', function() {
-    describe('/openapi.json', function() {
+  describe('plain api (no resources)', function () {
+    describe('/openapi.json', function () {
       const port = 9876;
       const host = 'localhost:' + port;
       const basePath = 'http://' + host;
@@ -76,7 +125,7 @@ describe('API', function() {
       const app = express();
       let server;
 
-      before(function() {
+      before(function () {
         api.document.components = {
           securitySchemes: {
             myScheme: {
@@ -85,37 +134,37 @@ describe('API', function() {
                 authorizationCode: {
                   tokenUrl: 'token',
                   authorizationUrl: '/a/b/authorize',
-                  scopes: {}
+                  scopes: {},
                 },
                 implicit: {
                   authorizationUrl: '/a/b/authorize',
-                  scopes: {}
-                }
-              }
+                  scopes: {},
+                },
+              },
             },
             otherScheme: {
               type: 'http',
-              scheme: 'basic'
-            }
-          }
+              scheme: 'basic',
+            },
+          },
         };
 
-        return api.router().then(router => {
+        return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
         });
       });
 
-      after(function() {
+      after(function () {
         server.close();
       });
 
-      it('should fail if the request is missing the Host header', function() {
+      it('should fail if the request is missing the Host header', function () {
         let app2 = express();
         let server2;
         return api
           .router()
-          .then(router => {
+          .then((router) => {
             app2.use((req, res, next) => {
               delete req.headers.host;
               next();
@@ -135,14 +184,14 @@ describe('API', function() {
             () => {
               server2.close();
             },
-            err => {
+            (err) => {
               server2.close();
               throw err;
             }
           );
       });
 
-      it('should return a default openapi file', function() {
+      it('should return a default openapi file', function () {
         return request
           .get('/openapi.json')
           .expect(200)
@@ -156,7 +205,7 @@ describe('API', function() {
           });
       });
 
-      it('should normalize oauth2 urls in security definitions', function() {
+      it('should normalize oauth2 urls in security definitions', function () {
         return request
           .get('/openapi.json')
           .expect(200)
@@ -169,7 +218,7 @@ describe('API', function() {
     });
   });
 
-  describe('attach', function() {
+  describe('attach', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
@@ -179,19 +228,19 @@ describe('API', function() {
     const r = express.Router();
     let server;
 
-    before(function() {
+    before(function () {
       app.use(r);
-      return api.attach(r).then(router => {
+      return api.attach(r).then((router) => {
         app.use(router);
         server = app.listen(port);
       });
     });
 
-    after(function() {
+    after(function () {
       server.close();
     });
 
-    it('should attach the api on /v{major version} and reflect that in openapi.json', function() {
+    it('should attach the api on /v{major version} and reflect that in openapi.json', function () {
       return request
         .get('/v3/openapi.json')
         .expect(200)
@@ -203,7 +252,7 @@ describe('API', function() {
         });
     });
 
-    it('should attach another api version and reflect that in the swagger', function() {
+    it('should attach another api version and reflect that in the swagger', function () {
       const api2 = new API({ version: '4.0.0', title: 'test' });
 
       return api2.attach(r).then(() => {
@@ -219,7 +268,7 @@ describe('API', function() {
       });
     });
 
-    it('should attach another api with the same version which will handle resources to handled by the first one', function() {
+    it('should attach another api with the same version which will handle resources to handled by the first one', function () {
       const api3 = new API({ version: '3.2.2', title: 'test' });
       api3.addResource(new Resource({ routes: { '/': { get: (req, res) => res.json({ result: 10 }) } } }));
 
@@ -236,7 +285,7 @@ describe('API', function() {
     });
   });
 
-  describe('listen', function() {
+  describe('listen', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
@@ -244,7 +293,7 @@ describe('API', function() {
     let server1;
     let server2;
 
-    afterEach(function() {
+    afterEach(function () {
       delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
       if (server1) {
         server1.close();
@@ -254,32 +303,32 @@ describe('API', function() {
       }
     });
 
-    it('should fail if no ports are specified', function() {
+    it('should fail if no ports are specified', function () {
       const api = new API({ version: '3.2.1', title: 'test' });
       return api.listen((undefined as any) as number).then(
         () => {
           throw new Error('should not get here');
         },
-        err => {
+        (err) => {
           err.should.be.instanceOf(Error);
           err.message.should.match(/no listen ports specified/);
         }
       );
     });
 
-    it('should fail if no https options are specified', function() {
+    it('should fail if no https options are specified', function () {
       const api = new API({ version: '3.2.1', title: 'test' });
       api.listen(0, 1).then(
         () => {
           throw new Error('should not get here');
         },
-        err => true
+        (err) => true
       );
     });
 
-    it('should create an api server listening to http on the requested port', function() {
+    it('should create an api server listening to http on the requested port', function () {
       const api = new API({ version: '3.2.1', title: 'test' });
-      return api.listen(port).then(server => {
+      return api.listen(port).then((server) => {
         server1 = server;
         return request
           .get('/openapi.json')
@@ -293,9 +342,9 @@ describe('API', function() {
       });
     });
 
-    it('should create an api server listening to https on the requested port', function() {
+    it('should create an api server listening to https on the requested port', function () {
       return new Promise((resolve, reject) => {
-        pem.createCertificate({ days: 1, selfSigned: true }, function(err, keys) {
+        pem.createCertificate({ days: 1, selfSigned: true }, function (err, keys) {
           if (err) {
             reject(err);
           } else {
@@ -305,7 +354,7 @@ describe('API', function() {
       }).then((keys: any) => {
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         const api = new API({ version: '3.2.1', title: 'test' });
-        return api.listen(0, port, { key: keys.serviceKey, cert: keys.certificate }).then(server => {
+        return api.listen(0, port, { key: keys.serviceKey, cert: keys.certificate }).then((server) => {
           server1 = server;
           return supertest('https://' + host)
             .get('/openapi.json')
@@ -320,9 +369,9 @@ describe('API', function() {
       });
     });
 
-    it('should create an api server listening to both http and https on the requested ports', function() {
+    it('should create an api server listening to both http and https on the requested ports', function () {
       return new Promise((resolve, reject) => {
-        pem.createCertificate({ days: 1, selfSigned: true }, function(err, keys) {
+        pem.createCertificate({ days: 1, selfSigned: true }, function (err, keys) {
           if (err) {
             reject(err);
           } else {
@@ -332,7 +381,7 @@ describe('API', function() {
       }).then((keys: any) => {
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         const api = new API({ version: '3.2.1', title: 'test' });
-        return api.listen(port, port + 2, { key: keys.serviceKey, cert: keys.certificate }).then(servers => {
+        return api.listen(port, port + 2, { key: keys.serviceKey, cert: keys.certificate }).then((servers) => {
           server1 = servers[0];
           server2 = servers[1];
           return Promise.all([
@@ -353,14 +402,14 @@ describe('API', function() {
                 should.exist(data);
                 data.openapi.should.equal(DEFAULT_DOCUMENT.openapi);
                 data.servers[0].url.should.equal(`https://localhost:${port + 2}`);
-              })
+              }),
           ]);
         });
       });
     });
   });
 
-  describe('error handling', function() {
+  describe('error handling', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
@@ -381,19 +430,19 @@ describe('API', function() {
     let r = new Resource({ name: 'Test' }, { '/a': { get: Op1 } });
     api.addResource(r);
 
-    before(function() {
-      return api.router().then(router => {
+    before(function () {
+      return api.router().then((router) => {
         app.use(router);
         server = app.listen(port);
       });
     });
 
-    after(function() {
+    after(function () {
       server.close();
     });
 
-    it('should return the specified rest error', function() {
-      spy = chai.spy(function(req, res) {
+    it('should return the specified rest error', function () {
+      spy = chai.spy(function (req, res) {
         API.fireError(418);
       });
       return request
@@ -407,8 +456,8 @@ describe('API', function() {
         });
     });
 
-    it('should return the specified rest error', function() {
-      spy = chai.spy(function(req, res) {
+    it('should return the specified rest error', function () {
+      spy = chai.spy(function (req, res) {
         API.fireError(418);
       });
       return request
@@ -422,8 +471,8 @@ describe('API', function() {
         });
     });
 
-    it('should return 500 as the default error', function() {
-      spy = chai.spy(function(req, res) {
+    it('should return 500 as the default error', function () {
+      spy = chai.spy(function (req, res) {
         throw new Error('bla bla bla');
       });
       return request
@@ -437,8 +486,8 @@ describe('API', function() {
         });
     });
 
-    it('should return 405 if an unsupported method is called on a known path', function() {
-      spy = chai.spy(function(req, res) {
+    it('should return 405 if an unsupported method is called on a known path', function () {
+      spy = chai.spy(function (req, res) {
         throw new Error('bla bla bla');
       });
       return request
@@ -452,11 +501,11 @@ describe('API', function() {
         });
     });
 
-    it('should convert nested ValidationErrors', function() {
-      spy = chai.spy(function(req, res, next) {
+    it('should convert nested ValidationErrors', function () {
+      spy = chai.spy(function (req, res, next) {
         const error = new ValidationError('/', 'http://example.com', 'level1', [
           new ValidationError('/', 'http://example.com', 'level2-1', [new Error('level3')]),
-          new ValidationError('/', 'http://example.com', 'level2-2')
+          new ValidationError('/', 'http://example.com', 'level2-2'),
         ]);
         next(error);
       });
@@ -472,7 +521,7 @@ describe('API', function() {
     });
   });
 
-  describe('404 Error handling', function() {
+  describe('404 Error handling', function () {
     const port = 9999;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
@@ -490,15 +539,15 @@ describe('API', function() {
     let r = new Resource({ name: 'Test' }, { '/a': { get: Op1 } });
     api.addResource(r);
 
-    before(async function() {
+    before(async function () {
       server = await api.listen(port);
       return;
     });
-    after(function() {
+    after(function () {
       server.close();
     });
 
-    it('should return 404 if endpoint refers to an unknown path', function() {
+    it('should return 404 if endpoint refers to an unknown path', function () {
       return request
         .get('/tests/unknown')
         .expect(404)
@@ -511,13 +560,13 @@ describe('API', function() {
     });
   });
 
-  describe('Scopes', function() {
-    it('should return all the scopes as an array', function() {
+  describe('Scopes', function () {
+    it('should return all the scopes as an array', function () {
       let s = new Scopes(['a.x', '-a.z']);
       s.toArray().should.have.length(2);
     });
 
-    it('should create an empty scopes descriptor', function() {
+    it('should create an empty scopes descriptor', function () {
       let s = new Scopes();
       s.match('a.x').should.equal(false);
       s.match(['a.x']).should.equal(false);
@@ -526,7 +575,7 @@ describe('API', function() {
       s.match(new Scopes('-a.x')).should.equal(true);
     });
 
-    it('should use a negative wildcard scope when defined', function() {
+    it('should use a negative wildcard scope when defined', function () {
       let s = new Scopes(['a', '-*.x']);
       s.match('a.x').should.equal(false);
       s.match('b.x').should.equal(false);
@@ -540,36 +589,24 @@ describe('API', function() {
       s.match('b.y').should.equal(false);
     });
 
-    it('should throw if bad scopes are passed', function() {
-      should.throw(function() {
+    it('should throw if bad scopes are passed', function () {
+      should.throw(function () {
         let s = new Scopes(['']);
       }, RangeError);
     });
 
-    it('should filter scopes', function() {
+    it('should filter scopes', function () {
       let ref1 = new Scopes(['a.*', '-a.x', '*.z']);
-      ref1
-        .filter('a.x a.y c.x c.y c.z')
-        .toArray()
-        .should.deep.equal(['a.y', 'c.z']);
-      ref1
-        .filter(['a.x', 'a.y', 'c.x', 'c.y', 'c.z'])
-        .toArray()
-        .should.deep.equal(['a.y', 'c.z']);
+      ref1.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['a.y', 'c.z']);
+      ref1.filter(['a.x', 'a.y', 'c.x', 'c.y', 'c.z']).toArray().should.deep.equal(['a.y', 'c.z']);
       ref1
         .filter(new Scopes(['a.x', 'a.y', 'c.x', 'c.y', 'c.z']))
         .toArray()
         .should.deep.equal(['a.y', 'c.z']);
 
       let ref2 = new Scopes(['*', '-*.x', '-c']);
-      ref2
-        .filter('a.x a.y c.x c.y c.z')
-        .toArray()
-        .should.deep.equal(['-*.x', 'a.y']);
-      ref2
-        .filter(['a.x', 'a.y', 'b.x', 'b.y', 'b.z'])
-        .toArray()
-        .should.deep.equal(['-*.x', 'a.y', 'b.y', 'b.z']);
+      ref2.filter('a.x a.y c.x c.y c.z').toArray().should.deep.equal(['-*.x', 'a.y']);
+      ref2.filter(['a.x', 'a.y', 'b.x', 'b.y', 'b.z']).toArray().should.deep.equal(['-*.x', 'a.y', 'b.y', 'b.z']);
       ref2
         .filter(new Scopes(['a', 'c']))
         .toArray()
@@ -582,67 +619,46 @@ describe('API', function() {
         .filter(new Scopes(['*.x', '*.y']))
         .toArray()
         .should.deep.equal(['-*.x', '*.y']);
-      ref2
-        .filter('d.*')
-        .toArray()
-        .should.deep.equal(['-*.x', 'd.*']);
+      ref2.filter('d.*').toArray().should.deep.equal(['-*.x', 'd.*']);
 
       let ref3 = new Scopes(['a', 'b', '-c']);
-      ref3
-        .filter('*.x')
-        .toArray()
-        .should.deep.equal(['a.x', 'b.x']);
-      ref3
-        .filter('*')
-        .toArray()
-        .should.deep.equal(['a.*', 'b.*']);
-      ref3
-        .filter('* -*.x')
-        .toArray()
-        .should.deep.equal(['a.*', 'b.*', '-*.x']);
-      ref3
-        .filter('d.*')
-        .toArray()
-        .should.deep.equal([]);
+      ref3.filter('*.x').toArray().should.deep.equal(['a.x', 'b.x']);
+      ref3.filter('*').toArray().should.deep.equal(['a.*', 'b.*']);
+      ref3.filter('* -*.x').toArray().should.deep.equal(['a.*', 'b.*', '-*.x']);
+      ref3.filter('d.*').toArray().should.deep.equal([]);
 
       let ref4 = new Scopes(['*.x', '-*.y']);
-      ref4
-        .filter('d.*')
-        .toArray()
-        .should.deep.equal(['-*.y', 'd.x']);
+      ref4.filter('d.*').toArray().should.deep.equal(['-*.y', 'd.x']);
 
       let ref5 = new Scopes(['a']);
-      ref5
-        .filter('a.* -a.y')
-        .toArray()
-        .should.deep.equal(['a.*', '-a.y']);
+      ref5.filter('a.* -a.y').toArray().should.deep.equal(['a.*', '-a.y']);
     });
   });
 
-  describe('schema', function() {
+  describe('schema', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     let server;
 
-    afterEach(function() {
+    afterEach(function () {
       if (server) {
         server.close();
         server = undefined;
       }
     });
 
-    it('should initialize missing document properties when registering a schema', function() {
+    it('should initialize missing document properties when registering a schema', function () {
       const api = new API();
       delete api.document.components;
       api.registerSchema('test', {
-        type: 'object'
+        type: 'object',
       });
       (api.document as any).components.schemas.test.should.deep.equal({ type: 'object' });
     });
 
-    it('should be able to resolve an internal schema', function() {
+    it('should be able to resolve an internal schema', function () {
       const spy = chai.spy((req, res) => {
         res.json({});
       });
@@ -653,10 +669,10 @@ describe('API', function() {
           this.info.requestBody = {
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/op1_schema2' }
-              }
+                schema: { $ref: '#/components/schemas/op1_schema2' },
+              },
             },
-            required: true
+            required: true,
           };
         }
         attach(api) {
@@ -664,26 +680,26 @@ describe('API', function() {
             type: 'object',
             properties: {
               a: {
-                type: 'boolean'
+                type: 'boolean',
               },
               b: {
-                type: 'integer'
-              }
+                type: 'integer',
+              },
             },
             additionalProperties: false,
-            required: ['a']
+            required: ['a'],
           });
           api.registerSchema('op1_schema2', {
             type: 'object',
             properties: {
               c: {
-                type: 'string'
+                type: 'string',
               },
               d: { $ref: 'op1_schema1' },
-              e: { $ref: 'op1_schema1#/properties/b' }
+              e: { $ref: 'op1_schema1#/properties/b' },
             },
             additionalProperties: false,
-            required: ['d']
+            required: ['d'],
           });
           super.attach(api);
         }
@@ -694,7 +710,7 @@ describe('API', function() {
 
       api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
 
-      return api.router().then(router => {
+      return api.router().then((router) => {
         const app = express();
         app.use(router);
         server = app.listen(port);
@@ -740,14 +756,14 @@ describe('API', function() {
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-            })
+            }),
         ]).then(() => {
           spy.should.have.been.called.once;
         });
       });
     });
 
-    it('should be able to resolve dynamic schemas', function() {
+    it('should be able to resolve dynamic schemas', function () {
       const spy = chai.spy((req, res) => {
         res.json({});
       });
@@ -758,14 +774,14 @@ describe('API', function() {
             type: 'object',
             properties: {
               a: {
-                type: 'boolean'
+                type: 'boolean',
               },
               b: {
-                type: 'integer'
-              }
+                type: 'integer',
+              },
             },
             additionalProperties: false,
-            required: ['a']
+            required: ['a'],
           };
         }
       }
@@ -775,13 +791,13 @@ describe('API', function() {
             type: 'object',
             properties: {
               c: {
-                type: 'string'
+                type: 'string',
               },
               d: { $ref: 'op1_schema1' },
-              e: { $ref: 'op1_schema1#/properties/b' }
+              e: { $ref: 'op1_schema1#/properties/b' },
             },
             additionalProperties: false,
-            required: ['d']
+            required: ['d'],
           };
         }
       }
@@ -791,10 +807,10 @@ describe('API', function() {
           this.info.requestBody = {
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/op1_schema2' }
-              }
+                schema: { $ref: '#/components/schemas/op1_schema2' },
+              },
             },
-            required: true
+            required: true,
           };
         }
         attach(api) {
@@ -809,7 +825,7 @@ describe('API', function() {
 
       api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
 
-      return api.router().then(router => {
+      return api.router().then((router) => {
         const app = express();
         app.use(router);
         server = app.listen(port);
@@ -855,14 +871,14 @@ describe('API', function() {
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-            })
+            }),
         ]).then(() => {
           spy.should.have.been.called.once;
         });
       });
     });
 
-    it('should fail if an external schema cannot be retrieved (1)', async function() {
+    it('should fail if an external schema cannot be retrieved (1)', async function () {
       const spy = chai.spy((req, res) => {
         res.json({});
       });
@@ -873,10 +889,10 @@ describe('API', function() {
           this.info.requestBody = {
             content: {
               'application/json': {
-                schema: { $ref: `http://noresolve.vivocha.com/aaa` }
-              }
+                schema: { $ref: `http://noresolve.vivocha.com/aaa` },
+              },
             },
-            required: true
+            required: true,
           };
         }
         handler(req, res) {
@@ -892,7 +908,7 @@ describe('API', function() {
       err.errors[0].message.should.match(/noresolve.vivocha.com/);
     });
 
-    it('should fail if an external schema cannot be retrieved (2)', async function() {
+    it('should fail if an external schema cannot be retrieved (2)', async function () {
       const spy = chai.spy((req, res) => {
         res.json({});
       });
@@ -903,10 +919,10 @@ describe('API', function() {
           this.info.requestBody = {
             content: {
               'application/json': {
-                schema: { $ref: `${basePath}/aaa` }
-              }
+                schema: { $ref: `${basePath}/aaa` },
+              },
             },
-            required: true
+            required: true,
           };
         }
         handler(req, res) {
@@ -924,7 +940,7 @@ describe('API', function() {
       err.errors[0].originalError.should.be.instanceOf(RESTError);
     });
 
-    it('should be able to resolve an external schema', function() {
+    it('should be able to resolve an external schema', function () {
       const spy = chai.spy((req, res) => {
         res.json({});
       });
@@ -935,10 +951,10 @@ describe('API', function() {
           this.info.requestBody = {
             content: {
               'application/json': {
-                schema: { $ref: `${basePath}/aaa` }
-              }
+                schema: { $ref: `${basePath}/aaa` },
+              },
             },
-            required: true
+            required: true,
           };
         }
         handler(req, res) {
@@ -952,21 +968,21 @@ describe('API', function() {
           type: 'object',
           properties: {
             h: {
-              type: 'boolean'
+              type: 'boolean',
             },
             i: {
-              type: 'integer'
-            }
+              type: 'integer',
+            },
           },
           additionalProperties: false,
-          required: ['h']
+          required: ['h'],
         })
       );
       server = app.listen(port);
 
       api.addResource(new Resource({ name: 'Test' }, { '/a': { post: Op1 } }));
 
-      return api.router().then(router => {
+      return api.router().then((router) => {
         app.use(router);
 
         return Promise.all([
@@ -1010,17 +1026,17 @@ describe('API', function() {
             .expect('Content-Type', /json/)
             .then(({ body: data }) => {
               should.exist(data);
-            })
+            }),
         ]).then(() => {
           spy.should.have.been.called.once;
         });
       });
     });
 
-    it('should not create a Schema.read operation if no schema is registered', function() {
+    it('should not create a Schema.read operation if no schema is registered', function () {
       const api = new API();
       delete api.document.components;
-      return api.router().then(router => {
+      return api.router().then((router) => {
         const app = express();
         app.use(router);
         server = app.listen(port);
@@ -1036,12 +1052,12 @@ describe('API', function() {
       });
     });
 
-    it('should create a Schema.read operation if at least a schema is registered', function() {
+    it('should create a Schema.read operation if at least a schema is registered', function () {
       const api = new API();
       api.registerSchema('test', {
-        type: 'object'
+        type: 'object',
       });
-      return api.router().then(router => {
+      return api.router().then((router) => {
         const app = express();
         app.use(router);
         server = app.listen(port);
@@ -1058,14 +1074,14 @@ describe('API', function() {
       });
     });
 
-    it('should return a registered schema by id via the Schema.read operation', function() {
+    it('should return a registered schema by id via the Schema.read operation', function () {
       const api = new API();
       const schema: OpenAPIV3.SchemaObject = {
         type: 'object',
-        additionalProperties: false
+        additionalProperties: false,
       };
       api.registerSchema('test', schema);
-      return api.router().then(router => {
+      return api.router().then((router) => {
         const app = express();
         app.use(router);
         server = app.listen(port);
@@ -1080,14 +1096,14 @@ describe('API', function() {
       });
     });
 
-    it('should return 404 if a requested schema is not registered', function() {
+    it('should return 404 if a requested schema is not registered', function () {
       const api = new API();
       const schema: OpenAPIV3.SchemaObject = {
         type: 'object',
-        additionalProperties: false
+        additionalProperties: false,
       };
       api.registerSchema('test', schema);
-      return api.router().then(router => {
+      return api.router().then((router) => {
         const app = express();
         app.use(router);
         server = app.listen(port);
@@ -1097,29 +1113,29 @@ describe('API', function() {
     });
   });
 
-  describe('openapi spec for an API', function() {
+  describe('openapi spec for an API', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     let server;
 
-    before(async function() {
+    before(async function () {
       server = await simpleAPI.listen(port);
       return server;
     });
-    after(function() {
+    after(function () {
       if (server) {
         server.close();
         server = undefined;
       }
     });
-    it('should return a complete and clean OpenAPI spec for a defined API instance', async function() {
+    it('should return a complete and clean OpenAPI spec for a defined API instance', async function () {
       const expectedSpec = {
         openapi: '3.0.2',
         info: {
           title: 'REST API',
-          version: '1.0.0'
+          version: '1.0.0',
         },
         components: {
           schemas: {
@@ -1128,46 +1144,46 @@ describe('API', function() {
               properties: {
                 error: {
                   type: 'integer',
-                  minimum: 100
+                  minimum: 100,
                 },
                 message: {
-                  type: 'string'
+                  type: 'string',
                 },
                 info: {
-                  type: 'string'
-                }
+                  type: 'string',
+                },
               },
-              required: ['error', 'message']
+              required: ['error', 'message'],
             },
             op1_schema1: {
               type: 'object',
               properties: {
                 a: {
-                  type: 'boolean'
+                  type: 'boolean',
                 },
                 b: {
-                  type: 'integer'
-                }
+                  type: 'integer',
+                },
               },
               additionalProperties: false,
-              required: ['a']
+              required: ['a'],
             },
             op1_schema2: {
               type: 'object',
               properties: {
                 c: {
-                  type: 'string'
+                  type: 'string',
                 },
                 d: {
-                  $ref: '#/components/schemas/op1_schema1'
+                  $ref: '#/components/schemas/op1_schema1',
                 },
                 e: {
-                  $ref: '#/components/schemas/op1_schema1/properties/b'
-                }
+                  $ref: '#/components/schemas/op1_schema1/properties/b',
+                },
               },
               additionalProperties: false,
-              required: ['d']
-            }
+              required: ['d'],
+            },
           },
           responses: {
             defaultError: {
@@ -1175,21 +1191,21 @@ describe('API', function() {
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
             },
             notFound: {
               description: 'The requested/specified resource was not found',
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
-            }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
+            },
           },
           parameters: {
             id: {
@@ -1197,11 +1213,11 @@ describe('API', function() {
               name: 'id',
               in: 'path',
               schema: {
-                type: 'string'
+                type: 'string',
               },
-              required: true
-            }
-          }
+              required: true,
+            },
+          },
         },
         paths: {
           '/tests/a': {
@@ -1210,20 +1226,20 @@ describe('API', function() {
               tags: ['Test'],
               responses: {
                 default: {
-                  $ref: '#/components/responses/defaultError'
-                }
+                  $ref: '#/components/responses/defaultError',
+                },
               },
               requestBody: {
                 content: {
                   'application/json': {
                     schema: {
-                      $ref: '#/components/schemas/op1_schema2'
-                    }
-                  }
+                      $ref: '#/components/schemas/op1_schema2',
+                    },
+                  },
                 },
-                required: true
-              }
-            }
+                required: true,
+              },
+            },
           },
           '/schemas/{id}': {
             get: {
@@ -1235,40 +1251,40 @@ describe('API', function() {
                   content: {
                     'application/json': {
                       schema: {
-                        type: 'object'
-                      }
-                    }
-                  }
+                        type: 'object',
+                      },
+                    },
+                  },
                 },
                 '404': {
-                  $ref: '#/components/responses/notFound'
+                  $ref: '#/components/responses/notFound',
                 },
                 default: {
-                  $ref: '#/components/responses/defaultError'
-                }
+                  $ref: '#/components/responses/defaultError',
+                },
               },
               summary: 'Retrieve a JSON Schema by id',
               parameters: [
                 {
-                  $ref: '#/components/parameters/id'
-                }
-              ]
-            }
-          }
+                  $ref: '#/components/parameters/id',
+                },
+              ],
+            },
+          },
         },
         tags: [
           {
-            name: 'Test'
+            name: 'Test',
           },
           {
-            name: 'Schema'
-          }
+            name: 'Schema',
+          },
         ],
         servers: [
           {
-            url: basePath
-          }
-        ]
+            url: basePath,
+          },
+        ],
       };
       return request
         .get('/openapi.json')
@@ -1279,29 +1295,29 @@ describe('API', function() {
         });
     });
   });
-  describe('openapi spec for another API', function() {
+  describe('openapi spec for another API', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     let server;
 
-    before(async function() {
+    before(async function () {
       server = await simpleAPI2.listen(port);
       return server;
     });
-    after(function() {
+    after(function () {
       if (server) {
         server.close();
         server = undefined;
       }
     });
-    it('should return a complete and clean OpenAPI spec for a defined API instance with cross references between schemas', async function() {
+    it('should return a complete and clean OpenAPI spec for a defined API instance with cross references between schemas', async function () {
       const expectedSpec = {
         openapi: '3.0.2',
         info: {
           title: 'REST API',
-          version: '1.0.0'
+          version: '1.0.0',
         },
         components: {
           schemas: {
@@ -1310,40 +1326,40 @@ describe('API', function() {
               properties: {
                 error: {
                   type: 'integer',
-                  minimum: 100
+                  minimum: 100,
                 },
                 message: {
-                  type: 'string'
+                  type: 'string',
                 },
                 info: {
-                  type: 'string'
-                }
+                  type: 'string',
+                },
               },
-              required: ['error', 'message']
+              required: ['error', 'message'],
             },
             op1_schema1: {
               type: 'object',
               properties: {
                 a: {
-                  type: 'boolean'
+                  type: 'boolean',
                 },
                 b: {
-                  type: 'integer'
-                }
+                  type: 'integer',
+                },
               },
               additionalProperties: false,
-              required: ['a']
+              required: ['a'],
             },
             op1_schema1_defA: {
-              type: 'string'
+              type: 'string',
             },
 
             op1_schema1_defC: {
               type: 'object',
               properties: {
-                propA: { $ref: '#/components/schemas/op1_schema1_defA' }
-              }
-            }
+                propA: { $ref: '#/components/schemas/op1_schema1_defA' },
+              },
+            },
           },
           responses: {
             defaultError: {
@@ -1351,21 +1367,21 @@ describe('API', function() {
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
             },
             notFound: {
               description: 'The requested/specified resource was not found',
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
-            }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
+            },
           },
           parameters: {
             id: {
@@ -1373,11 +1389,11 @@ describe('API', function() {
               name: 'id',
               in: 'path',
               schema: {
-                type: 'string'
+                type: 'string',
               },
-              required: true
-            }
-          }
+              required: true,
+            },
+          },
         },
         paths: {
           '/things/a': {
@@ -1386,20 +1402,20 @@ describe('API', function() {
               tags: ['thing'],
               responses: {
                 default: {
-                  $ref: '#/components/responses/defaultError'
-                }
+                  $ref: '#/components/responses/defaultError',
+                },
               },
               requestBody: {
                 content: {
                   'application/json': {
                     schema: {
-                      $ref: '#/components/schemas/op1_schema1'
-                    }
-                  }
+                      $ref: '#/components/schemas/op1_schema1',
+                    },
+                  },
                 },
-                required: true
-              }
-            }
+                required: true,
+              },
+            },
           },
           '/schemas/{id}': {
             get: {
@@ -1411,40 +1427,40 @@ describe('API', function() {
                   content: {
                     'application/json': {
                       schema: {
-                        type: 'object'
-                      }
-                    }
-                  }
+                        type: 'object',
+                      },
+                    },
+                  },
                 },
                 '404': {
-                  $ref: '#/components/responses/notFound'
+                  $ref: '#/components/responses/notFound',
                 },
                 default: {
-                  $ref: '#/components/responses/defaultError'
-                }
+                  $ref: '#/components/responses/defaultError',
+                },
               },
               summary: 'Retrieve a JSON Schema by id',
               parameters: [
                 {
-                  $ref: '#/components/parameters/id'
-                }
-              ]
-            }
-          }
+                  $ref: '#/components/parameters/id',
+                },
+              ],
+            },
+          },
         },
         tags: [
           {
-            name: 'thing'
+            name: 'thing',
           },
           {
-            name: 'Schema'
-          }
+            name: 'Schema',
+          },
         ],
         servers: [
           {
-            url: basePath
-          }
-        ]
+            url: basePath,
+          },
+        ],
       };
       return request
         .get('/openapi.json')
@@ -1455,30 +1471,30 @@ describe('API', function() {
         });
     });
   });
-  describe('openapi spec for an API with custom info', function() {
+  describe('openapi spec for an API with custom info', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     let server;
 
-    before(async function() {
+    before(async function () {
       server = await simpleAPI3.listen(port);
       return server;
     });
-    after(function() {
+    after(function () {
       if (server) {
         server.close();
         server = undefined;
       }
     });
-    it('should return a complete and clean OpenAPI spec for a defined API instance with cross references and custom info', async function() {
+    it('should return a complete and clean OpenAPI spec for a defined API instance with cross references and custom info', async function () {
       const expectedSpec = {
         openapi: '3.0.2',
         info: {
           title: 'simpleAPI3',
           version: '1.1.1',
-          contact: { email: 'me@test.org' }
+          contact: { email: 'me@test.org' },
         },
         components: {
           schemas: {
@@ -1487,56 +1503,56 @@ describe('API', function() {
               properties: {
                 error: {
                   type: 'integer',
-                  minimum: 100
+                  minimum: 100,
                 },
                 message: {
-                  type: 'string'
+                  type: 'string',
                 },
                 info: {
-                  type: 'string'
-                }
+                  type: 'string',
+                },
               },
-              required: ['error', 'message']
+              required: ['error', 'message'],
             },
             op1_schema1: {
               type: 'object',
               properties: {
                 a: {
-                  type: 'boolean'
+                  type: 'boolean',
                 },
                 b: {
-                  type: 'integer'
-                }
+                  type: 'integer',
+                },
               },
               additionalProperties: false,
-              required: ['a']
+              required: ['a'],
             },
             op1_schema1_defA: {
-              type: 'string'
+              type: 'string',
             },
 
             op1_schema1_defC: {
               type: 'object',
               properties: {
-                propA: { $ref: '#/components/schemas/op1_schema1_defA' }
-              }
+                propA: { $ref: '#/components/schemas/op1_schema1_defA' },
+              },
             },
             op1_schema2: {
               type: 'object',
               properties: {
                 c: {
-                  $ref: '#/components/schemas/op1_schema1_defC'
+                  $ref: '#/components/schemas/op1_schema1_defC',
                 },
                 d: {
-                  $ref: '#/components/schemas/op1_schema1'
+                  $ref: '#/components/schemas/op1_schema1',
                 },
                 e: {
-                  $ref: '#/components/schemas/op1_schema1/properties/b'
-                }
+                  $ref: '#/components/schemas/op1_schema1/properties/b',
+                },
               },
               additionalProperties: false,
-              required: ['d']
-            }
+              required: ['d'],
+            },
           },
           responses: {
             defaultError: {
@@ -1544,21 +1560,21 @@ describe('API', function() {
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
             },
             notFound: {
               description: 'The requested/specified resource was not found',
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
-            }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
+            },
           },
           parameters: {
             id: {
@@ -1566,11 +1582,11 @@ describe('API', function() {
               name: 'id',
               in: 'path',
               schema: {
-                type: 'string'
+                type: 'string',
               },
-              required: true
-            }
-          }
+              required: true,
+            },
+          },
         },
         paths: {
           '/things/foo': {
@@ -1579,20 +1595,20 @@ describe('API', function() {
               tags: ['thing'],
               responses: {
                 default: {
-                  $ref: '#/components/responses/defaultError'
-                }
+                  $ref: '#/components/responses/defaultError',
+                },
               },
               requestBody: {
                 content: {
                   'application/json': {
                     schema: {
-                      $ref: '#/components/schemas/op1_schema2'
-                    }
-                  }
+                      $ref: '#/components/schemas/op1_schema2',
+                    },
+                  },
                 },
-                required: true
-              }
-            }
+                required: true,
+              },
+            },
           },
           '/schemas/{id}': {
             get: {
@@ -1604,40 +1620,40 @@ describe('API', function() {
                   content: {
                     'application/json': {
                       schema: {
-                        type: 'object'
-                      }
-                    }
-                  }
+                        type: 'object',
+                      },
+                    },
+                  },
                 },
                 '404': {
-                  $ref: '#/components/responses/notFound'
+                  $ref: '#/components/responses/notFound',
                 },
                 default: {
-                  $ref: '#/components/responses/defaultError'
-                }
+                  $ref: '#/components/responses/defaultError',
+                },
               },
               summary: 'Retrieve a JSON Schema by id',
               parameters: [
                 {
-                  $ref: '#/components/parameters/id'
-                }
-              ]
-            }
-          }
+                  $ref: '#/components/parameters/id',
+                },
+              ],
+            },
+          },
         },
         tags: [
           {
-            name: 'thing'
+            name: 'thing',
           },
           {
-            name: 'Schema'
-          }
+            name: 'Schema',
+          },
         ],
         servers: [
           {
-            url: basePath
-          }
-        ]
+            url: basePath,
+          },
+        ],
       };
       return request
         .get('/openapi.json')
@@ -1648,30 +1664,30 @@ describe('API', function() {
         });
     });
   });
-  describe('openapi spec for an API with refs to aSchema/definitions/aDef/definitions/settings', function() {
+  describe('openapi spec for an API with refs to aSchema/definitions/aDef/definitions/settings', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     let server;
 
-    before(async function() {
+    before(async function () {
       server = await simpleAPI4.listen(port);
       return server;
     });
-    after(function() {
+    after(function () {
       if (server) {
         server.close();
         server = undefined;
       }
     });
-    it('should return a complete and clean OpenAPI spec', async function() {
+    it('should return a complete and clean OpenAPI spec', async function () {
       const expectedSpec = {
         openapi: '3.0.2',
         info: {
           title: 'simpleAPI4',
           version: '1.1.1',
-          contact: { email: 'me@test.org' }
+          contact: { email: 'me@test.org' },
         },
         components: {
           schemas: {
@@ -1680,49 +1696,49 @@ describe('API', function() {
               properties: {
                 error: {
                   type: 'integer',
-                  minimum: 100
+                  minimum: 100,
                 },
                 message: {
-                  type: 'string'
+                  type: 'string',
                 },
                 info: {
-                  type: 'string'
-                }
+                  type: 'string',
+                },
               },
-              required: ['error', 'message']
+              required: ['error', 'message'],
             },
             op1_schema1: {
               type: 'object',
               properties: {
                 a: {
-                  type: 'boolean'
+                  type: 'boolean',
                 },
                 b: {
-                  type: 'integer'
-                }
+                  type: 'integer',
+                },
               },
               additionalProperties: false,
-              required: ['a']
+              required: ['a'],
             },
             op1_schema1_defA_settings: {
-              type: 'object'
+              type: 'object',
             },
             op1_schema2: {
               type: 'object',
               properties: {
                 c: {
-                  $ref: '#/components/schemas/op1_schema1_defA_settings'
+                  $ref: '#/components/schemas/op1_schema1_defA_settings',
                 },
                 d: {
-                  $ref: '#/components/schemas/op1_schema1'
+                  $ref: '#/components/schemas/op1_schema1',
                 },
                 e: {
-                  $ref: '#/components/schemas/op1_schema1/properties/b'
-                }
+                  $ref: '#/components/schemas/op1_schema1/properties/b',
+                },
               },
               additionalProperties: false,
-              required: ['d']
-            }
+              required: ['d'],
+            },
           },
           responses: {
             defaultError: {
@@ -1730,21 +1746,21 @@ describe('API', function() {
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
             },
             notFound: {
               description: 'The requested/specified resource was not found',
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
-            }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
+            },
           },
           parameters: {
             id: {
@@ -1752,11 +1768,11 @@ describe('API', function() {
               name: 'id',
               in: 'path',
               schema: {
-                type: 'string'
+                type: 'string',
               },
-              required: true
-            }
-          }
+              required: true,
+            },
+          },
         },
         paths: {
           '/things/foo': {
@@ -1765,20 +1781,20 @@ describe('API', function() {
               tags: ['thing'],
               responses: {
                 default: {
-                  $ref: '#/components/responses/defaultError'
-                }
+                  $ref: '#/components/responses/defaultError',
+                },
               },
               requestBody: {
                 content: {
                   'application/json': {
                     schema: {
-                      $ref: '#/components/schemas/op1_schema2'
-                    }
-                  }
+                      $ref: '#/components/schemas/op1_schema2',
+                    },
+                  },
                 },
-                required: true
-              }
-            }
+                required: true,
+              },
+            },
           },
           '/schemas/{id}': {
             get: {
@@ -1790,40 +1806,40 @@ describe('API', function() {
                   content: {
                     'application/json': {
                       schema: {
-                        type: 'object'
-                      }
-                    }
-                  }
+                        type: 'object',
+                      },
+                    },
+                  },
                 },
                 '404': {
-                  $ref: '#/components/responses/notFound'
+                  $ref: '#/components/responses/notFound',
                 },
                 default: {
-                  $ref: '#/components/responses/defaultError'
-                }
+                  $ref: '#/components/responses/defaultError',
+                },
               },
               summary: 'Retrieve a JSON Schema by id',
               parameters: [
                 {
-                  $ref: '#/components/parameters/id'
-                }
-              ]
-            }
-          }
+                  $ref: '#/components/parameters/id',
+                },
+              ],
+            },
+          },
         },
         tags: [
           {
-            name: 'thing'
+            name: 'thing',
           },
           {
-            name: 'Schema'
-          }
+            name: 'Schema',
+          },
         ],
         servers: [
           {
-            url: basePath
-          }
-        ]
+            url: basePath,
+          },
+        ],
       };
       return request
         .get('/openapi.json')
@@ -1834,29 +1850,29 @@ describe('API', function() {
         });
     });
   });
-  describe("openapi spec for an API with a reference to a schema that doesn't exist", function() {
-    it('should raise an error', async function() {
+  describe("openapi spec for an API with a reference to a schema that doesn't exist", function () {
+    it('should raise an error', async function () {
       return simpleAPI5.listen(8888).should.be.rejectedWith(Error);
     });
   });
-  describe('openapi spec for a Things API with composite schemas ', function() {
+  describe('openapi spec for a Things API with composite schemas ', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     let server;
 
-    before(async function() {
+    before(async function () {
       server = await simpleAPI6.listen(port);
       return server;
     });
-    after(function() {
+    after(function () {
       if (server) {
         server.close();
         server = undefined;
       }
     });
-    it('should have a well-composed openapi spec and all references rebased and rewritten', async function() {
+    it('should have a well-composed openapi spec and all references rebased and rewritten', async function () {
       const expectedSpec = {
         openapi: '3.0.2',
         info: { title: 'simpleAPI6', version: '2.2.22', contact: { email: 'me@test.org' } },
@@ -1865,56 +1881,56 @@ describe('API', function() {
             errorResponse: {
               type: 'object',
               properties: { error: { type: 'integer', minimum: 100 }, message: { type: 'string' }, info: { type: 'string' } },
-              required: ['error', 'message']
+              required: ['error', 'message'],
             },
             common_notEmptyString: {
               type: 'string',
-              minLength: 1
+              minLength: 1,
             },
             thing_info_name: {
-              $ref: '#/components/schemas/common_notEmptyString'
+              $ref: '#/components/schemas/common_notEmptyString',
             },
             thing_info: {
-              type: 'object'
+              type: 'object',
             },
             thing_notes: {
               type: 'object',
               properties: {
-                text: { $ref: '#/components/schemas/common_notEmptyString' }
-              }
+                text: { $ref: '#/components/schemas/common_notEmptyString' },
+              },
             },
             thing_model: {
               type: 'object',
               properties: {
                 name: { $ref: '#/components/schemas/thing_info_name' },
-                code: { type: 'integer' }
-              }
+                code: { type: 'integer' },
+              },
             },
             thing: {
               type: 'object',
               properties: {
                 id: {
                   type: 'integer',
-                  readOnly: true
+                  readOnly: true,
                 },
                 info: {
-                  $ref: '#/components/schemas/thing_info'
+                  $ref: '#/components/schemas/thing_info',
                 },
                 model: {
-                  $ref: '#/components/schemas/thing_model'
+                  $ref: '#/components/schemas/thing_model',
                 },
                 notes: {
-                  $ref: '#/components/schemas/thing_notes'
-                }
+                  $ref: '#/components/schemas/thing_notes',
+                },
               },
               additionalProperties: false,
-              required: ['model']
+              required: ['model'],
             },
             result: {
               type: 'object',
               properties: { message: 'common#/definitions/notEmptyString', thing: { $ref: '#/components/schemas/thing' } },
-              additionalProperties: false
-            }
+              additionalProperties: false,
+            },
           },
           responses: {
             defaultError: {
@@ -1922,17 +1938,17 @@ describe('API', function() {
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
             },
             notFound: {
               description: 'The requested/specified resource was not found',
-              content: { 'application/json': { schema: { $ref: '#/components/schemas/errorResponse' } } }
-            }
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/errorResponse' } } },
+            },
           },
-          parameters: { id: { description: 'Unique identifier of the resource', name: 'id', in: 'path', schema: { type: 'string' }, required: true } }
+          parameters: { id: { description: 'Unique identifier of the resource', name: 'id', in: 'path', schema: { type: 'string' }, required: true } },
         },
         paths: {
           '/things': {
@@ -1940,7 +1956,7 @@ describe('API', function() {
               operationId: 'thing.createThing',
               tags: ['thing'],
               responses: { '200': { description: 'result...', content: { 'application/json': { schema: { $ref: '#/components/schemas/result' } } } } },
-              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/thing' } } }, required: true }
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/thing' } } }, required: true },
             },
             get: {
               operationId: 'thing.getThings',
@@ -1948,10 +1964,10 @@ describe('API', function() {
               responses: {
                 '200': {
                   description: ' a list of things',
-                  content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/thing' } } } }
-                }
-              }
-            }
+                  content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/thing' } } } },
+                },
+              },
+            },
           },
           '/schemas/{id}': {
             get: {
@@ -1960,15 +1976,15 @@ describe('API', function() {
               responses: {
                 '200': { description: 'The requested JSON Schema', content: { 'application/json': { schema: { type: 'object' } } } },
                 '404': { $ref: '#/components/responses/notFound' },
-                default: { $ref: '#/components/responses/defaultError' }
+                default: { $ref: '#/components/responses/defaultError' },
               },
               summary: 'Retrieve a JSON Schema by id',
-              parameters: [{ $ref: '#/components/parameters/id' }]
-            }
-          }
+              parameters: [{ $ref: '#/components/parameters/id' }],
+            },
+          },
         },
         tags: [{ name: 'thing' }, { name: 'Schema' }],
-        servers: [{ url: 'http://localhost:9876' }]
+        servers: [{ url: 'http://localhost:9876' }],
       };
 
       return request
@@ -1980,24 +1996,24 @@ describe('API', function() {
         });
     });
   });
-  describe('openapi spec for a Things API with several schemas and cross references ', function() {
+  describe('openapi spec for a Things API with several schemas and cross references ', function () {
     const port = 9876;
     const host = 'localhost:' + port;
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     let server;
 
-    before(async function() {
+    before(async function () {
       server = await simpleAPI7.listen(port);
       return server;
     });
-    after(function() {
+    after(function () {
       if (server) {
         server.close();
         server = undefined;
       }
     });
-    it('should have a well-composed openapi spec and all references rebased and rewritten', async function() {
+    it('should have a well-composed openapi spec and all references rebased and rewritten', async function () {
       const expectedSpec = {
         openapi: '3.0.2',
         info: { title: 'simpleAPI7', version: '2.2.22', contact: { email: 'me@test.org' } },
@@ -2006,23 +2022,23 @@ describe('API', function() {
             errorResponse: {
               type: 'object',
               properties: { error: { type: 'integer', minimum: 100 }, message: { type: 'string' }, info: { type: 'string' } },
-              required: ['error', 'message']
+              required: ['error', 'message'],
             },
             common_notEmptyString: {
               type: 'string',
-              minLength: 1
+              minLength: 1,
             },
             thing_info_name: {
-              $ref: '#/components/schemas/common_notEmptyString'
+              $ref: '#/components/schemas/common_notEmptyString',
             },
             thing_info: {
-              type: 'object'
+              type: 'object',
             },
             thing_notes: {
               type: 'object',
               properties: {
-                model: { $ref: '#/components/schemas/thing_model' }
-              }
+                model: { $ref: '#/components/schemas/thing_model' },
+              },
             },
             thing_model: {
               type: 'object',
@@ -2030,35 +2046,35 @@ describe('API', function() {
                 name: { $ref: '#/components/schemas/thing_info_name' },
                 code: { type: 'integer' },
                 notes: { $ref: '#/components/schemas/thing_notes' },
-                models: { type: 'array', items: { $ref: '#/components/schemas/thing_model' } }
-              }
+                models: { type: 'array', items: { $ref: '#/components/schemas/thing_model' } },
+              },
             },
             thing: {
               type: 'object',
               properties: {
                 id: {
                   type: 'integer',
-                  readOnly: true
+                  readOnly: true,
                 },
                 info: {
-                  $ref: '#/components/schemas/thing_info'
+                  $ref: '#/components/schemas/thing_info',
                 },
                 model: {
-                  $ref: '#/components/schemas/thing_model'
+                  $ref: '#/components/schemas/thing_model',
                 },
                 notes: {
-                  $ref: '#/components/schemas/thing_notes'
+                  $ref: '#/components/schemas/thing_notes',
                 },
-                other: { $ref: '#/components/schemas/thing/properties/notes' }
+                other: { $ref: '#/components/schemas/thing/properties/notes' },
               },
               additionalProperties: true,
-              required: ['model']
+              required: ['model'],
             },
             result: {
               type: 'object',
               properties: { message: 'common#/definitions/notEmptyString', thing: { $ref: '#/components/schemas/thing' } },
-              additionalProperties: false
-            }
+              additionalProperties: false,
+            },
           },
           responses: {
             defaultError: {
@@ -2066,17 +2082,17 @@ describe('API', function() {
               content: {
                 'application/json': {
                   schema: {
-                    $ref: '#/components/schemas/errorResponse'
-                  }
-                }
-              }
+                    $ref: '#/components/schemas/errorResponse',
+                  },
+                },
+              },
             },
             notFound: {
               description: 'The requested/specified resource was not found',
-              content: { 'application/json': { schema: { $ref: '#/components/schemas/errorResponse' } } }
-            }
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/errorResponse' } } },
+            },
           },
-          parameters: { id: { description: 'Unique identifier of the resource', name: 'id', in: 'path', schema: { type: 'string' }, required: true } }
+          parameters: { id: { description: 'Unique identifier of the resource', name: 'id', in: 'path', schema: { type: 'string' }, required: true } },
         },
         paths: {
           '/things': {
@@ -2084,7 +2100,7 @@ describe('API', function() {
               operationId: 'thing.createThing',
               tags: ['thing'],
               responses: { '200': { description: 'result...', content: { 'application/json': { schema: { $ref: '#/components/schemas/result' } } } } },
-              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/thing' } } }, required: true }
+              requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/thing' } } }, required: true },
             },
             get: {
               operationId: 'thing.getThings',
@@ -2092,10 +2108,10 @@ describe('API', function() {
               responses: {
                 '200': {
                   description: ' a list of things',
-                  content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/thing' } } } }
-                }
-              }
-            }
+                  content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/thing' } } } },
+                },
+              },
+            },
           },
           '/schemas/{id}': {
             get: {
@@ -2104,15 +2120,15 @@ describe('API', function() {
               responses: {
                 '200': { description: 'The requested JSON Schema', content: { 'application/json': { schema: { type: 'object' } } } },
                 '404': { $ref: '#/components/responses/notFound' },
-                default: { $ref: '#/components/responses/defaultError' }
+                default: { $ref: '#/components/responses/defaultError' },
               },
               summary: 'Retrieve a JSON Schema by id',
-              parameters: [{ $ref: '#/components/parameters/id' }]
-            }
-          }
+              parameters: [{ $ref: '#/components/parameters/id' }],
+            },
+          },
         },
         tags: [{ name: 'thing' }, { name: 'Schema' }],
-        servers: [{ url: 'http://localhost:9876' }]
+        servers: [{ url: 'http://localhost:9876' }],
       };
 
       return request

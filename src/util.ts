@@ -1,6 +1,8 @@
+import { Ability, ForbiddenError } from '@casl/ability';
 import * as dot from 'dot-prop';
 import * as _ from 'lodash';
 import { OpenAPIV3 } from 'openapi-police';
+import { API } from './api';
 
 /*
  * Rebasing patterns
@@ -157,8 +159,6 @@ export function removeUnusedSchemas(spec: OpenAPIV3.Document): OpenAPIV3.Documen
       occurrences.responses[response] = { count: 0, referencedBy: [] };
     }
   }
-  // visited objects properties registry
-  const parsedProps: any[] = [];
   try {
     // build the occurrences table
     (function findAndCount(obj: any, path: string[] = []) {
@@ -205,10 +205,7 @@ export function removeUnusedSchemas(spec: OpenAPIV3.Document): OpenAPIV3.Documen
         // recursively find and count...
         if (prop && typeof prop === 'object') {
           if (!Array.isArray(prop)) {
-            if (!parsedProps.find(p => p === prop)) {
-              parsedProps.push(prop);
-              findAndCount(prop, currentPath);
-            }
+            findAndCount(prop, currentPath);
           } else {
             // the property value is an array
             for (let i = 0; i < prop.length; i++) {
@@ -234,12 +231,12 @@ function deleteUnreferencedElements(occurrences: any, spec: OpenAPIV3.Document):
 
 function deleteUnreferencedSchemas(occurrences: any, spec: OpenAPIV3.Document): OpenAPIV3.Document {
   // remove all schemas with count === 0 in occurrences table
-  let toDelete = Object.keys(_.pickBy(occurrences['schemas'], value => value.count === 0));
+  let toDelete = Object.keys(_.pickBy(occurrences['schemas'], (value) => value.count === 0));
   for (const key of toDelete) {
     // current schema path to delete from spec
     const pathToDelete = `components.schemas.${key}`;
     // first, find if the current schema is referenced by other schemas
-    const referencedBy = _.pickBy(occurrences['schemas'], (value, key) => _.find(value.referencedBy, value => value === pathToDelete));
+    const referencedBy = _.pickBy(occurrences['schemas'], (value, key) => _.find(value.referencedBy, (value) => value === pathToDelete));
     if (referencedBy && !_.isEmpty(referencedBy)) {
       // in case of existing references to the current schema
       const referencedByKey = Object.keys(referencedBy)[0];
@@ -250,11 +247,11 @@ function deleteUnreferencedSchemas(occurrences: any, spec: OpenAPIV3.Document): 
       } else {
         // or, update the referencing schema removing the current schema:
         // remove the entry from the referencedBy array in occurrences table
-        _.remove(referencedBy[referencedByKey].referencedBy, v => v === referencedByPath);
+        _.remove(referencedBy[referencedByKey].referencedBy, (v) => v === referencedByPath);
         // update occurrence to save in occurrences table
         const updatedOccurrence = {
           count: referencedBy[referencedByKey].count - 1,
-          referencedBy: referencedBy[referencedByKey].referencedBy
+          referencedBy: referencedBy[referencedByKey].referencedBy,
         };
         dot.set(occurrences['schemas'] as any, referencedByKey, updatedOccurrence);
       }
@@ -266,9 +263,57 @@ function deleteUnreferencedSchemas(occurrences: any, spec: OpenAPIV3.Document): 
 }
 
 function deleteUnreferencedParameters(occurrences: any, spec: OpenAPIV3.Document): OpenAPIV3.Document {
-  const toDelete = Object.keys(_.pickBy(occurrences['parameters'], value => value.count === 0));
+  const toDelete = Object.keys(_.pickBy(occurrences['parameters'], (value) => value.count === 0));
   for (const paramName of toDelete) {
     dot.delete(spec as any, `components.parameters.${paramName}`);
   }
   return spec;
+}
+
+export function checkAbility(ability: Ability, resource: string, action: string, data?: any, filter?: boolean): any {
+  if (!data) {
+    ForbiddenError.from(ability).throwUnlessCan(action, resource);
+  } else {
+    function innerCheckAbility(data: any, path?: string[]): any {
+      let foundOne = false;
+      if (typeof data === 'object') {
+        if (Array.isArray(data)) {
+          data = data.filter((i) => {
+            try {
+              innerCheckAbility(i, path);
+              return true;
+            } catch (err) {
+              if (filter) {
+                return false;
+              } else {
+                API.fireError(403, 'insufficient privileges', undefined, err);
+              }
+            }
+          });
+          foundOne = !!data.length;
+        } else {
+          Object.entries(data).forEach(([key, value]) => {
+            try {
+              data[key] = innerCheckAbility(value, (path || []).concat(key));
+              foundOne = true;
+            } catch (err) {
+              if (filter) {
+                delete data[key];
+              } else {
+                API.fireError(403, 'insufficient privileges', undefined, err);
+              }
+            }
+          });
+        }
+      }
+
+      if (path && !foundOne) {
+        const pathAsString = path.join('.');
+        ForbiddenError.from(ability).throwUnlessCan(action, resource, pathAsString);
+      }
+      return data;
+    }
+    innerCheckAbility(data);
+  }
+  return data;
 }
