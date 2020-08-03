@@ -276,7 +276,7 @@ export function checkAbility(ability: Ability, resource: string, action: string,
   } else {
     function innerCheckAbility(data: any, path?: string[]): any {
       let foundOne = false;
-      if (typeof data === 'object') {
+      if (typeof data === 'object' && typeof data['_bsontype'] === 'undefined' && !(data instanceof Date)) {
         if (Array.isArray(data)) {
           data = data.filter((i) => {
             try {
