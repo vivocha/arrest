@@ -1,4 +1,5 @@
 import { Ability } from '@casl/ability';
+import { permittedFieldsOf } from '@casl/ability/extra';
 import { Scopes } from '@vivocha/scopes';
 import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser';
 import { Eredita } from 'eredita';
@@ -261,6 +262,17 @@ export abstract class Operation {
   }
   filterFields(ability: Ability, data: any): any {
     return this.checkAbility(ability, data, true);
+  }
+  permittedFields(ability: Ability): Set<string> {
+    let out: string[] = [];
+    if (this.scopes) {
+      for (let resource in this.scopes) {
+        for (let action in this.scopes[resource]) {
+          out = out.concat(permittedFieldsOf(ability, action, resource));
+        }
+      }
+    }
+    return new Set(out);
   }
 }
 

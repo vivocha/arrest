@@ -4,7 +4,7 @@ import * as _ from 'lodash';
 import { Collection, Db, DbCollectionOptions, MongoClient } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { Resource, ResourceDefinition, Routes } from '../resource';
-import { CreateMongoOperation, QueryMongoOperation, ReadMongoOperation, RemoveMongoOperation, UpdateMongoOperation } from './operation';
+import { CreateMongoOperation, PatchMongoOperation, QueryMongoOperation, ReadMongoOperation, RemoveMongoOperation, UpdateMongoOperation } from './operation';
 
 const logger = getLogger('arrest');
 
@@ -121,6 +121,7 @@ export class MongoResource extends Resource {
         get: ReadMongoOperation,
         put: UpdateMongoOperation,
         delete: RemoveMongoOperation,
+        patch: PatchMongoOperation,
       },
     };
   }

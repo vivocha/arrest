@@ -7,7 +7,7 @@ import { MongoClient } from 'mongodb';
 import { DokiConfiguration, Mongodoki } from 'mongodoki';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
-import { MongoJob, MongoOperation, MongoResource, QueryMongoOperation } from '../../dist/mongo/index';
+import { MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation } from '../../dist/mongo/index';
 import { APIRequest, APIResponse, Method } from '../../dist/types';
 
 const should = chai.should();
@@ -442,6 +442,84 @@ describe('mongo', function () {
       });
     });
 
+    describe('patch', function () {
+      it('should patch a record by object id', function () {
+        return request
+          .patch('/tests/' + id)
+          .send([
+            { op: 'add', path: '/e', value: [{ a: 1 }] },
+            { op: 'add', path: '/f', value: [1, 2, 3] },
+          ])
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal({ a: 2, b: true, e: [{ a: 1 }], f: [1, 2, 3], _id: id });
+          });
+      });
+
+      it('should perform several changes to a record by object id', function () {
+        return request
+          .patch('/tests/' + id)
+          .send([
+            { op: 'test', path: '/b', value: true },
+            { op: 'replace', path: '/a', value: 4 },
+            { op: 'add', path: '/c', value: { d: true } },
+            { op: 'remove', path: '/b' },
+            { op: 'replace', path: '/e/0/a', value: 2 },
+            { op: 'add', path: '/f/-', value: 4 },
+          ])
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal({ a: 4, c: { d: true }, e: [{ a: 2 }], f: [1, 2, 3, 4], _id: id });
+          });
+      });
+
+      it('should fail with a malformed object id', function () {
+        return request
+          .patch('/tests/x')
+          .send([{ op: 'replace', path: '/a', value: 3 }])
+          .expect(404)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('not_found');
+          });
+      });
+
+      it('should fail with an unknown object id', function () {
+        return request
+          .patch('/tests/000000000000000000000000')
+          .send([{ op: 'replace', path: '/a', value: 3 }])
+          .expect(404)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('not_found');
+          });
+      });
+
+      it('should patch a record by custom id', function () {
+        return request
+          .patch('/others/aaa')
+          .send([{ op: 'replace', path: '/a', value: 4 }])
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal({ a: 4, b: true, myid: 'aaa' });
+          });
+      });
+
+      it('should fail with an unknown custom id', function () {
+        return request
+          .patch('/tests/000')
+          .send([{ op: 'replace', path: '/a', value: 3 }])
+          .expect(404)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('not_found');
+          });
+      });
+    });
+
     describe('query', function () {
       before(function () {
         return Promise.all([
@@ -613,6 +691,8 @@ describe('mongo', function () {
           can('create', 'Test', ['id', 'a', 'b', 'c.**', 'd.x']);
           can(['read', 'query'], 'Test', ['id', 'a', 'b', 'c.f'], { a: { $lte: 3 } });
           can('update', 'Test', ['b']);
+          can('patch', 'Test', ['b', 'c.d']);
+          can('op2', 'Test');
         });
         next();
       }
@@ -628,6 +708,15 @@ describe('mongo', function () {
       }
     }
 
+    class TestOp2 extends PatchMongoOperation {
+      constructor(resource: MongoResource, path: string, method: Method) {
+        super(resource, path, method, 'op2');
+      }
+      get swaggerScopes() {
+        return {};
+      }
+    }
+
     let db, r1, server;
 
     before(async function () {
@@ -635,7 +724,7 @@ describe('mongo', function () {
       r1 = new MongoResource(
         db,
         { name: 'Test', collection: collectionName, id: 'id', idIsObjectId: false },
-        Object.assign({ '/op1': { get: TestOp1 } }, MongoResource.defaultRoutes())
+        Object.assign({ '/op1': { get: TestOp1 }, '/op2/:id': { patch: TestOp2 } }, MongoResource.defaultRoutes())
       );
       api.addResource(r1);
 
@@ -674,7 +763,6 @@ describe('mongo', function () {
         .expect(403);
     });
     it('should query records according with the ability', async function () {
-      debugger;
       await request
         .get('/tests')
         .expect(200)
@@ -716,6 +804,28 @@ describe('mongo', function () {
           data.should.deep.equal({ b: 3 });
         });
       await request.put('/tests/a').send({ a: 6 }).expect(403);
+    });
+    it('should patch records according with the ability', async function () {
+      await request
+        .patch('/tests/b')
+        .send([{ op: 'replace', path: '/b', value: 5 }])
+        .expect(200)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ b: 5, c: [{ d: 1 }, { d: 2 }, { d: 3 }] });
+        });
+      await request
+        .patch('/tests/b')
+        .send([{ op: 'move', from: '/a', path: '/b' }])
+        .expect(403);
+      await request
+        .patch('/tests/op2/b')
+        .send([{ op: 'move', from: '/a', path: '/b' }])
+        .expect(200)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ id: 'b', b: 3, c: [{ d: 1 }, { e: 1 }, { d: 2, e: 2 }, { d: 3, f: 3 }] });
+        });
     });
   });
 });
