@@ -3,11 +3,28 @@ import decamelize from 'decamelize';
 import * as _ from 'lodash';
 import { Collection, Db, DbCollectionOptions, MongoClient } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
+import { Operation } from '../operation';
 import { Resource, ResourceDefinition, Routes } from '../resource';
+import { Method } from '../types';
 import { CreateMongoOperation, PatchMongoOperation, QueryMongoOperation, ReadMongoOperation, RemoveMongoOperation, UpdateMongoOperation } from './operation';
 
 const logger = getLogger('arrest');
 
+export interface MongoOperationFactory {
+  new (resource: MongoResource, path: string, method: Method): Operation;
+}
+
+export interface MongoRoutes extends Routes {
+  [path: string]: {
+    ['get']?: MongoOperationFactory;
+    ['put']?: MongoOperationFactory;
+    ['post']?: MongoOperationFactory;
+    ['delete']?: MongoOperationFactory;
+    ['options']?: MongoOperationFactory;
+    ['head']?: MongoOperationFactory;
+    ['patch']?: MongoOperationFactory;
+  };
+}
 export interface MongoResourceDefinition extends ResourceDefinition {
   collection?: string;
   idIsObjectId?: boolean;
@@ -18,7 +35,7 @@ export class MongoResource extends Resource {
   db: Promise<Db>;
   indexesChecked: boolean;
 
-  constructor(db: string | Db | Promise<Db>, public info: MongoResourceDefinition, routes: Routes = MongoResource.defaultRoutes()) {
+  constructor(db: string | Db | Promise<Db>, public info: MongoResourceDefinition, routes: MongoRoutes = MongoResource.defaultRoutes()) {
     super(info, routes);
     if (typeof db === 'string') {
       this.db = MongoClient.connect(db as string, { useUnifiedTopology: true }).then((client) => client.db());
@@ -111,7 +128,7 @@ export class MongoResource extends Resource {
       : undefined;
   }
 
-  static defaultRoutes(): Routes {
+  static defaultRoutes(): MongoRoutes {
     return {
       '/': {
         get: QueryMongoOperation,
