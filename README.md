@@ -1,6 +1,6 @@
 # Arrest
 
-OpenAPI REST framework for Node.js, with support for MongoDB and [JSON-Schema](http://json-schema.org/)
+OpenAPI REST framework for Node.js, with support for MongoDB and [JSON Schema](http://json-schema.org/)
 
 Arrest lets you write RESTful web services in minutes. It automatically generates a [OpenAPI](http://swagger.io/) description of the API and support input validation using JSON-Schemas.
 
@@ -30,7 +30,7 @@ Highlight features:
 
 - **Application:** the scheleton of an Arrest API: it opens ports, manages HTTP requests (e.g. Express), it exposes API endpoints.
 
-- **API:** an "handler" mounted on an Express application. An *API* is a collection of *Resources*, each of them supporting one or more *Operations* (contained in a Resource). Resources and JSON Schemas can be added to the API.
+- **API:** an "handler" mounted on an Express application. An _API_ is a collection of _Resources_, each of them supporting one or more _Operations_ (contained in a Resource). Resources and JSON Schemas can be added to the API.
 
   - `addResource()`
   - `registerSchema()`
@@ -45,13 +45,13 @@ Highlight features:
     api.registerSchema('notification', require('../../schemas/notification.json'));
     ```
 
-  - getInfo: merges default and custom info. 
+  - getInfo: merges default and custom info.
 
-  - getDefaultInfo: error responses, name of the resource as tag etc... 
+  - getDefaultInfo: error responses, name of the resource as tag etc...
 
-  - getCustomInfo: empty by default, you can define it. 
+  - getCustomInfo: empty by default, you can define it.
 
-  - **handler**: must be implemented in case of base resource. Contains req, res, next. 
+  - **handler**: must be implemented in case of base resource. Contains req, res, next.
 
 ## MongoDB Native Integration
 
@@ -68,7 +68,7 @@ There is also a set of mongo operation provided by Arrest that extend the MongoO
 
 **CreateMongoOperation, PatchMongoOperation, QueryMongoOperation, ReadMongoOperation, RemoveMongoOperation, UpdateMongoOperation.**
 
-Tip: You can image that a query does not contains a doc. A create has no query, but a doc. Update has both: doc and query.  
+Tip: You can image that a query does not contains a doc. A create has no query, but a doc. Update has both: doc and query.
 
 ## Installing Arrest
 
@@ -85,38 +85,40 @@ npm i arrest
 Create an index.ts file with this content.
 
 ```typescript
-import express from 'express';
-import { API } from 'arrest';
+import express from "express";
+import { API } from "arrest";
 
 class MyAPI extends API {
-	constructor(mongoUrl: string) {
-  	super();
+  constructor(mongoUrl: string) {
+    super();
   }
 }
 
 (async () => {
-   const app = express();
-   const api = new MyAPI();
-   app.use('/', await api.router());
-   app.listen(8080);
+  const app = express();
+  const api = new MyAPI();
+  app.use("/", await api.router());
+  app.listen(8080);
 })();
 ```
 
 ### Example with a mongodb resource
 
-Adds logic for mongo to the default base resource operations. 
+Adds logic for mongo to the default base resource operations.
 
 ```typescript
-import { API, MongoResource } from 'arrest';
+import { API, MongoResource } from "arrest";
 
 const api = new API();
-api.addResource(new MongoResource('mongodb://localhost:27017', { name: 'Test' }));
+api.addResource(
+  new MongoResource("mongodb://localhost:27017", { name: "Test" })
+);
 api.listen(3000);
 ```
 
 The openAPI specification of the API you just created is available at `http://localhost:3000/openapi.json`
 
-Now you can query your *data* collection like this:
+Now you can query your _data_ collection like this:
 
 ```shell
 curl "http://localhost:3000/tests"
@@ -128,7 +130,7 @@ You can add a new item:
 curl "http://localhost:3000/tests" -H "Content-Type: application/json" -X POST -d '{ "name": "Jimbo", "surname": "Johnson" }'
 ```
 
-You can query a specific item by appeding the identifier of the record (the _id attribute):
+You can query a specific item by appeding the identifier of the record (the \_id attribute):
 
 ```shell
 curl "http://localhost:3000/tests/51acc04f196573941f000002"
@@ -155,43 +157,42 @@ DEBUG=arrest:* node ./dist/index.js
 
 ## Creating an API
 
-An *API* is a collection of *Resources*, each supporting one or more *Operations*.
+An _API_ is a collection of _Resources_, each supporting one or more _Operations_.
 
 In arrest you create an API by creating an instance of the base `API` class or of a derived class. You then add instances of the `Resource` class or a derived one. Each resource contains its supported `Routes`, that is a collection of instances of classes derived from the abstract `Operation`, which represents an operation to be executed when an HTTP method is called on a path.
 
 The following code demonstrates this three level structure:
 
 ```typescript
-import { API, Resource } from 'arrest';
+import { API, Resource } from "arrest";
 
 const api = new API();
 
 const operation1 = (req, res, next) => {
-  res.json({ data: 'this is operation 1' });
+  res.json({ data: "this is operation 1" });
 };
 const operation2 = (req, res, next) => {
-  res.json({ data: 'this is operation 2' });
+  res.json({ data: "this is operation 2" });
 };
 const operation3 = (req, res, next) => {
-  res.json({ data: 'this is operation 3' });
+  res.json({ data: "this is operation 3" });
 };
 
 const resource1 = new Resource({
-  name: 'SomeResource',
+  name: "SomeResource",
   routes: {
-    '/': {
+    "/": {
       get: operation1,
-      post: operation2
+      post: operation2,
     },
-    '/some-path': {
-      put: operation3
-    }
-  }
+    "/some-path": {
+      put: operation3,
+    },
+  },
 });
 
 api.addResource(resource1);
 api.listen(3000);
-
 ```
 
 The API above supports the following operations:
@@ -205,20 +206,20 @@ Please note how the some-resources path was automatically constructed using the 
 Another other way to produce the same result is:
 
 ```typescript
-import { API, Resource } from 'arrest';
+import { API, Resource } from "arrest";
 
 const api = new API();
 
-const resource1 = new Resource({ name: 'SomeResource' });
+const resource1 = new Resource({ name: "SomeResource" });
 
-resource1.addOperation('/', 'get', function (req, res, next) {
-  res.json({ data: 'this is operation 1' });
+resource1.addOperation("/", "get", function (req, res, next) {
+  res.json({ data: "this is operation 1" });
 });
-resource1.addOperation('/', 'post', function (req, res, next) {
-  res.json({ data: 'this is operation 2' });
+resource1.addOperation("/", "post", function (req, res, next) {
+  res.json({ data: "this is operation 2" });
 });
-resource1.addOperation('/some-path', 'put', function (req, res, next) {
-  res.json({ data: 'this is operation 3' });
+resource1.addOperation("/some-path", "put", function (req, res, next) {
+  res.json({ data: "this is operation 3" });
 });
 
 api.addResource(resource1);
@@ -228,29 +229,29 @@ api.listen(3000);
 In real world applications, where resources and operation are in fact more complex, you will want to create class that extend the basic classes in arrest, like in the next example:
 
 ```typescript
-import { API, Resource, Operation } from 'arrest';
+import { API, Resource, Operation } from "arrest";
 
 class MyOperation extends Operation {
   constructor(resource, path, method) {
-    super(resource, path, method, 'op1');
+    super(resource, path, method, "op1");
   }
   handler(req, res, next) {
-    res.json({ data: 'this is a custom operation' });
+    res.json({ data: "this is a custom operation" });
   }
 }
 
 class MyResource extends Resource {
   constructor() {
     super();
-    this.addOperation(new MyOperation(this, '/', 'get'));
+    this.addOperation(new MyOperation(this, "/", "get"));
   }
 }
 
 class MyAPI extends API {
   constructor() {
     super({
-      title: 'This is a custom API',
-      version: '0.9.5'
+      title: "This is a custom API",
+      version: "0.9.5",
     });
     this.addResource(new MyResource());
   }
@@ -258,7 +259,6 @@ class MyAPI extends API {
 
 const api = new MyAPI();
 api.listen(3000);
-
 ```
 
 The API above supports `GET`s on `http://localhost:3000/my-resources` (note how the path was in this case constructed automatically from the name of the class MyResource).
@@ -300,7 +300,7 @@ class MyOperation1 extends arrest.Operation {
     res.json({ data: 'this is a op1' });
   }
 }
- 
+
 class MyOperation2 extends arrest.Operation {
   constructor(resource, path, method) {
     super('op2', resource, path, method);
@@ -324,7 +324,7 @@ class MyOperation2 extends arrest.Operation {
     res.json({ data: 'this is a op2' });
   }
 }
- 
+
 class MyResource extends arrest.Resource {
   constructor() {
     super();
@@ -344,7 +344,6 @@ Omitting the body or passing an invalid body (e.g. an object without the name pr
 - Json-schema —> implemented on json-police library
 - Open-api-schema supports json-schema -> open-api-police library
 - Arrest library contains all the libraries above.
-
 
 #### API
 
