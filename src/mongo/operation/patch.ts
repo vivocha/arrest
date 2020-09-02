@@ -112,7 +112,7 @@ export class PatchMongoOperation extends MongoOperation {
     return job;
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {
-    let result = await job.coll.findOneAndUpdate(job.query, job.doc, job.opts as mongo.FindOneAndReplaceOption);
+    let result = await job.coll.findOneAndUpdate(job.query, job.doc, job.opts as mongo.FindOneAndReplaceOption<any>);
     if (!result.ok || !result.value) {
       job.req.logger.error('update failed', result);
       API.fireError(404, 'not_found');

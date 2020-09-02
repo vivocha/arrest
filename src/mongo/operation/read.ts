@@ -46,7 +46,7 @@ export class ReadMongoOperation extends MongoOperation {
     return job;
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {
-    job.data = await job.coll.findOne(job.query, job.opts as mongo.FindOneOptions);
+    job.data = await job.coll.findOne(job.query, job.opts as mongo.FindOneOptions<any>);
     if (!job.data) {
       API.fireError(404, 'not_found');
     }
