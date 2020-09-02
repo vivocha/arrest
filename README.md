@@ -1,102 +1,182 @@
-arrest
-======
+# Arrest
 
-Swagger REST framework for Node.js, with support for MongoDB and [JSON-Schema](http://json-schema.org/)
+OpenAPI REST framework for Node.js, with support for MongoDB and [JSON-Schema](http://json-schema.org/)
 
-[![travis build](https://img.shields.io/travis/vivocha/arrest.svg)](https://travis-ci.org/vivocha/arrest)
-[![Coverage Status](https://coveralls.io/repos/github/vivocha/arrest/badge.svg?branch=master)](https://coveralls.io/github/vivocha/arrest?branch=master)
-[![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
-
-Arrest lets you write RESTful web services in minutes. It automatically generates a [Swagger](http://swagger.io/) description
-of the API and support input validation using JSON-Schemas.
+Arrest lets you write RESTful web services in minutes. It automatically generates a [OpenAPI](http://swagger.io/) description of the API and support input validation using JSON-Schemas.
 
 Highlight features:
+
 - Compatible with Express 4.x
+
 - Implements simple CRUD semantics on MongoDB
+
 - Supports querying object with the RQL syntax
+
 - Input validation with JSON-Schema
+
 - Oauth2 scope checks per operation
 
-**Note for 1.3 users**: arrest 3.x is a complete rewrite of the old module and it's not backwards compatible.
+## Arrest Technologies
 
-## How to Install
+- **TypeScript**
 
-```bash
-npm install arrest
+- **JSON Schema:** a standard to define JSON data.
+
+- **OpenAPI 3.x** A JSON format that formally describes an entire API.
+
+  Arrest generates a valid OpenAPI definition from the code you write.
+
+## Main Concepts and Classes
+
+- **Application:** the scheleton of an Arrest API: it opens ports, manages HTTP requests (e.g. Express), it exposes API endpoints.
+
+- **API:** an "handler" mounted on an Express application. An *API* is a collection of *Resources*, each of them supporting one or more *Operations* (contained in a Resource). Resources and JSON Schemas can be added to the API.
+
+  - `addResource()`
+  - `registerSchema()`
+
+- **Resource:** the object that exposes a set operations (or actions). With Arrest and Mongo usually a Resource generates a collection in the DB. It contains a set of allowed operations.
+
+- **Operation:** the action that you can do on the resource. e.g.
+
+  - attach: you can register Schema files here. e.g.
+
+    ```
+    api.registerSchema('notification', require('../../schemas/notification.json'));
+    ```
+
+  - getInfo: merges default and custom info. 
+
+  - getDefaultInfo: error responses, name of the resource as tag etc... 
+
+  - getCustomInfo: empty by default, you can define it. 
+
+  - **handler**: must be implemented in case of base resource. Contains req, res, next. 
+
+## MongoDB Native Integration
+
+Arrest supports mongo and supports a set of methods that can be implemented to prepare, format and execute the query. An arrest MongoOperation calls in pipeline a set of methods that supports the query:
+
+- **prepareQuery**: prepare the query
+- **prepareDoc**: prepare doc to be saved in the db
+- **prepareOpts**: options to be passed to mongo: sort, skip, limit etc
+- **runOperation**: execute the command: findone, insertone, delete etc.
+- **redactResult**: edit/manipulate the result. e.g. used to rename or delete fields, filter fields
+- **processResult**: send data result
+
+There is also a set of mongo operation provided by Arrest that extend the MongoOperation base operation:
+
+**CreateMongoOperation, PatchMongoOperation, QueryMongoOperation, ReadMongoOperation, RemoveMongoOperation, UpdateMongoOperation.**
+
+Tip: You can image that a query does not contains a doc. A create has no query, but a doc. Update has both: doc and query.  
+
+## Installing Arrest
+
+```shell
+npm init
+npm i typescript
+npm i arrest
 ```
 
-## Super Simple Example
+## Examples
 
-The following sample application shows how to create a simple REST API, using a MongoDB collection as
-the data store. In the sample, the path */tests* is linked to a *tests* collection on a MongoDB
-instance running on *localhost*:
+### Super Simple Example
 
-```js
-const arrest = require('arrest');
-const api = new arrest.API();
+Create an index.ts file with this content.
 
-api.addResource(new arrest.MongoResource('mongodb://localhost:27017', { name: 'Test' }));
+```typescript
+import express from 'express';
+import { API } from 'arrest';
 
+class MyAPI extends API {
+	constructor(mongoUrl: string) {
+  	super();
+  }
+}
+
+(async () => {
+   const app = express();
+   const api = new MyAPI();
+   app.use('/', await api.router());
+   app.listen(8080);
+})();
+```
+
+### Example with a mongodb resource
+
+Adds logic for mongo to the default base resource operations. 
+
+```typescript
+import { API, MongoResource } from 'arrest';
+
+const api = new API();
+api.addResource(new MongoResource('mongodb://localhost:27017', { name: 'Test' }));
 api.listen(3000);
 ```
 
-The Swagger specification of the API you just created is available at `http://localhost:3000/swagger.json`
+The openAPI specification of the API you just created is available at `http://localhost:3000/openapi.json`
 
 Now you can query your *data* collection like this:
 
-```bash
+```shell
 curl "http://localhost:3000/tests"
 ```
 
 You can add a new item:
 
-```bash
+```shell
 curl "http://localhost:3000/tests" -H "Content-Type: application/json" -X POST -d '{ "name": "Jimbo", "surname": "Johnson" }'
 ```
 
 You can query a specific item by appeding the identifier of the record (the _id attribute):
 
-```bash
+```shell
 curl "http://localhost:3000/tests/51acc04f196573941f000002"
 ```
 
 You can update an item:
 
-```bash
+```shell
 curl "http://localhost:3000/tests/51acc04f196573941f000002" -H "Content-Type: application/json" -X PUT -d '{ "name": "Jimbo", "surname": "Smith" }'
 ```
 
 And finally you can delete an item:
 
-```bash
+```shell
 curl "http://localhost:3000/tests/51acc04f196573941f000002" -X DELETE
+```
+
+## Running the Application
+
+```shell
+npm run build:watch
+DEBUG=arrest:* node ./dist/index.js
 ```
 
 ## Creating an API
 
-An _API_ is a collection of _Resources_, each supporting one or more _Operations_.
+An *API* is a collection of *Resources*, each supporting one or more *Operations*.
 
-In arrest you create an API by creating an instance of the base `API` class or of a derived class.
-You then add instances of the `Resource` class or a derived one. Each resource contains its supported `Routes`, that is
-a collection of instances of classes derived from the abstract `Operation`, which represents an operation to be executed
-when an HTTP method is called on a path.
+In arrest you create an API by creating an instance of the base `API` class or of a derived class. You then add instances of the `Resource` class or a derived one. Each resource contains its supported `Routes`, that is a collection of instances of classes derived from the abstract `Operation`, which represents an operation to be executed when an HTTP method is called on a path.
 
 The following code demonstrates this three level structure:
 
-```js
-const arrest = require('arrest');
-const api = new arrest.API();
+```typescript
+import { API, Resource } from 'arrest';
 
-const operation1 = function(req, res, next) {
+const api = new API();
+
+const operation1 = (req, res, next) => {
   res.json({ data: 'this is operation 1' });
-}
-const operation2 = function(req, res, next) {
+};
+const operation2 = (req, res, next) => {
   res.json({ data: 'this is operation 2' });
-}
-const operation3 = function(req, res, next) {
+};
+const operation3 = (req, res, next) => {
   res.json({ data: 'this is operation 3' });
-}
-const resource1 = new arrest.Resource({
+};
+
+const resource1 = new Resource({
   name: 'SomeResource',
   routes: {
     '/': {
@@ -107,36 +187,37 @@ const resource1 = new arrest.Resource({
       put: operation3
     }
   }
-})
+});
 
 api.addResource(resource1);
 api.listen(3000);
+
 ```
 
 The API above supports the following operations:
-- `GET` on `http://localhost/some-resources`
-- `POST` on `http://localhost/some-resources`
-- `PUT` on `http://localhost/some-resources/some-path`
 
-Please note how the some-resources path was automatically constructed using the name of the resource `SomeResource`, making
-it plural and converting the camelcase in a dash-separated name. This default behaviour can be changed specifying the
-namePlural and path when creating the resource (e.g. `new Resource({ name: 'OneResource', namePlural: 'ManyResources', path: 'my_resources' })`)
+- `GET` on `http://localhost:3000/some-resources`
+- `POST` on `http://localhost:3000/some-resources`
+- `PUT` on `http://localhost:3000/some-resources/some-path`
+
+Please note how the some-resources path was automatically constructed using the name of the resource `SomeResource`, making it plural and converting the camelcase in a dash-separated name. This default behaviour can be changed specifying the namePlural and path when creating the resource (e.g. `new Resource({ name: 'OneResource', namePlural: 'ManyResources', path: 'my_resources' })`)
 
 Another other way to produce the same result is:
 
-```js
-const arrest = require('arrest');
-const api = new arrest.API();
+```typescript
+import { API, Resource } from 'arrest';
 
-const resource1 = new arrest.Resource({ name: 'SomeResource' });
+const api = new API();
 
-resource1.addOperation('/', 'get', function(req, res, next) {
+const resource1 = new Resource({ name: 'SomeResource' });
+
+resource1.addOperation('/', 'get', function (req, res, next) {
   res.json({ data: 'this is operation 1' });
 });
-resource1.addOperation('/', 'post', function(req, res, next) {
+resource1.addOperation('/', 'post', function (req, res, next) {
   res.json({ data: 'this is operation 2' });
 });
-resource1.addOperation('/some-path', 'put', function(req, res, next) {
+resource1.addOperation('/some-path', 'put', function (req, res, next) {
   res.json({ data: 'this is operation 3' });
 });
 
@@ -144,35 +225,32 @@ api.addResource(resource1);
 api.listen(3000);
 ```
 
-In real world applications, where resources and operation are in fact more complex, you will want to create class that
-extend the basic classes in arrest, like in the next example:
+In real world applications, where resources and operation are in fact more complex, you will want to create class that extend the basic classes in arrest, like in the next example:
 
-```js
-const arrest = require('arrest');
+```typescript
+import { API, Resource, Operation } from 'arrest';
 
-class MyOperation extends arrest.Operation {
+class MyOperation extends Operation {
   constructor(resource, path, method) {
-    super('op1', resource, path, method);
+    super(resource, path, method, 'op1');
   }
   handler(req, res, next) {
     res.json({ data: 'this is a custom operation' });
   }
 }
 
-class MyResource extends arrest.Resource {
+class MyResource extends Resource {
   constructor() {
     super();
     this.addOperation(new MyOperation(this, '/', 'get'));
   }
 }
 
-class MyAPI extends arrest.API {
+class MyAPI extends API {
   constructor() {
     super({
-      info: {
-        title: 'This is a custom API',
-        version: '0.9.5'
-      }
+      title: 'This is a custom API',
+      version: '0.9.5'
     });
     this.addResource(new MyResource());
   }
@@ -180,21 +258,18 @@ class MyAPI extends arrest.API {
 
 const api = new MyAPI();
 api.listen(3000);
+
 ```
 
-The API above supports `GET`s on `http://localhost/my-resources` (note how the path was in this case constructed automatically
-from the name of the class MyResource).
+The API above supports `GET`s on `http://localhost:3000/my-resources` (note how the path was in this case constructed automatically from the name of the class MyResource).
 
-By the default, arrest APIs add a special route `/swagger.json` that returns the Swagger description of the API: the Swagger
-object is populated with the properties of the API object, Resources are converted into Swagger Tags and Operations are
-mapped to Swagger Operations.
+By the default, arrest APIs add a special route `/openapi.json` that returns the OpenAPI description of the API: the OpenAPI object is populated with the properties of the API object, Resources are converted into openAPI Tags and Operations are mapped to openAPI Operations.
 
 ### Data validation
 
-arrest supports JSON-Schema for data validation. Validation rules are set using the [Swagger specification](http://swagger.io/specification/). For instance,
-the following code show how to validate the body of a `POST` and the query paramters of a `GET`:
+arrest supports JSON-Schema for data validation. Validation rules are set using the [OpenAPI specification](http://swagger.io/specification/). For instance, the following code show how to validate the body of a `POST` and the query paramters of a `GET`:
 
-```js
+```json
 class MyOperation1 extends arrest.Operation {
   constructor(resource, path, method) {
     super('op1', resource, path, method);
@@ -225,7 +300,7 @@ class MyOperation1 extends arrest.Operation {
     res.json({ data: 'this is a op1' });
   }
 }
-
+ 
 class MyOperation2 extends arrest.Operation {
   constructor(resource, path, method) {
     super('op2', resource, path, method);
@@ -249,7 +324,7 @@ class MyOperation2 extends arrest.Operation {
     res.json({ data: 'this is a op2' });
   }
 }
-
+ 
 class MyResource extends arrest.Resource {
   constructor() {
     super();
@@ -259,27 +334,18 @@ class MyResource extends arrest.Resource {
 }
 ```
 
-Omitting the body or passing an invalid body (e.g. an object without the name property) when `POST`ing to
-`http://localhost/my-resources` will return an error. Likewise `GET`ting without a lang parameter or with a count
-set to anything other than a number will fail.
+Omitting the body or passing an invalid body (e.g. an object without the name property) when `POST`ing to `http://localhost/my-resources` will return an error. Likewise `GET`ting without a lang parameter or with a count set to anything other than a number will fail.
 
-## Scopes and security validators
+## The Core
 
-**TBA**
+#### Libraries
 
-## Creating an API with a MongoDB data store
+- json-ref + json-pointer + json-path —> implemented on json-ref library
+- Json-schema —> implemented on json-police library
+- Open-api-schema supports json-schema -> open-api-police library
+- Arrest library contains all the libraries above.
 
-**TBA**
-(default api routes)
 
-## Using arrest with express
+#### API
 
-**TBA**
-
-## Debugging
-
-**TBA**
-
-## API documentation
-
-**TBA**
+skip, limit, sort are available.
