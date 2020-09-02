@@ -262,19 +262,7 @@ export class API {
       RESTError.send(res, err.code, err.message, err.info);
     } else if (err.name === 'ValidationError') {
       req.logger.error('DATA ERROR', err);
-      function _convertError(err: Error) {
-        const out: any = { type: err.message };
-        if (err.name === 'ValidationError') {
-          const verr: ValidationError = err as ValidationError;
-          out.path = verr.path;
-          out.scope = verr.scope;
-          if (verr.errors) {
-            out.errors = verr.errors.map((e) => _convertError(e));
-          }
-        }
-        return out;
-      }
-      RESTError.send(res, 400, err.name, _convertError(err));
+      RESTError.send(res, 400, err.name, ValidationError.getInfo(err));
     } else {
       req.logger.error('GENERIC ERROR', err, err.stack);
       RESTError.send(res, 500, 'internal');

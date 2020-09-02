@@ -54,7 +54,7 @@ describe('Operation', function () {
         handler(req: APIRequest, res: APIResponse, next) {}
       }
       let r = new Resource({ name: 'Test' }, { '/': { get: Op1 } });
-      delete api.document.paths;
+      delete (api.document as any).paths;
       api.addResource(r);
       should.exist(api.document.paths['/tests']);
     });

@@ -57,7 +57,7 @@ export abstract class MongoOperation extends Operation {
     }
   }
   protected parseFields(fields: string[]) {
-    let out = { _metadata: 0 };
+    let out: any = { _metadata: 0 };
     if (this.resource.info.id !== '_id') {
       out['_id'] = 0;
     }
