@@ -1,8 +1,8 @@
 # Arrest
 
-OpenAPI REST framework for Node.js, with support for MongoDB and [JSON-Schema](http://json-schema.org/)
+Arrest is a REST API framework for Node.js, with out-of-the-box support for MongoDB and [JSON-Schema](http://json-schema.org/) fro data definition and validation. 
 
-Arrest lets you write RESTful web services in minutes. It automatically generates a [OpenAPI](http://swagger.io/) description of the API and support input validation using JSON-Schemas.
+Arrest lets you write RESTful web services in minutes. It automatically generates a [OpenAPI 3.0.x](http://swagger.io/) formal description of the API and supports input validation using JSON Schema.
 
 Highlight features:
 
@@ -12,9 +12,9 @@ Highlight features:
 
 - Supports querying object with the RQL syntax
 
-- Input validation with JSON-Schema
+- Input validation with JSON Schema
 
-- Oauth2 scope checks per operation
+- OAuth2 scope checks per operation.
 
 ## Arrest Technologies
 
@@ -22,15 +22,15 @@ Highlight features:
 
 - **JSON Schema:** a standard to define JSON data.
 
-- **OpenAPI 3.x** A JSON format that formally describes an entire API.
+- **OpenAPI 3.0.x** A JSON format that formally describes an entire API.
 
-  Arrest generates a valid OpenAPI definition from the code you write.
+Arrest generates a valid OpenAPI definition from the code you write and the JSON schemas you register.
 
 ## Main Concepts and Classes
 
-- **Application:** the scheleton of an Arrest API: it opens ports, manages HTTP requests (e.g. Express), it exposes API endpoints.
+- **Application:** the scheleton of an Arrest API. It opens ports, manages HTTP requests (e.g. Express), it exposes the API endpoints.
 
-- **API:** an "handler" mounted on an Express application. An _API_ is a collection of _Resources_, each of them supporting one or more _Operations_ (contained in a Resource). Resources and JSON Schemas can be added to the API.
+- **API:** an "handler" mounted on an Express application. An _API_ is a collection of _Resources_, each of them supporting one or more _Operations_ (contained in a Resource). Resources and JSON Schemas can be added to the API using dedicated methods:
 
   - `addResource()`
   - `registerSchema()`
@@ -39,7 +39,7 @@ Highlight features:
 
 - **Operation:** the action that you can do on the resource. e.g.
 
-  - attach: you can register Schema files here. e.g.
+  - `attach`: you can register JSON Schema files. E.g.,
 
     ```typescript
     api.registerSchema(
@@ -48,28 +48,28 @@ Highlight features:
     );
     ```
 
-  - getInfo: merges default and custom info.
+  - `getInfo`: merges default and custom info.
 
-  - getDefaultInfo: error responses, name of the resource as tag etc...
+  - `getDefaultInfo`: error responses, name of the resource as tag etc...
 
-  - getCustomInfo: empty by default, you can define it.
+  - `getCustomInfo`: empty by default, you can define it.
 
-  - **handler**: must be implemented in case of base resource. Contains req, res, next.
+  - **`handler`**: must be implemented in case of base resource. Contains req, res, next.
 
 ## MongoDB Native Integration
 
-Arrest supports mongo and supports a set of methods that can be implemented to prepare, format and execute the query. An arrest MongoOperation calls in pipeline a set of methods that supports the query:
+Arrest integrates with MongoDB and supports a set of methods that can be implemented to prepare, format and execute the query. An arrest MongoOperation calls in pipeline a set of methods that supports the query:
 
-- **prepareQuery**: prepare the query
-- **prepareDoc**: prepare doc to be saved in the db
-- **prepareOpts**: options to be passed to mongo: sort, skip, limit etc
-- **runOperation**: execute the command: findone, insertone, delete etc.
-- **redactResult**: edit/manipulate the result. e.g. used to rename or delete fields, filter fields
-- **processResult**: send data result
+- **`prepareQuery`**: prepare the query
+- **`prepareDoc`**: prepare doc to be saved in the db
+- **`prepareOpts`**: options to be passed to mongo: sort, skip, limit etc
+- **`runOperation`**: execute the command: findone, insertone, delete etc.
+- **`redactResult`**: edit/manipulate the result. e.g. used to rename or delete fields, filter fields
+- **`processResult`**: send data result
 
-There is also a set of mongo operation provided by Arrest that extend the MongoOperation base operation:
+There is also a set of mongo operations provided by Arrest that extend the MongoOperation base operation:
 
-**CreateMongoOperation, PatchMongoOperation, QueryMongoOperation, ReadMongoOperation, RemoveMongoOperation, UpdateMongoOperation.**
+**`CreateMongoOperation`, `PatchMongoOperation`, `QueryMongoOperation`, `ReadMongoOperation`, `RemoveMongoOperation`, `UpdateMongoOperation`.**
 
 Tip: You can image that a query does not contains a doc. A create has no query, but a doc. Update has both: doc and query.
 
