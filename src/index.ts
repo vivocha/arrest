@@ -1,3 +1,4 @@
+export * from '@casl/ability';
 export * from '@vivocha/scopes';
 export * from 'openapi-police';
 export * from './api';
