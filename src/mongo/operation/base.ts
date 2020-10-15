@@ -65,8 +65,8 @@ export abstract class MongoOperation extends Operation {
       out = _.reduce(
         fields,
         (o: any, i: string) => {
-          if (i && i !== '_metadata' && (i !== '_id' || i === this.resource.info.id)) {
-            if (i !== '_id') {
+          if (i && i !== '_metadata' && !(i === '_id' && i !== this.resource.info.id)) {
+            if (i !== '_id' && !out['_id']) {
               out['_id'] = 0;
             }
             delete out['_metadata'];
