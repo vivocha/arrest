@@ -254,7 +254,7 @@ export abstract class Operation {
     if (this.scopes) {
       for (let resource in this.scopes) {
         for (let action in this.scopes[resource]) {
-          checkAbility(ability, resource, action, data, filterFields, filterData);
+          data = checkAbility(ability, resource, action, data, filterFields, filterData);
         }
       }
     }
