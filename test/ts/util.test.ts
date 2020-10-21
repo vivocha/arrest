@@ -1,5 +1,6 @@
+import { defineAbility } from '@casl/ability';
 import * as chai from 'chai';
-import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/util';
+import { checkAbility, rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/util';
 import {
   complexSpec,
   jsonSchema,
@@ -18,7 +19,7 @@ import {
   specWithUnreferencedSchemasButWrongRef,
   specWithWrongComplexRef,
   specWithWrongParamRef,
-  wrongSpec,
+  wrongSpec
 } from './specs';
 
 const should = chai.should();
@@ -4735,5 +4736,17 @@ describe('util', function () {
         'Referenced path "#/components/schemas/A/definitions/AA/definitions/AAA" doesn\'t exist in spec.'
       );
     });
+  });
+
+  describe('checkAbility', function() {
+    it('should return undefined if data does not fulfill the conditions', function() {
+      const ability = defineAbility((can) => {
+        can('doSomething', 'Resource', { x: { $gt: 2 }});
+      });
+      const ok = checkAbility(ability, 'Resource', 'doSomething', { x: 3 }, false, true);
+      const nok = checkAbility(ability, 'Resource', 'doSomething', { x: 2 }, false, true);
+      ok.should.deep.equal({x: 3});
+      should.not.exist(nok);
+    })
   });
 });

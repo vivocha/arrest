@@ -1,4 +1,4 @@
-import { Ability, ForbiddenError } from '@casl/ability';
+import { Ability, ForbiddenError, subject } from '@casl/ability';
 import * as dot from 'dot-prop';
 import * as _ from 'lodash';
 import { OpenAPIV3 } from 'openapi-police';
@@ -270,9 +270,10 @@ function deleteUnreferencedParameters(occurrences: any, spec: OpenAPIV3.Document
   return spec;
 }
 
-export function checkAbility(ability: Ability, resource: string, action: string, data?: any, filter?: boolean): any {
+export function checkAbility(ability: Ability, resource: string, action: string, data?: any, filterFields?: boolean, filterData?: boolean): any {
   if (!data) {
     ForbiddenError.from(ability).throwUnlessCan(action, resource);
+    return undefined;
   } else {
     function innerCheckAbility(data: any, path?: string[]): any {
       let foundOne = false;
@@ -283,7 +284,7 @@ export function checkAbility(ability: Ability, resource: string, action: string,
               innerCheckAbility(i, path);
               return true;
             } catch (err) {
-              if (filter) {
+              if (filterFields) {
                 return false;
               } else {
                 API.fireError(403, 'insufficient privileges', undefined, err);
@@ -297,7 +298,7 @@ export function checkAbility(ability: Ability, resource: string, action: string,
               data[key] = innerCheckAbility(value, (path || []).concat(key));
               foundOne = true;
             } catch (err) {
-              if (filter) {
+              if (filterFields) {
                 delete data[key];
               } else {
                 API.fireError(403, 'insufficient privileges', undefined, err);
@@ -313,7 +314,10 @@ export function checkAbility(ability: Ability, resource: string, action: string,
       }
       return data;
     }
-    innerCheckAbility(data);
+    if (filterData && !ability.can(action, subject(resource, data))) {
+      return undefined;
+    } else {
+      return innerCheckAbility(data);
+    }
   }
-  return data;
 }

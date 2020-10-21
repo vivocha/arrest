@@ -250,11 +250,11 @@ export abstract class Operation {
 
   abstract handler(req: APIRequest, res: APIResponse, next?: NextFunction);
 
-  checkAbility(ability: Ability, data?: any, filter?: boolean): any {
+  checkAbility(ability: Ability, data?: any, filterFields?: boolean, filterData?: boolean): any {
     if (this.scopes) {
       for (let resource in this.scopes) {
         for (let action in this.scopes[resource]) {
-          checkAbility(ability, resource, action, data, filter);
+          checkAbility(ability, resource, action, data, filterFields, filterData);
         }
       }
     }

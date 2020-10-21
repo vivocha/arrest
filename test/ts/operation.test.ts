@@ -1018,7 +1018,6 @@ describe('Operation', function () {
       api.addResource(r);
 
       before(function () {
-        debugger;
         return api.router().then((router) => {
           app.use(router);
           server = app.listen(port);
