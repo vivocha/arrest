@@ -314,10 +314,13 @@ export function checkAbility(ability: Ability, resource: string, action: string,
       }
       return data;
     }
-    if (filterData && !ability.can(action, subject(resource, data))) {
-      return undefined;
-    } else {
-      return innerCheckAbility(data);
-    }
+    if (filterData) {
+      if (Array.isArray(data)) {
+        data = data.filter(i => ability.can(action, subject(resource, i)))
+      } else if (!ability.can(action, subject(resource, data))) {
+        return undefined;
+      }
+    } 
+    return innerCheckAbility(data);
   }
 }

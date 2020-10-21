@@ -4748,5 +4748,12 @@ describe('util', function () {
       ok.should.deep.equal({x: 3});
       should.not.exist(nok);
     })
+    it('should filter array items that do not fulfill the conditions', function() {
+      const ability = defineAbility((can) => {
+        can('doSomething', 'Resource', { x: { $gt: 2 }});
+      });
+      const out = checkAbility(ability, 'Resource', 'doSomething', [{ x: 1 }, { x: 4 }, { x: 3 }, { x: 2 }], false, true);
+      out.should.deep.equal([{ x: 4 }, { x: 3 }]);
+    })
   });
 });
