@@ -275,6 +275,7 @@ export function checkAbility(ability: Ability, resource: string, action: string,
     ForbiddenError.from(ability).throwUnlessCan(action, resource);
     return undefined;
   } else {
+    const fieldsCache = new Map<string, boolean>();
     function innerCheckAbility(data: any, path?: string[]): any {
       let foundOne = false;
       if (typeof data === 'object' && typeof data['_bsontype'] === 'undefined' && !(data instanceof Date)) {
@@ -310,7 +311,16 @@ export function checkAbility(ability: Ability, resource: string, action: string,
 
       if (path && !foundOne) {
         const pathAsString = path.join('.');
-        ForbiddenError.from(ability).throwUnlessCan(action, resource, pathAsString);
+        let isPermitted = fieldsCache.get(pathAsString);
+        if (typeof isPermitted === 'boolean') {
+
+        } else {
+          isPermitted = ability.can(action, resource, pathAsString);
+          fieldsCache.set(pathAsString, isPermitted);
+        }
+        if (!isPermitted) {
+          throw ForbiddenError.from(ability);
+        }
       }
       return data;
     }
