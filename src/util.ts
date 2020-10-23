@@ -312,9 +312,7 @@ export function checkAbility(ability: Ability, resource: string, action: string,
       if (path && !foundOne) {
         const pathAsString = path.join('.');
         let isPermitted = fieldsCache.get(pathAsString);
-        if (typeof isPermitted === 'boolean') {
-
-        } else {
+        if (typeof isPermitted === 'undefined') {
           isPermitted = ability.can(action, resource, pathAsString);
           fieldsCache.set(pathAsString, isPermitted);
         }
