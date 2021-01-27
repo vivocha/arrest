@@ -1,4 +1,5 @@
-import { Ability, ForbiddenError, subject } from '@casl/ability';
+import { Ability, AnyMongoAbility, ForbiddenError, subject } from '@casl/ability';
+import { rulesToQuery } from '@casl/ability/extra';
 import * as dot from 'dot-prop';
 import * as _ from 'lodash';
 import { OpenAPIV3 } from 'openapi-police';
@@ -331,4 +332,22 @@ export function checkAbility(ability: Ability, resource: string, action: string,
     } 
     return innerCheckAbility(data);
   }
+}
+
+// The following two functions come from @casl/mongoose and were
+// copied (and adapted) here to avoid importing mongoose
+
+function convertToMongoQuery(rule: AnyMongoAbility['rules'][number]) {
+  const conditions = rule.conditions!;
+  return rule.inverted ? { $nor: [conditions] } : conditions;
+}
+
+export function toMongoQuery<T extends AnyMongoAbility>(
+  ability: T,
+  subjectType: Parameters<T['rulesFor']>[1],
+  action: Parameters<T['rulesFor']>[0]
+) {
+  // TODO: typescript doesn't like the type of action, so we work around it
+  const f: (...args) => any = rulesToQuery;
+  return f(ability, action, subjectType, convertToMongoQuery);
 }

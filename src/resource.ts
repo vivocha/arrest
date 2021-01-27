@@ -66,7 +66,7 @@ export class Resource {
   }
 
   get basePath(): string {
-    return '/' + (this.info.path ? this.info.path : decamelize('' + this.info.namePlural, '-'));
+    return '/' + (this.info.path ? this.info.path : decamelize('' + this.info.namePlural, { separator: '-' }));
   }
   get scopeDescription(): string {
     return `Unrestricted access to all ${this.info.namePlural}`;

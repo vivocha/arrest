@@ -54,7 +54,7 @@ export class MongoResource extends Resource {
       this.info.idIsObjectId = this.info.id === '_id';
     }
     if (!this.info.collection) {
-      this.info.collection = decamelize('' + this.info.namePlural, '_');
+      this.info.collection = decamelize('' + this.info.namePlural, { separator:  '_' });
     }
   }
 
@@ -103,7 +103,7 @@ export class MongoResource extends Resource {
         if (err) {
           reject(err);
         } else {
-          resolve(coll);
+          resolve(coll!);
         }
       });
     });

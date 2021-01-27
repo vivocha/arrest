@@ -1,10 +1,10 @@
 import { Ability } from '@casl/ability';
-import { toMongoQuery } from '@casl/mongoose';
 import * as _ from 'lodash';
 import * as mongo from 'mongodb';
 import { API } from '../../api';
 import { Operation } from '../../operation';
 import { APIRequest, APIResponse, Method } from '../../types';
+import { toMongoQuery } from '../../util';
 import { MongoResource } from '../resource';
 import { addConstraint } from '../util';
 
@@ -103,7 +103,7 @@ export abstract class MongoOperation extends Operation {
   async prepareOpts(job: MongoJob): Promise<MongoJob> {
     return job;
   }
-  abstract async runOperation(job: MongoJob): Promise<MongoJob>;
+  abstract runOperation(job: MongoJob): Promise<MongoJob>;
   async redactResult(job: MongoJob): Promise<MongoJob> {
     if (job.data && typeof job.data === 'object' && job.req.ability) {
       job.data = this.filterFields(job.req.ability, job.data);

@@ -690,6 +690,7 @@ describe('mongo', function () {
         req.ability = defineAbility((can, cannot) => {
           can('create', 'Test', ['id', 'a', 'b', 'c.**', 'd.x']);
           can(['read', 'query'], 'Test', ['id', 'a', 'b', 'c.f'], { a: { $lte: 3 } });
+          cannot(['read', 'query'], 'Test', { z: { $gt: 1 } });
           can('update', 'Test', ['b']);
           can('patch', 'Test', ['b', 'c.d']);
           can('op2', 'Test');
