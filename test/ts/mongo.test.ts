@@ -170,7 +170,22 @@ describe('mongo', function () {
       }
     }
 
-    let db, id, coll, coll2, r1, r2, r3, r4, server;
+    class Aggregation extends QueryMongoOperation {
+      async prepareOpts(job) {
+        job = await super.prepareOpts(job);
+        if (!job.req.query.fields) {
+          delete job.opts.fields;
+        }
+        return job;
+      }
+      async prepareQuery(job) {
+        job = await super.prepareQuery(job);
+        job.query = [{ $match: job.query }];
+        return job;
+      }
+    }
+
+    let db, id, coll, coll2, r1, r2, r3, r4, r5, server;
 
     before(async function () {
       db = await MongoClient.connect('mongodb://localhost:27017/local', { useUnifiedTopology: true }).then((c) => c.db());
@@ -178,10 +193,12 @@ describe('mongo', function () {
       r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false });
       r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 }, '/2': { get: FakeOp2 } });
       r4 = new MongoResource(db, { name: 'Oid', collection: collectionName + '_oid', id: 'myoid', idIsObjectId: true });
+      r5 = new MongoResource(db, { name: 'Aggregation', collection: collectionName }, { '/': { get: Aggregation } });
       api.addResource(r1);
       api.addResource(r2);
       api.addResource(r3);
       api.addResource(r4);
+      api.addResource(r5);
 
       let router = await api.router();
       app.use(router);
@@ -563,6 +580,17 @@ describe('mongo', function () {
           });
       });
 
+      it('should return all objects in the collection (4)', function () {
+        return request
+          .get('/aggregations')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(6);
+          });
+      });
+
       it('should return a single attribute of all objects, in ascending order by id (1)', function () {
         return request
           .get('/tests?fields=y&sort=myid')
@@ -581,6 +609,21 @@ describe('mongo', function () {
       it('should return a single attribute of all objects, in ascending order by id (2)', function () {
         return request
           .get('/tests?fields=y&sort=%2Bmyid') // +myid
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(4);
+            data[0].should.deep.equal({ y: 13 });
+            data[1].should.deep.equal({ y: 11 });
+            data[2].should.deep.equal({ y: 30 });
+            data[3].should.deep.equal({ y: 20 });
+          });
+      });
+
+      it('should return a single attribute of all objects, in ascending order by id (3)', function () {
+        return request
+          .get('/aggregations?fields=y&sort=%2Bmyid') // +myid
           .expect(200)
           .expect('Content-Type', /json/)
           .expect('Results-Matching', '6')
@@ -623,6 +666,21 @@ describe('mongo', function () {
           });
       });
 
+      it('should return a single attribute of all objects, in descending order by id (3)', function () {
+        return request
+          .get('/aggregations?fields=y,&sort=-myid')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .then(({ body: data }) => {
+            data.length.should.equal(4);
+            data[0].should.deep.equal({ y: 20 });
+            data[1].should.deep.equal({ y: 30 });
+            data[2].should.deep.equal({ y: 11 });
+            data[3].should.deep.equal({ y: 13 });
+          });
+      });
+
       it('should return the _id and a specified attribute (if available) of all objects', function () {
         return request
           .get('/tests?fields=y,_id')
@@ -638,9 +696,21 @@ describe('mongo', function () {
           });
       });
 
-      it('should skip and limit the results', function () {
+      it('should skip and limit the results (1)', function () {
         return request
           .get('/tests?limit=2&skip=3')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '6')
+          .expect('Results-Skipped', '3')
+          .then(({ body: data }) => {
+            data.length.should.equal(2);
+          });
+      });
+
+      it('should skip and limit the results (2)', function () {
+        return request
+          .get('/aggregations?limit=2&skip=3')
           .expect(200)
           .expect('Content-Type', /json/)
           .expect('Results-Matching', '6')

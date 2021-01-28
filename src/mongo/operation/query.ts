@@ -1,7 +1,5 @@
 import * as _ from 'lodash';
 import { OpenAPIV3 } from 'openapi-police';
-import * as qs from 'querystring';
-import * as url from 'url';
 import { Method } from '../../types';
 import { MongoResource } from '../resource';
 import rql from '../rql';
@@ -106,28 +104,44 @@ export class QueryMongoOperation extends MongoOperation {
     return job;
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {
-    let cursor = job.coll.find(job.query);
-    // TODO this is now deprecated: find another way to do it
-    //cursor.maxScan(this.maxScan);
-    let matching = await cursor.count(false, {
-      // false = ignore limit and skip when counting
-      maxTimeMS: this.maxCountMs,
-    });
-    job.res.set('Results-Matching', matching + '');
-    if (job.opts.fields) cursor.project(job.opts.fields);
-    if (job.opts.sort) cursor.sort(job.opts.sort);
-    if (job.opts.limit) cursor.limit(job.opts.limit);
-    if (job.opts.skip) cursor.skip(job.opts.skip);
-    job.data = await cursor.toArray();
+    let matching: number;
+    if (Array.isArray(job.query)) {
+      if (job.opts.sort) job.query.push({ $sort: job.opts.sort });
+      if (job.opts.fields) job.query.push({ $project: job.opts.fields });
+      const innerQuery: any[] = [ {$match: {} } ]
+      if (job.opts.skip) innerQuery.push({ $skip: job.opts.skip });
+      if (job.opts.limit) innerQuery.push({ $limit: job.opts.limit });
+      job.query.push({ $facet: {
+        count: [{ $count: 'count' }],
+        data: innerQuery
+      }});
+      const cursor = job.coll.aggregate(job.query);
+      const rawData = await cursor.toArray();
+      matching = rawData[0].count[0].count;
+      job.data = rawData[0].data;
+      job.res.set('Results-Matching', matching + '');
+    } else {
+      const cursor = job.coll.find(job.query);
+      matching = await cursor.count(false); // false = ignore limit and skip when counting
+      job.res.set('Results-Matching', matching + '');
+      if (job.opts.fields) cursor.project(job.opts.fields);
+      if (job.opts.sort) cursor.sort(job.opts.sort);
+      if (job.opts.limit) cursor.limit(job.opts.limit);
+      if (job.opts.skip) cursor.skip(job.opts.skip);
+      job.data = await cursor.toArray();
+    }
     if (job.opts.skip) {
       job.res.set('Results-Skipped', job.opts.skip);
     }
-    if (job.opts.skip + job.opts.limit < matching) {
-      let q = Object.assign({}, url.parse(job.req.originalUrl, true).query);
-      q.limit = job.opts.limit;
-      q.skip = job.opts.skip + job.opts.limit;
-      const fullURL = `${job.req.protocol}://${job.req.headers['host']}${job.req.baseUrl}${job.req.path}/?${qs.stringify(q)}`;
-      job.res.set('Link', '<' + fullURL + '>; rel="next"');
+    if (matching) {
+      if (job.opts.skip + job.opts.limit < matching) {
+        const host = `${job.req.protocol}://${job.req.headers['host']}`;
+        const q = (new URL(`${host}${job.req.originalUrl}`)).searchParams;
+        q.set('limit', job.opts.limit);
+        q.set('skip', job.opts.skip + job.opts.limit);
+        const fullURL = `${host}${job.req.baseUrl}${job.req.path}/?${q.toString()}`;
+        job.res.set('Link', '<' + fullURL + '>; rel="next"');
+      }
     }
     return job;
   }

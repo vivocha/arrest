@@ -19,21 +19,10 @@ export interface MongoJob {
 }
 
 export abstract class MongoOperation extends Operation {
-  static readonly MAX_SCAN = 200;
-  static readonly MAX_COUNT_MS = 200;
-
   constructor(public resource: MongoResource, path: string, method: Method, id?: string) {
     super(resource, path, method, id);
   }
 
-  /* TODO is maxScan still supported?
-  get maxScan():number {
-    return MongoOperation.MAX_SCAN;
-  }
-  */
-  get maxCountMs(): number {
-    return MongoOperation.MAX_COUNT_MS;
-  }
   get collection(): Promise<mongo.Collection> {
     return this.resource.getCollection(this.getCollectionOptions());
   }
