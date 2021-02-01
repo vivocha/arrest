@@ -9,9 +9,9 @@ env:
 phases:
   install:
     runtime-versions:
-      nodejs: 14
       docker: 19
     commands:
+      - n 14
       - export PATH=$PATH:./node_modules/.bin
       - npm config set //registry.npmjs.org/:_authToken=$NPM_TOKEN
       - npm set unsafe-perm true
