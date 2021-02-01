@@ -1,0 +1,29 @@
+version: 0.2
+
+env:
+  secrets-manager:
+    NPM_TOKEN: /CodeBuild/vivocha-monorepo:NPM_TOKEN
+    GH_TOKEN: /CodeBuild/vivocha-monorepo:GH_TOKEN
+  git-credential-helper: yes
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 14
+      docker: 19
+    commands:
+      - export PATH=$PATH:./node_modules/.bin
+      - npm config set //registry.npmjs.org/:_authToken=$NPM_TOKEN
+      - npm set unsafe-perm true
+  pre_build:
+    commands:
+      - npm prune
+  build:
+    commands:
+      - npm run build:all
+      - npm run cover
+      - npm run check-coverage
+  post_build:
+    commands:
+      - npm run semantic-release
+      - npm run report-coverage
