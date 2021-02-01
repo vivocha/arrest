@@ -4,6 +4,7 @@ env:
   secrets-manager:
     NPM_TOKEN: /CodeBuild/vivocha-monorepo:NPM_TOKEN
     GH_TOKEN: /CodeBuild/vivocha-monorepo:GH_TOKEN
+    COVERALLS_REPO_TOKEN: /CodeBuild/COVERALLS_REPO_TOKEN_ARREST:COVERALLS_REPO_TOKEN_ARREST
   git-credential-helper: yes
 
 phases:
