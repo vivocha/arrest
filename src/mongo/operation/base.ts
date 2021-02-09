@@ -4,9 +4,8 @@ import * as mongo from 'mongodb';
 import { API } from '../../api';
 import { Operation } from '../../operation';
 import { APIRequest, APIResponse, Method } from '../../types';
-import { toMongoQuery } from '../../util';
 import { MongoResource } from '../resource';
-import { addConstraint } from '../util';
+import { addConstraint, toMongoQuery, unescapeMongoObject } from '../util';
 
 export interface MongoJob {
   req: APIRequest;
@@ -94,8 +93,13 @@ export abstract class MongoOperation extends Operation {
   }
   abstract runOperation(job: MongoJob): Promise<MongoJob>;
   async redactResult(job: MongoJob): Promise<MongoJob> {
-    if (job.data && typeof job.data === 'object' && job.req.ability) {
-      job.data = this.filterFields(job.req.ability, job.data);
+    if (job.data && typeof job.data === 'object') {
+      if (job.req.ability) {
+        job.data = this.filterFields(job.req.ability, job.data);
+      }
+      if (this.resource.info.escapeProperties) {
+        job.data = unescapeMongoObject(job.data);
+      }
     }
     return job;
   }

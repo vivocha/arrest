@@ -29,6 +29,7 @@ export interface MongoResourceDefinition extends ResourceDefinition {
   collection?: string;
   idIsObjectId?: boolean;
   createIndexes?: boolean;
+  escapeProperties?: boolean;
 }
 
 export class MongoResource extends Resource {

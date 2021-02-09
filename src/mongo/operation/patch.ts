@@ -1,9 +1,9 @@
 import * as mongo from 'mongodb';
-import { JSONPatch, OpenAPIV3, toMongoUpdate } from 'openapi-police';
+import { JSONPatch, OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api';
 import { Method } from '../../types';
 import { MongoResource } from '../resource';
-import { addConstraint } from '../util';
+import { addConstraint, patchToMongo } from '../util';
 import { MongoJob, MongoOperation } from './base';
 
 export class PatchMongoOperation extends MongoOperation {
@@ -83,6 +83,10 @@ export class PatchMongoOperation extends MongoOperation {
 
     const patch = job.req.body as JSONPatch;
 
+    if (this.resource.info.escapeProperties) {
+      debugger;
+    }
+
     if (job.req.ability) {
       const permittedFields = this.permittedFields(job.req.ability);
       if (permittedFields.size) {
@@ -100,7 +104,7 @@ export class PatchMongoOperation extends MongoOperation {
         }
       }
     }
-    const update = toMongoUpdate(patch);
+    const update = patchToMongo(patch, this.resource.info.escapeProperties);
     if (update.query) {
       job.query = addConstraint(job.query, update.query);
     }

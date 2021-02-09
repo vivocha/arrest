@@ -4,7 +4,7 @@ import { OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api';
 import { Method } from '../../types';
 import { MongoResource } from '../resource';
-import { addConstraint } from '../util';
+import { addConstraint, escapeMongoObject } from '../util';
 import { MongoJob, MongoOperation } from './base';
 
 export class UpdateMongoOperation extends MongoOperation {
@@ -58,6 +58,9 @@ export class UpdateMongoOperation extends MongoOperation {
       out = this.checkAbility(job.req.ability, out);
     }
     out['' + this.resource.info.id] = this.resource.info.idIsObjectId ? new mongo.ObjectID(job.req.params.id) : job.req.params.id;
+    if (this.resource.info.escapeProperties) {
+      out = escapeMongoObject(out);
+    }
     job.doc = {
       $set: out,
     };

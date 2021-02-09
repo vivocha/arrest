@@ -4,6 +4,7 @@ import { OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api';
 import { Method } from '../../types';
 import { MongoResource } from '../resource';
+import { escapeMongoObject } from '../util';
 import { MongoJob, MongoOperation } from './base';
 
 export class CreateMongoOperation extends MongoOperation {
@@ -61,6 +62,9 @@ export class CreateMongoOperation extends MongoOperation {
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {
     try {
+      if (this.resource.info.escapeProperties) {
+        job.doc = escapeMongoObject(job.doc);
+      }
       let result = await job.coll.insertOne(job.doc, job.opts as mongo.CollectionInsertOneOptions);
       job.data = result.ops[0];
       const fullURL = `${job.req.protocol}://${job.req.headers['host']}${job.req.baseUrl}${job.req.path}${job.data['' + this.resource.info.id]}`;
@@ -78,6 +82,7 @@ export class CreateMongoOperation extends MongoOperation {
     return job;
   }
   async redactResult(job: MongoJob): Promise<MongoJob> {
+    job = await super.redactResult(job);
     if (this.resource.info.id !== '_id') {
       delete job.data._id;
     }

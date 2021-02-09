@@ -185,7 +185,7 @@ describe('mongo', function () {
       }
     }
 
-    let db, id, coll, coll2, r1, r2, r3, r4, r5, server;
+    let db, id, coll, coll2, r1, r2, r3, r4, r5, r6, server;
 
     before(async function () {
       db = await MongoClient.connect('mongodb://localhost:27017/local', { useUnifiedTopology: true }).then((c) => c.db());
@@ -194,11 +194,13 @@ describe('mongo', function () {
       r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 }, '/2': { get: FakeOp2 } });
       r4 = new MongoResource(db, { name: 'Oid', collection: collectionName + '_oid', id: 'myoid', idIsObjectId: true });
       r5 = new MongoResource(db, { name: 'Aggregation', collection: collectionName }, { '/': { get: Aggregation } });
+      r6 = new MongoResource(db, { name: 'Escape', collection: collectionName, id: 'myid', escapeProperties: true });
       api.addResource(r1);
       api.addResource(r2);
       api.addResource(r3);
       api.addResource(r4);
       api.addResource(r5);
+      api.addResource(r6);
 
       let router = await api.router();
       app.use(router);
@@ -299,11 +301,22 @@ describe('mongo', function () {
       it('should fail to create a new record with an invalid attribute', function () {
         return request
           .post('/others')
-          .send({ myid: 'bbb', ['a.b.c.d']: 1 })
+          .send({ myid: 'bbb', 'a.b.c.d': 1 })
           .expect(500)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             data.message.should.equal('internal');
+          });
+      });
+
+      it('should create a new record with an invalid attribute, escaping it', function () {
+        return request
+          .post('/escapes')
+          .send({ myid: 'bbb', 'a.b.c.d': 1 })
+          .expect(201)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 1 });
           });
       });
     });
@@ -457,6 +470,16 @@ describe('mongo', function () {
             data.message.should.equal('not_found');
           });
       });
+      it('should add an invalid property name, if escaped', function () {
+        return request
+          .put('/escapes/bbb')
+          .send({ '$x': 4 })
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 1, '$x': 4 });
+          });
+      });
     });
 
     describe('patch', function () {
@@ -535,6 +558,22 @@ describe('mongo', function () {
             data.message.should.equal('not_found');
           });
       });
+
+      it('should patch a record with invalid properties, if escaped', function () {
+        return request
+          .patch('/escapes/bbb')
+          .send([
+            { op: 'add', path: '/$z', value: false },
+            { op: 'replace', path: '/a.b.c.d', value: 10 },
+            { op: 'remove', path: '/$x' }
+          ])
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 10, '$z': false });
+          });
+      });
+
     });
 
     describe('query', function () {
@@ -552,9 +591,9 @@ describe('mongo', function () {
           .get('/tests')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
-            data.length.should.equal(6);
+            data.length.should.equal(7);
           });
       });
 
@@ -563,9 +602,9 @@ describe('mongo', function () {
           .get('/fakes/1')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
-            data.length.should.equal(6);
+            data.length.should.equal(7);
           });
       });
 
@@ -574,9 +613,9 @@ describe('mongo', function () {
           .get('/fakes/2')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
-            data.length.should.equal(6);
+            data.length.should.equal(7);
           });
       });
 
@@ -585,9 +624,9 @@ describe('mongo', function () {
           .get('/aggregations')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
-            data.length.should.equal(6);
+            data.length.should.equal(7);
           });
       });
 
@@ -596,7 +635,7 @@ describe('mongo', function () {
           .get('/tests?fields=y&sort=myid')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
             data.length.should.equal(4);
             data[0].should.deep.equal({ y: 13 });
@@ -611,7 +650,7 @@ describe('mongo', function () {
           .get('/tests?fields=y&sort=%2Bmyid') // +myid
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
             data.length.should.equal(4);
             data[0].should.deep.equal({ y: 13 });
@@ -626,7 +665,7 @@ describe('mongo', function () {
           .get('/aggregations?fields=y&sort=%2Bmyid') // +myid
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
             data.length.should.equal(4);
             data[0].should.deep.equal({ y: 13 });
@@ -641,7 +680,7 @@ describe('mongo', function () {
           .get('/tests?fields=y,&sort=-myid')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
             data.length.should.equal(4);
             data[0].should.deep.equal({ y: 20 });
@@ -656,7 +695,7 @@ describe('mongo', function () {
           .get('/others?fields=y,_id&sort=-myid')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
             data.length.should.equal(4);
             data[0].should.deep.equal({ y: 20 });
@@ -671,7 +710,7 @@ describe('mongo', function () {
           .get('/aggregations?fields=y,&sort=-myid')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
             data.length.should.equal(4);
             data[0].should.deep.equal({ y: 20 });
@@ -686,9 +725,9 @@ describe('mongo', function () {
           .get('/tests?fields=y,_id')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .then(({ body: data }) => {
-            data.length.should.equal(6);
+            data.length.should.equal(7);
             data[0]._id.should.be.a('string');
             data[1]._id.should.be.a('string');
             data[2]._id.should.be.a('string');
@@ -701,7 +740,7 @@ describe('mongo', function () {
           .get('/tests?limit=2&skip=3')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .expect('Results-Skipped', '3')
           .then(({ body: data }) => {
             data.length.should.equal(2);
@@ -713,7 +752,7 @@ describe('mongo', function () {
           .get('/aggregations?limit=2&skip=3')
           .expect(200)
           .expect('Content-Type', /json/)
-          .expect('Results-Matching', '6')
+          .expect('Results-Matching', '7')
           .expect('Results-Skipped', '3')
           .then(({ body: data }) => {
             data.length.should.equal(2);
