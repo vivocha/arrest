@@ -1331,5 +1331,45 @@ describe('Operation', function () {
         request.get('/c/y').expect(200).expect('Content-Type', /json/),
       ]);
     });
+    it('should return the permitted fields', async function() {
+      class Op1 extends Operation {
+        handler(req, res) {}
+      }
+      class Op2 extends Operation {
+        handler(req, res) {}
+        get swaggerScopes() {
+          return {
+            'Test.op1': 'op1',
+            'Test.op2': 'op2'
+          }
+        }
+      }
+      class Op3 extends Operation {
+        handler(req, res) {}
+        get swaggerScopes() {
+          return {}
+        }
+      }
+      const r = new Resource({ name: 'Test' });
+      const op1 = new Op1(r, '/1', 'get', 'op1');
+      const op2 = new Op2(r, '/2', 'get', 'op2');
+      const op3 = new Op3(r, '/3', 'get', 'op3');
+      r.addOperation(op1);
+      r.addOperation(op2);
+      r.addOperation(op3);
+      const api = new API();
+      api.addResource(r);
+      await api.router();
+      const ability = defineAbility((can, cannot) => {
+        can('op1', 'Test');
+        can('op2', 'Test', [ 'a', 'b']);
+      })
+      const op1Fields = [...op1.permittedFields(ability)];
+      op1Fields.should.deep.equal(['**']);
+      const op2Fields = [...op2.permittedFields(ability)];
+      op2Fields.should.deep.equal(['**', 'a', 'b']);
+      const op3Fields = [...op3.permittedFields(ability)];
+      op3Fields.should.deep.equal([]);
+    })
   });
 });

@@ -83,24 +83,17 @@ export class PatchMongoOperation extends MongoOperation {
 
     const patch = job.req.body as JSONPatch;
 
-    if (this.resource.info.escapeProperties) {
-      debugger;
-    }
-
     if (job.req.ability) {
-      const permittedFields = this.permittedFields(job.req.ability);
-      if (permittedFields.size) {
-        const dottedPath = (path) =>
-          path
-            .split('/')
-            .slice(1)
-            .filter((i) => i !== '-' && isNaN(parseInt(i)))
-            .join('.');
+      const dottedPath = (path) =>
+        path
+          .split('/')
+          .slice(1)
+          .filter((i) => i !== '-' && isNaN(parseInt(i)))
+          .join('.');
 
-        for (let p of patch) {
-          if (!permittedFields.has(dottedPath(p.path)) || (p['from'] && !permittedFields.has(dottedPath(p['from'])))) {
-            API.fireError(403, 'insufficient privileges', p);
-          }
+      for (let p of patch) {
+        if (!this.checkAbilityForPath(job.req.ability, dottedPath(p.path)) ||  (p['from'] && !this.checkAbilityForPath(job.req.ability, dottedPath(p['from'])))) {
+          API.fireError(403, 'insufficient privileges', p);
         }
       }
     }

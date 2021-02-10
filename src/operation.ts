@@ -1,4 +1,4 @@
-import { Ability } from '@casl/ability';
+import { Ability, AnyMongoAbility } from '@casl/ability';
 import { permittedFieldsOf } from '@casl/ability/extra';
 import { Scopes } from '@vivocha/scopes';
 import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser';
@@ -260,15 +260,31 @@ export abstract class Operation {
     }
     return data;
   }
+  checkAbilityForPath(ability: Ability, path: string): boolean {
+    if (this.scopes) {
+      for (let resource in this.scopes) {
+        for (let action in this.scopes[resource]) {
+          if (ability.can(action, resource, path)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    } else {
+      return true;
+    }
+  }
   filterFields(ability: Ability, data: any): any {
     return this.checkAbility(ability, data, true);
   }
-  permittedFields(ability: Ability): Set<string> {
+  permittedFields(ability: AnyMongoAbility): Set<string> {
     let out: string[] = [];
     if (this.scopes) {
       for (let resource in this.scopes) {
         for (let action in this.scopes[resource]) {
-          out = out.concat(permittedFieldsOf(ability, action, resource));
+          out = out.concat(permittedFieldsOf(ability, action, resource, {
+            fieldsFrom: rule => rule.fields || ['**']
+          }));
         }
       }
     }

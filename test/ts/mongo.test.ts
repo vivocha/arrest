@@ -1,4 +1,4 @@
-import { defineAbility } from '@casl/ability';
+import { Ability, defineAbility } from '@casl/ability';
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import * as spies from 'chai-spies';
@@ -803,7 +803,7 @@ describe('mongo', function () {
           can('update', 'Test', ['b']);
           can('patch', 'Test', ['b', 'c.d']);
           can('op2', 'Test');
-        });
+        }) as Ability;
         next();
       }
     }
@@ -822,6 +822,12 @@ describe('mongo', function () {
       constructor(resource: MongoResource, path: string, method: Method) {
         super(resource, path, method, 'op2');
       }
+    }
+
+    class TestOp3 extends PatchMongoOperation {
+      constructor(resource: MongoResource, path: string, method: Method) {
+        super(resource, path, method, 'op3');
+      }
       get swaggerScopes() {
         return {};
       }
@@ -834,7 +840,7 @@ describe('mongo', function () {
       r1 = new MongoResource(
         db,
         { name: 'Test', collection: collectionName, id: 'id', idIsObjectId: false },
-        Object.assign({ '/op1': { get: TestOp1 }, '/op2/:id': { patch: TestOp2 } }, MongoResource.defaultRoutes())
+        Object.assign({ '/op1': { get: TestOp1 }, '/op2/:id': { patch: TestOp2 }, '/op3/:id': { patch: TestOp3 } }, MongoResource.defaultRoutes())
       );
       api.addResource(r1);
 
@@ -935,6 +941,14 @@ describe('mongo', function () {
         .expect('Content-Type', /json/)
         .then(({ body: data }) => {
           data.should.deep.equal({ id: 'b', b: 3, c: [{ d: 1 }, { e: 1 }, { d: 2, e: 2 }, { d: 3, f: 3 }] });
+        });
+      await request
+        .patch('/tests/op3/b')
+        .send([{ op: 'move', from: '/b', path: '/c' }])
+        .expect(200)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ id: 'b', c: 3 });
         });
     });
   });

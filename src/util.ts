@@ -1,6 +1,7 @@
-import { Ability, ForbiddenError, subject } from '@casl/ability';
+import { AnyMongoAbility, ForbiddenError, subject } from '@casl/ability';
 import * as dot from 'dot-prop';
 import * as _ from 'lodash';
+import { ObjectId } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { API } from './api';
 
@@ -270,7 +271,7 @@ function deleteUnreferencedParameters(occurrences: any, spec: OpenAPIV3.Document
   return spec;
 }
 
-export function checkAbility(ability: Ability, resource: string, action: string, data?: any, filterFields?: boolean, filterData?: boolean): any {
+export function checkAbility(ability: AnyMongoAbility, resource: string, action: string, data?: any, filterFields?: boolean, filterData?: boolean): any {
   if (!data) {
     ForbiddenError.from(ability).throwUnlessCan(action, resource);
     return undefined;
@@ -278,7 +279,7 @@ export function checkAbility(ability: Ability, resource: string, action: string,
     const fieldsCache = new Map<string, boolean>();
     function innerCheckAbility(data: any, path?: string[]): any {
       let foundOne = false;
-      if (typeof data === 'object' && typeof data['_bsontype'] === 'undefined' && !(data instanceof Date)) {
+      if (typeof data === 'object' && !ObjectId.isValid(data) && !(data instanceof Date)) {
         if (Array.isArray(data)) {
           data = data.filter((i) => {
             try {
