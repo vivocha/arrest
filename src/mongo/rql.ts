@@ -2,7 +2,7 @@ import * as _ from 'lodash';
 
 const rqlParser = require('rql/parser').parseQuery;
 
-export default function(query: any, opts: any, data: string) {
+export default function (query: any, opts: any, data: string) {
   return _rqlToMongo(query, opts, rqlParser(data));
 }
 
@@ -19,7 +19,7 @@ function _rqlToMongo(query: any, opts: any, data: any) {
         query = _rqlToMongo(query, opts, data.args[0]);
       } else if (_.find(data.args, (i: any) => i.name === 'or' || i.name === 'and')) {
         query.$and = [];
-        _.each(data.args, function(i) {
+        _.each(data.args, function (i) {
           let _p = _rqlToMongo({}, opts, i);
           if (_p) query.$and.push(_p);
         });
@@ -27,7 +27,7 @@ function _rqlToMongo(query: any, opts: any, data: any) {
           query = query.$and[0];
         }
       } else {
-        _.each(data.args, function(i) {
+        _.each(data.args, function (i) {
           query = _rqlToMongo(query, opts, i);
         });
       }
@@ -37,7 +37,7 @@ function _rqlToMongo(query: any, opts: any, data: any) {
         query = _rqlToMongo(query, opts, data.args[0]);
       } else {
         query.$or = [];
-        _.each(data.args, function(i) {
+        _.each(data.args, function (i) {
           let _p = _rqlToMongo({}, opts, i);
           if (_p) query.$or.push(_p);
         });
@@ -65,7 +65,7 @@ function _rqlToMongo(query: any, opts: any, data: any) {
       query[data.args[0]] = { $ne: data.args[1] };
       break;
     case 'matches':
-      query[data.args[0]] = new RegExp(data.args[1]);
+      query[data.args[0]] = new RegExp(data.args[1], data.args[2]);
       break;
 
     case 'sort':

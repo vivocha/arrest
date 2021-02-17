@@ -5,13 +5,13 @@ import rql from '../../dist/mongo/rql';
 chai.should();
 chai.use(spies);
 
-describe('rql', function() {
-  it('should parse "in"', function() {
+describe('rql', function () {
+  it('should parse "in"', function () {
     let query = rql({}, {}, 'in(x,a,b,c)');
     query.x.should.deep.equal({ $in: ['a', 'b', 'c'] });
   });
 
-  it('should parse "contains"', function() {
+  it('should parse "contains"', function () {
     let query = rql({}, {}, 'contains(x,aaa)');
     query.x.should.equal('aaa');
 
@@ -19,7 +19,7 @@ describe('rql', function() {
     query.x.should.deep.equal(['aaa', 'bbb', 'ccc']);
   });
 
-  it('should parse "and"', function() {
+  it('should parse "and"', function () {
     let query1 = rql({}, {}, 'and(eq(x,b))');
     let query2 = rql({}, {}, 'eq(x,b)');
     query1.should.deep.equal(query2);
@@ -32,7 +32,7 @@ describe('rql', function() {
     query5.should.deep.equal({ x: 'b' });
   });
 
-  it('should parse "or"', function() {
+  it('should parse "or"', function () {
     let query1 = rql({}, {}, 'or(eq(x,b))');
     let query2 = rql({}, {}, 'eq(x,b)');
     query1.should.deep.equal(query2);
@@ -45,54 +45,58 @@ describe('rql', function() {
     query5.should.deep.equal({ x: 'b' });
   });
 
-  it('should parse "eq"', function() {
+  it('should parse "eq"', function () {
     let query = rql({}, {}, 'eq(x,a)');
     query.should.deep.equal({ x: 'a' });
   });
 
-  it('should parse "lt"', function() {
+  it('should parse "lt"', function () {
     let query = rql({}, {}, 'lt(x,a)');
     query.should.deep.equal({ x: { $lt: 'a' } });
   });
 
-  it('should parse "le"', function() {
+  it('should parse "le"', function () {
     let query = rql({}, {}, 'le(x,a)');
     query.should.deep.equal({ x: { $lte: 'a' } });
   });
 
-  it('should parse "gt"', function() {
+  it('should parse "gt"', function () {
     let query = rql({}, {}, 'gt(x,a)');
     query.should.deep.equal({ x: { $gt: 'a' } });
   });
 
-  it('should parse "ge"', function() {
+  it('should parse "ge"', function () {
     let query = rql({}, {}, 'ge(x,a)');
     query.should.deep.equal({ x: { $gte: 'a' } });
   });
 
-  it('should parse "ne"', function() {
+  it('should parse "ne"', function () {
     let query = rql({}, {}, 'ne(x,a)');
     query.should.deep.equal({ x: { $ne: 'a' } });
   });
 
-  it('should parse "matches"', function() {
+  it('should parse "matches"', function () {
     let query = rql({}, {}, 'matches(x,a)');
     query.should.deep.equal({ x: /a/ });
+    query = rql({}, {}, 'matches(x,a,i)');
+    query.should.deep.equal({ x: /a/i });
+    query = rql({}, {}, 'matches(x,a,ig)');
+    query.should.deep.equal({ x: /a/gi });
   });
 
-  it('should parse "sort"', function() {
+  it('should parse "sort"', function () {
     let opts: any = {};
     rql({}, opts, 'sort(a,b)');
     opts.sort.should.deep.equal(['a', 'b']);
   });
 
-  it('should parse "select"', function() {
+  it('should parse "select"', function () {
     let opts: any = {};
     rql({}, opts, 'select(a,b)');
     opts.fields.should.deep.equal(['a', 'b']);
   });
 
-  it('should parse "limit"', function() {
+  it('should parse "limit"', function () {
     let opts: any = {};
     rql({}, opts, 'limit(a,b)');
     opts.skip.should.equal('a');
