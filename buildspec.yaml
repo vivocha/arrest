@@ -3,6 +3,8 @@ version: 0.2
 env:
   secrets-manager:
     NPM_TOKEN: /CodeBuild/vivocha-monorepo:NPM_TOKEN
+    DOCKER_USER: /CodeBuild/vivocha-monorepo:DOCKER_USER
+    DOCKER_PASSWORD: /CodeBuild/vivocha-monorepo:DOCKER_PASSWORD
     GH_TOKEN: /CodeBuild/vivocha-monorepo:GH_TOKEN
     COVERALLS_REPO_TOKEN: /CodeBuild/COVERALLS_REPO_TOKEN_ARREST:COVERALLS_REPO_TOKEN_ARREST
   git-credential-helper: yes
@@ -12,6 +14,8 @@ phases:
     runtime-versions:
       docker: 19
     commands:
+      - echo Logging in to Docker...
+      - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
       - n 14
       - export PATH=$PATH:./node_modules/.bin
       - npm config set //registry.npmjs.org/:_authToken=$NPM_TOKEN
