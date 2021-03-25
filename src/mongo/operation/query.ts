@@ -108,16 +108,18 @@ export class QueryMongoOperation extends MongoOperation {
     if (Array.isArray(job.query)) {
       if (job.opts.sort) job.query.push({ $sort: job.opts.sort });
       if (job.opts.fields) job.query.push({ $project: job.opts.fields });
-      const innerQuery: any[] = [ {$match: {} } ]
+      const innerQuery: any[] = [{ $match: {} }];
       if (job.opts.skip) innerQuery.push({ $skip: job.opts.skip });
       if (job.opts.limit) innerQuery.push({ $limit: job.opts.limit });
-      job.query.push({ $facet: {
-        count: [{ $count: 'count' }],
-        data: innerQuery
-      }});
+      job.query.push({
+        $facet: {
+          count: [{ $count: 'count' }],
+          data: innerQuery,
+        },
+      });
       const cursor = job.coll.aggregate(job.query);
       const rawData = await cursor.toArray();
-      matching = rawData[0].count[0].count;
+      matching = rawData[0].count[0]?.count || 0;
       job.data = rawData[0].data;
       job.res.set('Results-Matching', matching + '');
     } else {
@@ -136,7 +138,7 @@ export class QueryMongoOperation extends MongoOperation {
     if (matching) {
       if (job.opts.skip + job.opts.limit < matching) {
         const host = `${job.req.protocol}://${job.req.headers['host']}`;
-        const q = (new URL(`${host}${job.req.originalUrl}`)).searchParams;
+        const q = new URL(`${host}${job.req.originalUrl}`).searchParams;
         q.set('limit', job.opts.limit);
         q.set('skip', job.opts.skip + job.opts.limit);
         const fullURL = `${host}${job.req.baseUrl}${job.req.path}/?${q.toString()}`;

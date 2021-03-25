@@ -473,11 +473,11 @@ describe('mongo', function () {
       it('should add an invalid property name, if escaped', function () {
         return request
           .put('/escapes/bbb')
-          .send({ '$x': 4 })
+          .send({ $x: 4 })
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 1, '$x': 4 });
+            data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 1, $x: 4 });
           });
       });
     });
@@ -565,15 +565,14 @@ describe('mongo', function () {
           .send([
             { op: 'add', path: '/$z', value: false },
             { op: 'replace', path: '/a.b.c.d', value: 10 },
-            { op: 'remove', path: '/$x' }
+            { op: 'remove', path: '/$x' },
           ])
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 10, '$z': false });
+            data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 10, $z: false });
           });
       });
-
     });
 
     describe('query', function () {
@@ -756,6 +755,17 @@ describe('mongo', function () {
           .expect('Results-Skipped', '3')
           .then(({ body: data }) => {
             data.length.should.equal(2);
+          });
+      });
+
+      it('should return an empty array is no match is found', function () {
+        return request
+          .get('/aggregations?q=eq(z,100)')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '0')
+          .then(({ body: data }) => {
+            data.should.deep.equal([]);
           });
       });
 
