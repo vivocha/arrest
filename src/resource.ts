@@ -12,13 +12,7 @@ export interface OperationFactory {
 
 export interface Routes {
   [path: string]: {
-    ['get']?: OperationFactory | APIRequestHandler;
-    ['put']?: OperationFactory | APIRequestHandler;
-    ['post']?: OperationFactory | APIRequestHandler;
-    ['delete']?: OperationFactory | APIRequestHandler;
-    ['options']?: OperationFactory | APIRequestHandler;
-    ['head']?: OperationFactory | APIRequestHandler;
-    ['patch']?: OperationFactory | APIRequestHandler;
+    [method in Method]?: OperationFactory | APIRequestHandler;
   };
 }
 
@@ -95,7 +89,7 @@ export class Resource {
 
   attach(api: API) {
     let tag: OpenAPIV3.TagObject = {
-      name: '' + this.info.name
+      name: '' + this.info.name,
     };
     if (this.info.description) tag.description = this.info.description;
     if (this.info.externalDocs) tag.externalDocs = this.info.externalDocs;
@@ -115,7 +109,7 @@ export class Resource {
       knownPaths.add(op.path);
       await op.router(r);
     }
-    knownPaths.forEach(path => {
+    knownPaths.forEach((path) => {
       r.all(path, (req: APIRequest, res: APIResponse, next: NextFunction) => {
         next(API.newError(405, 'Method Not Allowed', "The API Endpoint doesn't support the specified HTTP method for the given resource"));
       });
