@@ -1,4 +1,5 @@
 import * as _ from 'lodash';
+import { CollectionAggregationOptions } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { Method } from '../../types';
 import { MongoResource } from '../resource';
@@ -117,7 +118,11 @@ export class QueryMongoOperation extends MongoOperation {
           data: innerQuery,
         },
       });
-      const cursor = job.coll.aggregate(job.query);
+      let opts: CollectionAggregationOptions | undefined = undefined;
+      if (job.opts.readPreference) {
+        opts = { readPreference: job.opts.readPreference };
+      }
+      const cursor = job.coll.aggregate(job.query, opts);
       const rawData = await cursor.toArray();
       matching = rawData[0].count[0]?.count || 0;
       job.data = rawData[0].data;
@@ -130,6 +135,7 @@ export class QueryMongoOperation extends MongoOperation {
       if (job.opts.sort) cursor.sort(job.opts.sort);
       if (job.opts.limit) cursor.limit(job.opts.limit);
       if (job.opts.skip) cursor.skip(job.opts.skip);
+      if (job.opts.readPreference) cursor.setReadPreference(job.opts.readPreference);
       job.data = await cursor.toArray();
     }
     if (job.opts.skip) {

@@ -3,7 +3,7 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import * as spies from 'chai-spies';
 import * as express from 'express';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ReadPreference } from 'mongodb';
 import { DokiConfiguration, Mongodoki } from 'mongodoki';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
@@ -166,6 +166,7 @@ describe('mongo', function () {
 
     class FakeOp2 extends QueryMongoOperation {
       prepareOpts(job) {
+        job.opts.readPreference = ReadPreference.SECONDARY_PREFERRED;
         return job;
       }
     }
@@ -185,7 +186,15 @@ describe('mongo', function () {
       }
     }
 
-    let db, id, coll, coll2, r1, r2, r3, r4, r5, r6, server;
+    class AggregationFromSecondary extends Aggregation {
+      async prepareOpts(job) {
+        job = await super.prepareOpts(job);
+        job.opts.readPreference = ReadPreference.SECONDARY_PREFERRED;
+        return job;
+      }
+    }
+
+    let db, id, coll, coll2, r1, r2, r3, r4, r5, r6, r7, server;
 
     before(async function () {
       db = await MongoClient.connect('mongodb://localhost:27017/local', { useUnifiedTopology: true }).then((c) => c.db());
@@ -195,12 +204,14 @@ describe('mongo', function () {
       r4 = new MongoResource(db, { name: 'Oid', collection: collectionName + '_oid', id: 'myoid', idIsObjectId: true });
       r5 = new MongoResource(db, { name: 'Aggregation', collection: collectionName }, { '/': { get: Aggregation } });
       r6 = new MongoResource(db, { name: 'Escape', collection: collectionName, id: 'myid', escapeProperties: true });
+      r7 = new MongoResource(db, { name: 'SecondaryAggregation', collection: collectionName }, { '/': { get: AggregationFromSecondary } });
       api.addResource(r1);
       api.addResource(r2);
       api.addResource(r3);
       api.addResource(r4);
       api.addResource(r5);
       api.addResource(r6);
+      api.addResource(r7);
 
       let router = await api.router();
       app.use(router);
@@ -621,6 +632,17 @@ describe('mongo', function () {
       it('should return all objects in the collection (4)', function () {
         return request
           .get('/aggregations')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '7')
+          .then(({ body: data }) => {
+            data.length.should.equal(7);
+          });
+      });
+
+      it('should return all objects in the collection (5)', function () {
+        return request
+          .get('/secondary-aggregations')
           .expect(200)
           .expect('Content-Type', /json/)
           .expect('Results-Matching', '7')
