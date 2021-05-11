@@ -81,7 +81,7 @@ export abstract class MongoOperation extends Operation {
 
   async prepareQuery(job: MongoJob): Promise<MongoJob> {
     if (job.req.ability) {
-      job.query = this.getAbilityConstraints(job.req.ability);
+      job.query = addConstraint({}, this.getAbilityConstraints(job.req.ability));
     }
     return job;
   }
