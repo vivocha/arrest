@@ -151,7 +151,7 @@ export function toMongoQuery<T extends AnyMongoAbility>(ability: T, subjectType:
   // TODO: typescript doesn't like the type of action, so we work around it
   const f: (...args) => any = rulesToQuery;
   const out = f(ability, action, subjectType, convertToMongoQuery);
-  if (Object.keys(out).length === 1 && out.$or?.length === 1) {
+  if (Object.keys(out).length === 1 && out.$or.length === 1) {
     return out.$or[0];
   } else {
     return out;
