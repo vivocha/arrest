@@ -1,7 +1,7 @@
-import { AnyMongoAbility } from "@casl/ability";
-import { rulesToQuery } from "@casl/ability/extra";
-import { JSONPatch } from "jsonref";
-import { ObjectId } from "mongodb";
+import { AnyMongoAbility } from '@casl/ability';
+import { rulesToQuery } from '@casl/ability/extra';
+import { JSONPatch } from 'jsonref';
+import { ObjectId } from 'mongodb';
 
 export function addConstraint(query: any, constraint: any): any {
   if (!query) {
@@ -19,10 +19,15 @@ export function addConstraint(query: any, constraint: any): any {
     } else if (Array.isArray(constraint)) {
       query = [{ $match: query }].concat(constraint);
     } else {
-      if (query.$or) {
+      if (query.$or && constraint.$or) {
         query = { $and: [query, constraint] };
       } else if (query.$and && Object.keys(constraint).length > 0) {
-        query.$and.push(constraint);
+        const lastCond = query.$and[query.$and.length - 1];
+        if (lastCond && !(lastCond.$or && constraint.$or) && !(lastCond.$and && constraint.$and)) {
+          Object.assign(lastCond, constraint);
+        } else {
+          query.$and.push(constraint);
+        }
       } else {
         Object.assign(query, constraint);
       }
@@ -41,7 +46,7 @@ function translateProperties(val: any, f: (key: string) => string): any {
   if (typeof val !== 'object' || val === null || ObjectId.isValid(val)) {
     return val;
   } else if (Array.isArray(val)) {
-    return val.map(k => translateProperties(k, f));
+    return val.map((k) => translateProperties(k, f));
   } else {
     const out: any = {};
     for (let k in val) {
@@ -62,7 +67,10 @@ export function unescapeMongoObject(val: any): any {
 export function patchToMongo(patch: JSONPatch, escape: boolean = false): { query?: any; doc?: any } {
   const out: { query?: any; doc?: any } = {};
   for (let p of patch) {
-    const path = (p.path || '').split('/').map(i => escape ? escapeMongoKey(i) : i).slice(1);
+    const path = (p.path || '')
+      .split('/')
+      .map((i) => (escape ? escapeMongoKey(i) : i))
+      .slice(1);
     if (!path.length) {
       throw new Error('path cannot be empty');
     }
@@ -139,12 +147,13 @@ function convertToMongoQuery(rule: AnyMongoAbility['rules'][number]) {
   return rule.inverted ? { $nor: [conditions] } : conditions;
 }
 
-export function toMongoQuery<T extends AnyMongoAbility>(
-  ability: T,
-  subjectType: Parameters<T['rulesFor']>[1],
-  action: Parameters<T['rulesFor']>[0]
-) {
+export function toMongoQuery<T extends AnyMongoAbility>(ability: T, subjectType: Parameters<T['rulesFor']>[1], action: Parameters<T['rulesFor']>[0]) {
   // TODO: typescript doesn't like the type of action, so we work around it
   const f: (...args) => any = rulesToQuery;
-  return f(ability, action, subjectType, convertToMongoQuery);
+  const out = f(ability, action, subjectType, convertToMongoQuery);
+  if (Object.keys(out).length === 1 && out.$or?.length === 1) {
+    return out.$or[0];
+  } else {
+    return out;
+  }
 }

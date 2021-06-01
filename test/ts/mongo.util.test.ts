@@ -1,5 +1,6 @@
+import { Ability, defineAbility } from '@casl/ability';
 import * as chai from 'chai';
-import { addConstraint, escapeMongoKey, escapeMongoObject, patchToMongo, unescapeMongoKey, unescapeMongoObject } from '../../dist/mongo/util';
+import { addConstraint, escapeMongoKey, escapeMongoObject, patchToMongo, toMongoQuery, unescapeMongoKey, unescapeMongoObject } from '../../dist/mongo/util';
 
 const should = chai.should();
 
@@ -17,11 +18,45 @@ describe('util', function () {
       it('should add a simple constraint to an object', function () {
         addConstraint({ a: 1 }, { b: 2 }).should.deep.equal({ a: 1, b: 2 });
       });
-      it('should transform a query with a top level $or into a top level $and', function () {
-        addConstraint({ a: 1, $or: [{ c: 1 }, { c: 2 }] }, { b: 2 }).should.deep.equal({ $and: [{ a: 1, $or: [{ c: 1 }, { c: 2 }] }, { b: 2 }] });
+      it('should not transform a query with a top level $or into a top level $and', function () {
+        addConstraint({ a: 1, $or: [{ c: 1 }, { c: 2 }] }, { b: 2 }).should.deep.equal({ a: 1, $or: [{ c: 1 }, { c: 2 }], b: 2 });
+      });
+      it('should transform a query with two top level $or into a top level $and', function () {
+        addConstraint({ a: 1, $or: [{ c: 1 }, { c: 2 }] }, { $or: [{ b: 1 }, { b: 2 }] }).should.deep.equal({
+          $and: [{ a: 1, $or: [{ c: 1 }, { c: 2 }] }, { $or: [{ b: 1 }, { b: 2 }] }],
+        });
       });
       it('should push a new constraint into an existing top level $and', function () {
-        addConstraint({ a: 1, $and: [{ c: 1 }, { d: 2 }] }, { e: 3 }).should.deep.equal({ a: 1, $and: [{ c: 1 }, { d: 2 }, { e: 3 }] });
+        addConstraint({ a: 1, $and: [] }, { c: 1 }).should.deep.equal({ a: 1, $and: [{ c: 1 }] });
+        addConstraint({ a: 1, $and: [{ c: 1 }] }, { d: 2 }).should.deep.equal({ a: 1, $and: [{ c: 1, d: 2 }] });
+        addConstraint({ a: 1, $and: [{ c: 1, d: 2 }] }, { $or: [{ e: 3 }, { e: 4 }] }).should.deep.equal({
+          a: 1,
+          $and: [{ c: 1, d: 2, $or: [{ e: 3 }, { e: 4 }] }],
+        });
+        addConstraint(
+          {
+            a: 1,
+            $and: [{ c: 1, d: 2, $or: [{ e: 3 }, { e: 4 }] }],
+          },
+          { $or: [{ f: 5 }, { e: 6 }] }
+        ).should.deep.equal({
+          a: 1,
+          $and: [{ c: 1, d: 2, $or: [{ e: 3 }, { e: 4 }] }, { $or: [{ f: 5 }, { e: 6 }] }],
+        });
+        addConstraint({ a: 1, $and: [{ c: 1, d: 2 }] }, { $and: [{ e: 3 }, { e: 4 }] }).should.deep.equal({
+          a: 1,
+          $and: [{ c: 1, d: 2, $and: [{ e: 3 }, { e: 4 }] }],
+        });
+        addConstraint(
+          {
+            a: 1,
+            $and: [{ c: 1, d: 2, $and: [{ e: 3 }, { e: 4 }] }],
+          },
+          { $and: [{ f: 5 }, { e: 6 }] }
+        ).should.deep.equal({
+          a: 1,
+          $and: [{ c: 1, d: 2, $and: [{ e: 3 }, { e: 4 }] }, { $and: [{ f: 5 }, { e: 6 }] }],
+        });
       });
       it('should merge two aggregation pipelines', function () {
         addConstraint([{ $match: { a: 1 } }], [{ $project: { aaa: '$aaa' } }]).should.deep.equal([{ $match: { a: 1 } }, { $project: { aaa: '$aaa' } }]);
@@ -39,44 +74,44 @@ describe('util', function () {
     });
   });
 
-  describe('escapeMongoKey', function() {
+  describe('escapeMongoKey', function () {
     it('should escape characters forbidden in mongo properties', function () {
       escapeMongoKey('$aa.bb.cc.%dd').should.equal('%24aa%2Ebb%2Ecc%2E%25dd');
     });
   });
 
-  describe('unescapeMongoKey', function() {
+  describe('unescapeMongoKey', function () {
     it('should restore characters forbidden in mongo properties', function () {
       unescapeMongoKey('%24aa%2Ebb%2Ecc%2E%25dd').should.equal('$aa.bb.cc.%dd');
     });
   });
 
-  describe('escapeMongoObject', function() {
-    it('should recursively escape all properties', function() {
+  describe('escapeMongoObject', function () {
+    it('should recursively escape all properties', function () {
       escapeMongoObject({
-        "$aaa": [ { "a.b": true}],
-        "b": { "$ccc": true },
-        "%d$$": 1,
-        "e": null
+        $aaa: [{ 'a.b': true }],
+        b: { $ccc: true },
+        '%d$$': 1,
+        e: null,
       }).should.deep.equal({
-        "%24aaa": [ { "a%2Eb": true }],
-        "b": { "%24ccc": true },
-        "%25d%24%24": 1,
-        "e": null
+        '%24aaa': [{ 'a%2Eb': true }],
+        b: { '%24ccc': true },
+        '%25d%24%24': 1,
+        e: null,
       });
     });
   });
 
-  describe('unescapeMongoObject', function() {
-    it('should recursively unescape all properties', function() {
+  describe('unescapeMongoObject', function () {
+    it('should recursively unescape all properties', function () {
       unescapeMongoObject({
-        "%24aaa": [ { "a%2Eb": true }],
-        "b": { "%24ccc": true },
-        "%25d%24%24": 1
+        '%24aaa': [{ 'a%2Eb': true }],
+        b: { '%24ccc': true },
+        '%25d%24%24': 1,
       }).should.deep.equal({
-        "$aaa": [ { "a.b": true}],
-        "b": { "$ccc": true },
-        "%d$$": 1
+        $aaa: [{ 'a.b': true }],
+        b: { $ccc: true },
+        '%d$$': 1,
       });
     });
   });
@@ -173,6 +208,23 @@ describe('util', function () {
           patchToMongo([{ op: 'test', path: '/-', value: 1 }]);
         }, "cannot use '-' index in path of test");
       });
+    });
+  });
+
+  describe('toMongoQuery', function () {
+    it('should avoid extra $or statements', function () {
+      const ability = defineAbility((can) => {
+        can('action1', 'Test', { a: 1 });
+        can('action2', 'Test', { x: 1, y: 1 });
+        can('action3', 'Test', { a: 1 });
+        can('action3', 'Test', { b: 2 });
+      }) as Ability;
+      let q = toMongoQuery(ability, 'Test', 'action1');
+      q.should.deep.equal({ a: 1 });
+      q = toMongoQuery(ability, 'Test', 'action2');
+      q.should.deep.equal({ x: 1, y: 1 });
+      q = toMongoQuery(ability, 'Test', 'action3');
+      q.should.deep.equal({ $or: [{ b: 2 }, { a: 1 }] });
     });
   });
 });
