@@ -66,7 +66,12 @@ export default function (query: any, opts: any, data: string, objectId?: string)
       case 'matches':
         query[data.args[0]] = new RegExp(data.args[1], data.args[2]);
         break;
-
+      case 'text':
+        query.$text = {
+          $search: data.args[0],
+        };
+        if (data.args[1]) query.$text.$language = data.args[1];
+        break;
       case 'sort':
         query = null;
         opts.sort = data.args;

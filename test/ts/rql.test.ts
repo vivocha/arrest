@@ -85,6 +85,13 @@ describe('rql', function () {
     query.should.deep.equal({ x: /a/gi });
   });
 
+  it('should parse "text"', function () {
+    let query = rql({}, {}, 'text(aaaaa)');
+    query.should.deep.equal({ $text: { $search: 'aaaaa' } });
+    query = rql({}, {}, 'text(aaaaa,it)');
+    query.should.deep.equal({ $text: { $search: 'aaaaa', $language: 'it' } });
+  });
+
   it('should parse "sort"', function () {
     let opts: any = {};
     rql({}, opts, 'sort(a,b)');
