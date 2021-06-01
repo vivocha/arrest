@@ -1,3 +1,4 @@
+import { ObjectId } from 'bson';
 import * as chai from 'chai';
 import * as spies from 'chai-spies';
 import rql from '../../dist/mongo/rql';
@@ -101,5 +102,13 @@ describe('rql', function () {
     rql({}, opts, 'limit(a,b)');
     opts.skip.should.equal('a');
     opts.limit.should.equal('b');
+  });
+
+  it('should handle object ids', function () {
+    let query = rql({}, {}, 'eq(_id,604784e36b026ce483a9a8ea)', '_id');
+    query._id.should.be.instanceof(ObjectId);
+    query = rql({}, {}, 'in(_id,604784e36b026ce483a9a8ea,604784e36b026ce483a9a8eb)', '_id');
+    query._id.$in[0].should.be.instanceof(ObjectId);
+    query._id.$in[1].should.be.instanceof(ObjectId);
   });
 });

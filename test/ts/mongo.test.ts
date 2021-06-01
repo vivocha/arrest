@@ -9,6 +9,7 @@ import * as supertest from 'supertest';
 import { API } from '../../dist/api';
 import { MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation } from '../../dist/mongo/index';
 import { APIRequest, APIResponse, Method } from '../../dist/types';
+import * as _ from 'lodash';
 
 const should = chai.should();
 chai.use(spies);
@@ -793,6 +794,30 @@ describe('mongo', function () {
 
       it('should return zero results with an invalid query', function () {
         return request.get('/tests?q=eq($__$,0)').expect(200).expect('Content-Type', /json/).expect('Results-Matching', '0');
+      });
+
+      it('should support rql queries on non-ObjectId ids', async function () {
+        const ref = await coll.findOne({ myid: { $exists: true } });
+        return request
+          .get(`/others?q=eq(myid,${ref.myid})`)
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '1')
+          .then(({ body: data }) => {
+            data[0].should.deep.equal(_.omit(ref, '_id'));
+          });
+      });
+
+      it('should support rql queries on ObjectId ids', async function () {
+        const ref = await coll.findOne({});
+        return request
+          .get(`/tests?q=eq(_id,${ref._id.toString()})`)
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '1')
+          .then(({ body: data }) => {
+            data[0].should.deep.equal(JSON.parse(JSON.stringify(ref)));
+          });
       });
     });
 

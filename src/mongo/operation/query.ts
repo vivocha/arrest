@@ -71,7 +71,7 @@ export class QueryMongoOperation extends MongoOperation {
   async prepareQuery(job: MongoJob): Promise<MongoJob> {
     job = await super.prepareQuery(job);
     if (job.req.query.q) {
-      job.query = addConstraint(job.query, rql({}, job.opts, job.req.query.q as string));
+      job.query = addConstraint(job.query, rql({}, job.opts, job.req.query.q as string, this.resource.info.idIsObjectId ? this.resource.info.id : undefined));
     }
     return job;
   }
