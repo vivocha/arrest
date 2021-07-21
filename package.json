@@ -121,7 +121,7 @@
     "dot-prop": "^6.0.1",
     "eredita": "^1.2.1",
     "express": "^4.17.1",
-    "jsonref": "^6.0.2",
+    "jsonref": "^6.0.3",
     "lodash": "^4.17.21",
     "mongodb": "^3.6.6",
     "openapi-police": "^1.1.6",
