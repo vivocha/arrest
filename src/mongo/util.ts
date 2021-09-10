@@ -43,7 +43,7 @@ export function escapeMongoKey(key: string): string {
 export const unescapeMongoKey: (key: string) => string = decodeURIComponent;
 
 function translateProperties(val: any, f: (key: string) => string): any {
-  if (typeof val !== 'object' || val === null || ObjectId.isValid(val)) {
+  if (typeof val !== 'object' || val === null || val instanceof Date || ObjectId.isValid(val)) {
     return val;
   } else if (Array.isArray(val)) {
     return val.map((k) => translateProperties(k, f));
