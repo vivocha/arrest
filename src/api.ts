@@ -6,6 +6,7 @@ import * as http from 'http';
 import * as https from 'https';
 import * as refs from 'jsonref'; // TODO include everything from openapi-police
 import * as _ from 'lodash';
+import needle from 'needle';
 import { OpenAPIV3, SchemaObject, ValidationError } from 'openapi-police';
 import * as semver from 'semver';
 import { deprecate } from 'util';
@@ -15,7 +16,6 @@ import { Resource } from './resource';
 import { SchemaResource } from './schema';
 import { APIRequest, APIResponse } from './types';
 import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from './util';
-import request = require('request');
 
 let reqId: number = 0;
 
@@ -53,24 +53,11 @@ export class API {
     return `#${++reqId}`;
   }
   protected async defaultSchemaRetriever(url: string): Promise<any> {
-    return new Promise(function (resolve, reject) {
-      request(
-        {
-          url: url,
-          method: 'GET',
-          json: true,
-        },
-        function (err, response, data) {
-          if (err) {
-            reject(err);
-          } else if (response.statusCode !== 200) {
-            reject(new RESTError(response.statusCode as number));
-          } else {
-            resolve(data);
-          }
-        }
-      );
-    });
+    const response = await needle('get', url);
+    if (response.statusCode !== 200) {
+      throw new RESTError(response.statusCode as number);
+    }
+    return response.body;
   }
 
   addResource(resource: Resource): this {
