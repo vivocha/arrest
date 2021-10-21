@@ -5,7 +5,7 @@ import * as spies from 'chai-spies';
 import * as express from 'express';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
-import { Operation } from '../../dist/operation';
+import { Operation, SimpleOperation } from '../../dist/operation';
 import { Resource } from '../../dist/resource';
 import { APIRequest, APIResponse } from '../../dist/types';
 
@@ -1331,7 +1331,7 @@ describe('Operation', function () {
         request.get('/c/y').expect(200).expect('Content-Type', /json/),
       ]);
     });
-    it('should return the permitted fields', async function() {
+    it('should return the permitted fields', async function () {
       class Op1 extends Operation {
         handler(req, res) {}
       }
@@ -1340,14 +1340,14 @@ describe('Operation', function () {
         get swaggerScopes() {
           return {
             'Test.op1': 'op1',
-            'Test.op2': 'op2'
-          }
+            'Test.op2': 'op2',
+          };
         }
       }
       class Op3 extends Operation {
         handler(req, res) {}
         get swaggerScopes() {
-          return {}
+          return {};
         }
       }
       const r = new Resource({ name: 'Test' });
@@ -1362,14 +1362,27 @@ describe('Operation', function () {
       await api.router();
       const ability = defineAbility((can, cannot) => {
         can('op1', 'Test');
-        can('op2', 'Test', [ 'a', 'b']);
-      })
+        can('op2', 'Test', ['a', 'b']);
+      });
       const op1Fields = [...op1.permittedFields(ability)];
       op1Fields.should.deep.equal(['**']);
       const op2Fields = [...op2.permittedFields(ability)];
       op2Fields.should.deep.equal(['**', 'a', 'b']);
       const op3Fields = [...op3.permittedFields(ability)];
       op3Fields.should.deep.equal([]);
-    })
+    });
+    it('should filter fields calling the utility method', function () {
+      const api = new API();
+      const r = new Resource({ name: 'x' });
+      const op = new SimpleOperation(() => {}, new Resource({ name: 'x' }), '/_', 'get', 'y');
+      r.addOperation(op);
+      api.addResource(r);
+      op.filterFields(
+        defineAbility((can, cannot) => {
+          can('y', 'x', ['a', 'b'], {});
+        }) as any,
+        { a: 1, b: 2, c: 3 }
+      ).should.deep.equal({ a: 1, b: 2 });
+    });
   });
 });
