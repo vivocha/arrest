@@ -2,26 +2,28 @@ import { Ability } from '@casl/ability';
 import * as _ from 'lodash';
 import * as mongo from 'mongodb';
 import { API } from '../../api';
-import { Operation } from '../../operation';
+import { Job, PipelineOperation, PipelineOptions } from '../../pipeline';
 import { APIRequest, APIResponse, Method } from '../../types';
 import { MongoResource } from '../resource';
 import { addConstraint, toMongoQuery, unescapeMongoObject } from '../util';
 
-export interface MongoJob {
-  req: APIRequest;
-  res: APIResponse;
+export interface MongoJob extends Job {
   coll: mongo.Collection;
-  query?: any;
-  doc?: any;
-  opts?: any;
-  data?: any;
 }
 
-export abstract class MongoOperation extends Operation {
+export abstract class MongoOperation extends PipelineOperation {
   constructor(public resource: MongoResource, path: string, method: Method, id?: string) {
     super(resource, path, method, id);
   }
 
+  get options(): PipelineOptions {
+    return {
+      filter: {
+        fields: true,
+        data: false,
+      },
+    };
+  }
   get collection(): Promise<mongo.Collection> {
     return this.resource.getCollection(this.getCollectionOptions());
   }
@@ -79,54 +81,24 @@ export abstract class MongoOperation extends Operation {
     return out;
   }
 
+  async createJob(req: APIRequest, res: APIResponse): Promise<MongoJob> {
+    const job = (await super.createJob(req, res)) as MongoJob;
+    job.coll = await this.collection;
+    return job;
+  }
   async prepareQuery(job: MongoJob): Promise<MongoJob> {
+    job = (await super.prepareQuery(job)) as MongoJob;
     if (job.req.ability) {
       job.query = addConstraint(job.query, this.getAbilityConstraints(job.req.ability));
     }
     return job;
   }
-  async prepareDoc(job: MongoJob): Promise<MongoJob> {
-    return job;
-  }
-  async prepareOpts(job: MongoJob): Promise<MongoJob> {
-    return job;
-  }
-  abstract runOperation(job: MongoJob): Promise<MongoJob>;
   async redactResult(job: MongoJob): Promise<MongoJob> {
     if (job.data && typeof job.data === 'object') {
-      if (job.req.ability) {
-        job.data = this.filterFields(job.req.ability, job.data);
-      }
       if (this.resource.info.escapeProperties) {
         job.data = unescapeMongoObject(job.data);
       }
     }
-    return job;
-  }
-  async processResult(job: MongoJob): Promise<MongoJob> {
-    if (job.data) {
-      job.res.jsonp(job.data);
-    } else {
-      job.res.end();
-    }
-    return job;
-  }
-
-  async handler(req: APIRequest, res: APIResponse) {
-    try {
-      let coll: mongo.Collection = await this.collection;
-      let job: MongoJob = { req, res, coll, query: {}, opts: {} };
-      await this.prepareQuery(job);
-      await this.prepareDoc(job);
-      await this.prepareOpts(job);
-      req.logger.debug(this.info.operationId, 'query', JSON.stringify(job.query, null, 2));
-      req.logger.debug(this.info.operationId, 'doc', JSON.stringify(job.doc, null, 2));
-      req.logger.debug(this.info.operationId, 'opts', JSON.stringify(job.opts, null, 2));
-      await this.runOperation(job);
-      await this.redactResult(job);
-      await this.processResult(job);
-    } catch (err) {
-      this.api.handleError(err, req, res);
-    }
+    return super.redactResult(job) as Promise<MongoJob>;
   }
 }

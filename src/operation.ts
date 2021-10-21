@@ -217,7 +217,7 @@ export abstract class Operation {
     if (this.useSecurityValidator()) {
       middlewares.push(this.securityValidator.bind(this));
     }
-    let params = _.groupBy(this.info.parameters || [], 'in') as {
+    let params = _.groupBy(this.info.parameters || [], 'in') as unknown as {
       path: OpenAPIV3.ParameterObject[];
       query: OpenAPIV3.ParameterObject[];
       header: OpenAPIV3.ParameterObject[];
@@ -282,9 +282,11 @@ export abstract class Operation {
     if (this.scopes) {
       for (let resource in this.scopes) {
         for (let action in this.scopes[resource]) {
-          out = out.concat(permittedFieldsOf(ability, action, resource, {
-            fieldsFrom: rule => rule.fields || ['**']
-          }));
+          out = out.concat(
+            permittedFieldsOf(ability, action, resource, {
+              fieldsFrom: (rule) => rule.fields || ['**'],
+            })
+          );
         }
       }
     }
