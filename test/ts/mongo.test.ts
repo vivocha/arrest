@@ -3,13 +3,13 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import * as spies from 'chai-spies';
 import * as express from 'express';
+import * as _ from 'lodash';
 import { MongoClient, ReadPreference } from 'mongodb';
 import { DokiConfiguration, Mongodoki } from 'mongodoki';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
 import { MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation } from '../../dist/mongo/index';
 import { APIRequest, APIResponse, Method } from '../../dist/types';
-import * as _ from 'lodash';
 
 const should = chai.should();
 chai.use(spies);
@@ -605,6 +605,42 @@ describe('mongo', function () {
           .expect('Results-Matching', '7')
           .then(({ body: data }) => {
             data.length.should.equal(7);
+          });
+      });
+
+      it('should return selected objects in the collection as CSV', function () {
+        debugger;
+        return request
+          .get('/tests?q=gt(y,0)&sort=y&format=csv&csv_fields=myid,y,z')
+          .expect(200)
+          .expect('Content-Type', /text\/csv/)
+          .expect('Results-Matching', '4')
+          .then(({ text: data }) => {
+            data.should.equal('test2,11,\ntest1,13,true\ntest4,20,\ntest3,30,');
+          });
+      });
+
+      it('should return selected objects in the collection as CSV with a header', function () {
+        debugger;
+        return request
+          .get('/tests?q=gt(y,0)&sort=y&format=csv&csv_fields=myid,y,z&csv_options=header=true')
+          .expect(200)
+          .expect('Content-Type', /text\/csv/)
+          .expect('Results-Matching', '4')
+          .then(({ text: data }) => {
+            data.should.equal('myid,y,z\ntest2,11,\ntest1,13,true\ntest4,20,\ntest3,30,');
+          });
+      });
+
+      it('should return selected objects in the collection as CSV with names remapped', function () {
+        debugger;
+        return request
+          .get('/tests?q=gt(y,0)&sort=y&format=csv&csv_fields=myid,y,z&csv_names=a,b,c&csv_options=header=true')
+          .expect(200)
+          .expect('Content-Type', /text\/csv/)
+          .expect('Results-Matching', '4')
+          .then(({ text: data }) => {
+            data.should.equal('a,b,c\ntest2,11,\ntest1,13,true\ntest4,20,\ntest3,30,');
           });
       });
 

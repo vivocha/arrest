@@ -1,6 +1,7 @@
 import { Operation } from './operation';
 import { Resource } from './resource';
 import { APIRequest, APIResponse, Method } from './types';
+import { CSVOptions, toCSV } from './util';
 
 export interface Job {
   req: APIRequest;
@@ -9,26 +10,53 @@ export interface Job {
   doc?: any;
   opts?: any;
   data?: any;
-}
-
-export interface PipelineOptions {
-  filter: {
-    fields: boolean;
-    data: boolean;
+  feat?: {
+    filter?: {
+      fields: boolean;
+      data: boolean;
+    };
+    format?:
+      | {
+          type: 'json';
+        }
+      | ({
+          type: 'csv';
+          filename?: string;
+        } & CSVOptions);
   };
 }
 
 export abstract class PipelineOperation extends Operation {
-  get options(): PipelineOptions {
-    return {
-      filter: {
-        fields: true,
-        data: true,
+  async createJob(req: APIRequest, res: APIResponse): Promise<Job> {
+    const out: Job = {
+      req,
+      res,
+      query: {},
+      opts: {},
+      feat: {
+        filter: {
+          fields: true,
+          data: true,
+        },
       },
     };
-  }
-  async createJob(req: APIRequest, res: APIResponse): Promise<Job> {
-    return { req, res, query: {}, opts: {} };
+    if (req.query.format === 'csv' && req.query.csv_fields?.length) {
+      const opts: CSVOptions = {
+        fields: req.query.csv_fields,
+        ...((req.query.csv_options as any) || {}),
+      };
+      if (req.query.csv_names?.length === opts.fields.length) {
+        opts.fields = (opts.fields as string[]).reduce((o, i, idx) => {
+          o[i] = req.query.csv_names![idx];
+          return o;
+        }, {}) as any;
+      }
+      out.feat!.format = {
+        ...opts,
+        type: 'csv',
+      };
+    }
+    return out;
   }
   async prepareQuery(job: Job): Promise<Job> {
     return job;
@@ -41,14 +69,23 @@ export abstract class PipelineOperation extends Operation {
   }
   abstract runOperation(job: Job): Promise<Job>;
   async redactResult(job: Job): Promise<Job> {
-    if (job.req.ability && job.data && typeof job.data === 'object' && (this.options.filter.fields || this.options.filter.data)) {
-      job.data = this.checkAbility(job.req.ability, job.data, this.options.filter.fields, this.options.filter.data);
+    if (job.req.ability && job.data && typeof job.data === 'object' && (job.feat?.filter?.fields || job.feat?.filter?.data)) {
+      job.data = this.checkAbility(job.req.ability, job.data, job.feat.filter.fields, job.feat.filter.data);
     }
     return job;
   }
   async processResult(job: Job): Promise<Job> {
     if (job.data) {
-      job.res.jsonp(job.data);
+      if (job.feat?.format?.type === 'csv' && Array.isArray(job.data)) {
+        job.data = toCSV(job.data, job.feat.format);
+        job.res.setHeader('content-type', 'text/csv');
+        if (job.feat.format.filename) {
+          job.res.setHeader('content-disposition', `attachment; filename=\"${job.feat.format.filename}\"`);
+        }
+        job.res.send(job.data);
+      } else {
+        job.res.jsonp(job.data);
+      }
     } else {
       job.res.end();
     }

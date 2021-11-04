@@ -2,7 +2,7 @@ import { Ability } from '@casl/ability';
 import * as _ from 'lodash';
 import * as mongo from 'mongodb';
 import { API } from '../../api';
-import { Job, PipelineOperation, PipelineOptions } from '../../pipeline';
+import { Job, PipelineOperation } from '../../pipeline';
 import { APIRequest, APIResponse, Method } from '../../types';
 import { MongoResource } from '../resource';
 import { addConstraint, toMongoQuery, unescapeMongoObject } from '../util';
@@ -16,14 +16,6 @@ export abstract class MongoOperation extends PipelineOperation {
     super(resource, path, method, id);
   }
 
-  get options(): PipelineOptions {
-    return {
-      filter: {
-        fields: true,
-        data: false,
-      },
-    };
-  }
   get collection(): Promise<mongo.Collection> {
     return this.resource.getCollection(this.getCollectionOptions());
   }
@@ -83,6 +75,10 @@ export abstract class MongoOperation extends PipelineOperation {
 
   async createJob(req: APIRequest, res: APIResponse): Promise<MongoJob> {
     const job = (await super.createJob(req, res)) as MongoJob;
+    job.feat!.filter = {
+      fields: true,
+      data: false,
+    };
     job.coll = await this.collection;
     return job;
   }

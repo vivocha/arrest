@@ -325,11 +325,53 @@ export function checkAbility(ability: AnyMongoAbility, resource: string, action:
     }
     if (filterData) {
       if (Array.isArray(data)) {
-        data = data.filter(i => ability.can(action, subject(resource, i)))
+        data = data.filter((i) => ability.can(action, subject(resource, i)));
       } else if (!ability.can(action, subject(resource, data))) {
         return undefined;
       }
-    } 
+    }
     return innerCheckAbility(data);
   }
+}
+
+export interface CSVOptions {
+  fields: string[] | { [key: string]: string };
+  unwind?: string;
+  separator?: string;
+  quotes?: boolean;
+  escape?: string;
+  eol?: string;
+  header: boolean;
+  filename?: string;
+}
+
+export function toCSV(data: any[], options: CSVOptions): string {
+  let out: string[][] = [];
+  let fieldMap: { [key: string]: string };
+  if (Array.isArray(options.fields)) {
+    fieldMap = options.fields.reduce((o, i) => {
+      o[i] = i;
+      return o;
+    }, {});
+  } else {
+    fieldMap = options.fields;
+  }
+  if (options.header) {
+    out.push(Object.values(fieldMap));
+  }
+
+  // TODO handle unwind
+
+  data.forEach((i) => {
+    const l: string[] = [];
+    // TODO optimize with a transversal map
+    for (let k in fieldMap) {
+      l.push(dot.get(i, k) || '');
+    }
+    out.push(l);
+  });
+
+  return out
+    .map((l) => l.map((f) => (options.quotes ? `"${f.replace('"', `${options.escape || '\\'}"`)}"` : f)).join(options.separator || ','))
+    .join(options.eol || '\n');
 }

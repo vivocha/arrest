@@ -30,6 +30,18 @@ export class QueryMongoOperation extends MongoOperation {
         {
           $ref: '#/components/parameters/query',
         },
+        {
+          $ref: '#/components/parameters/format',
+        },
+        {
+          $ref: '#/components/parameters/csvFields',
+        },
+        {
+          $ref: '#/components/parameters/csvOptions',
+        },
+        {
+          $ref: '#/components/parameters/csvNames',
+        },
       ],
       responses: {
         '200': {
@@ -39,6 +51,11 @@ export class QueryMongoOperation extends MongoOperation {
               schema: {
                 type: 'array',
                 items: this.responseSchema,
+              },
+            },
+            'text/csv': {
+              schema: {
+                type: 'string',
               },
             },
           },
