@@ -338,5 +338,89 @@ XXX,YYY`);
       ];
       return request.get('/tests').expect(200).expect('Content-Disposition', `attachment; filename="test.csv"`);
     });
+
+    it('should unwind the original objects and return the requested fields', function () {
+      csv_options = {
+        fields: ['a', 'b', 'c'],
+        header: true,
+        unwind: 'c',
+      };
+      csv_data = [
+        { a: 'AAA', b: 'BBB', c: ['mmm', 'nnn', 'ooo'] },
+        { a: 'XXX', b: 'YYY', c: ['ppp', 'qqq'] },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(`a,b,c
+AAA,BBB,mmm
+AAA,BBB,nnn
+AAA,BBB,ooo
+XXX,YYY,ppp
+XXX,YYY,qqq`);
+        });
+    });
+    it('should ship an object if the unwind field is not an array with at least an element (1)', function () {
+      csv_options = {
+        fields: ['a', 'b', 'c'],
+        header: true,
+        unwind: 'c',
+      };
+      csv_data = [
+        { a: 'AAA', b: 'BBB', c: true },
+        { a: 'XXX', b: 'YYY', c: ['ppp', 'qqq'] },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(`a,b,c
+XXX,YYY,ppp
+XXX,YYY,qqq`);
+        });
+    });
+    it('should ship an object if the unwind field is not an array with at least an element (2)', function () {
+      csv_options = {
+        fields: ['a', 'b', 'c'],
+        header: true,
+        unwind: 'c',
+      };
+      csv_data = [
+        { a: 'AAA', b: 'BBB', c: [] },
+        { a: 'XXX', b: 'YYY', c: ['ppp', 'qqq'] },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(`a,b,c
+XXX,YYY,ppp
+XXX,YYY,qqq`);
+        });
+    });
+    it('should ship an object if the unwind field is not an array with at least an element (3)', function () {
+      csv_options = {
+        fields: ['a', 'b', 'c'],
+        header: true,
+        unwind: 'c',
+      };
+      csv_data = [
+        { a: 'AAA', b: 'BBB' },
+        { a: 'XXX', b: 'YYY', c: ['ppp', 'qqq'] },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(`a,b,c
+XXX,YYY,ppp
+XXX,YYY,qqq`);
+        });
+    });
   });
 });

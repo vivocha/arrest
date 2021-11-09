@@ -360,15 +360,28 @@ export function toCSV(data: any[], options: CSVOptions): string {
     out.push(Object.values(fieldMap));
   }
 
-  // TODO handle unwind
-
-  data.forEach((i) => {
-    const l: string[] = [];
-    // TODO optimize with a transversal map
-    for (let k in fieldMap) {
-      l.push(dot.get(i, k) || '');
+  data.forEach((originalItem) => {
+    const unwound: any[] = [];
+    if (options.unwind) {
+      if (originalItem[options.unwind]?.length) {
+        originalItem[options.unwind].forEach((i) => {
+          unwound.push({
+            ...originalItem,
+            [options.unwind!]: i,
+          });
+        });
+      }
+    } else {
+      unwound.push(originalItem);
     }
-    out.push(l);
+    unwound.forEach((item) => {
+      const l: string[] = [];
+      // TODO optimize with a transversal map
+      for (let k in fieldMap) {
+        l.push(dot.get(item, k) || '');
+      }
+      out.push(l);
+    });
   });
 
   return out
