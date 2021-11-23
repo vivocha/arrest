@@ -184,7 +184,7 @@ export const DEFAULT_DOCUMENT: OpenAPIV3.Document = {
               type: 'boolean',
             },
             filename: {
-              description: 'download as filename',
+              description: 'Download as filename',
               type: 'string',
               minLength: 1,
             },
