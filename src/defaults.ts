@@ -162,7 +162,6 @@ export const DEFAULT_DOCUMENT: OpenAPIV3.Document = {
               description: 'unwind array field with specified name',
               type: 'string',
               minLength: 1,
-              maxLength: 1,
             },
             separator: {
               description: 'field separator character (default: ",")',
