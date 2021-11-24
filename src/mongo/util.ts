@@ -7,7 +7,7 @@ export function addConstraint(query: any, constraint: any): any {
   if (!query) {
     query = {};
   }
-  if (typeof constraint === 'object') {
+  if (typeof constraint === 'object' && constraint !== null) {
     if (Array.isArray(query)) {
       if (Array.isArray(constraint)) {
         query = query.concat(constraint);
@@ -29,7 +29,11 @@ export function addConstraint(query: any, constraint: any): any {
           query.$and.push(constraint);
         }
       } else {
-        Object.assign(query, constraint);
+        if (Object.keys(constraint).find((k) => (typeof query[k] !== 'undefined' ? k : undefined))) {
+          query = { $and: [query, constraint] };
+        } else {
+          Object.assign(query, constraint);
+        }
       }
     }
   }

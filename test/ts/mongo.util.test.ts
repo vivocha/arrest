@@ -71,6 +71,9 @@ describe('util', function () {
       it('ahould transform a query into a pipeline if the constraint is a pipeline', function () {
         addConstraint({ a: 1 }, [{ $somestage: {} }]).should.deep.equal([{ $match: { a: 1 } }, { $somestage: {} }]);
       });
+      it('should handle multiple constraints on a property producing an $and', function () {
+        addConstraint({ a: 1 }, { a: 2 }).should.deep.equal({ $and: [{ a: 1 }, { a: 2 }] });
+      });
     });
   });
 

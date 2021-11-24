@@ -1,5 +1,5 @@
 import { ObjectId } from 'bson';
-import * as _ from 'lodash';
+import { addConstraint } from './util';
 
 const rqlParser = require('rql/parser').parseQuery;
 
@@ -8,69 +8,74 @@ export default function (query: any, opts: any, data: string, objectId?: string)
     switch (data.name) {
       case 'in':
         const key = data.args.shift();
-        query[key] = { $in: data.args.map((i) => (key === objectId ? new ObjectId(i) : i)) };
+        query = addConstraint(query, { [key]: { $in: data.args.map((i) => (key === objectId ? new ObjectId(i) : i)) } });
         break;
       case 'contains':
-        query[data.args[0]] = data.args.length > 2 ? data.args.slice(1) : data.args[1];
+        query = addConstraint(query, { [data.args[0]]: data.args.length > 2 ? data.args.slice(1) : data.args[1] });
         break;
       case 'and':
         if (data.args.length === 1) {
-          query = _rqlToMongo(query, opts, data.args[0]);
-        } else if (_.find(data.args, (i: any) => i.name === 'or' || i.name === 'and')) {
-          query.$and = [];
-          _.each(data.args, function (i) {
+          query = addConstraint(query, _rqlToMongo({}, opts, data.args[0]));
+        } else if (data.args.find((i: any) => i.name === 'or' || i.name === 'and')) {
+          let constraint: any = { $and: [] };
+          data.args.forEach((i) => {
             let _p = _rqlToMongo({}, opts, i);
-            if (_p) query.$and.push(_p);
+            if (_p) constraint.$and.push(_p);
           });
-          if (query.$and.length === 1) {
-            query = query.$and[0];
+          if (constraint.$and.length === 1) {
+            constraint = constraint.$and[0];
           }
+          query = addConstraint(query, constraint);
         } else {
-          _.each(data.args, function (i) {
-            query = _rqlToMongo(query, opts, i);
+          data.args.forEach((i) => {
+            query = addConstraint(query, _rqlToMongo({}, opts, i));
           });
         }
         break;
       case 'or':
         if (data.args.length === 1) {
-          query = _rqlToMongo(query, opts, data.args[0]);
+          query = addConstraint(query, _rqlToMongo({}, opts, data.args[0]));
         } else {
-          query.$or = [];
-          _.each(data.args, function (i) {
+          let constraint: any = { $or: [] };
+          data.args.forEach((i) => {
             let _p = _rqlToMongo({}, opts, i);
-            if (_p) query.$or.push(_p);
+            if (_p) constraint.$or.push(_p);
           });
-          if (query.$or.length === 1) {
-            query = query.$or[0];
+          if (constraint.$or.length === 1) {
+            constraint = constraint.$or[0];
           }
+          query = addConstraint(query, constraint);
         }
         break;
       case 'eq':
-        query[data.args[0]] = data.args[0] === objectId ? new ObjectId(data.args[1]) : data.args[1];
+        query = addConstraint(query, { [data.args[0]]: data.args[0] === objectId ? new ObjectId(data.args[1]) : data.args[1] });
         break;
       case 'lt':
-        query[data.args[0]] = { $lt: data.args[1] };
+        query = addConstraint(query, { [data.args[0]]: { $lt: data.args[1] } });
         break;
       case 'le':
-        query[data.args[0]] = { $lte: data.args[1] };
+        query = addConstraint(query, { [data.args[0]]: { $lte: data.args[1] } });
         break;
       case 'gt':
-        query[data.args[0]] = { $gt: data.args[1] };
+        query = addConstraint(query, { [data.args[0]]: { $gt: data.args[1] } });
         break;
       case 'ge':
-        query[data.args[0]] = { $gte: data.args[1] };
+        query = addConstraint(query, { [data.args[0]]: { $gte: data.args[1] } });
         break;
       case 'ne':
-        query[data.args[0]] = { $ne: data.args[1] };
+        query = addConstraint(query, { [data.args[0]]: { $ne: data.args[1] } });
         break;
       case 'matches':
-        query[data.args[0]] = new RegExp(data.args[1], data.args[2]);
+        query = addConstraint(query, { [data.args[0]]: new RegExp(data.args[1], data.args[2]) });
         break;
       case 'text':
-        query.$text = {
-          $search: data.args[0],
+        const constraint: any = {
+          $text: {
+            $search: data.args[0],
+          },
         };
-        if (data.args[1]) query.$text.$language = data.args[1];
+        if (data.args[1]) constraint.$text.$language = data.args[1];
+        query = addConstraint(query, constraint);
         break;
       case 'sort':
         query = null;

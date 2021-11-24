@@ -609,7 +609,6 @@ describe('mongo', function () {
       });
 
       it('should return selected objects in the collection as CSV', function () {
-        debugger;
         return request
           .get('/tests?q=gt(y,0)&sort=y&format=csv&csv_fields=myid,y,z')
           .expect(200)
@@ -621,7 +620,6 @@ describe('mongo', function () {
       });
 
       it('should return selected objects in the collection as CSV with a header', function () {
-        debugger;
         return request
           .get('/tests?q=gt(y,0)&sort=y&format=csv&csv_fields=myid,y,z&csv_options=header=true')
           .expect(200)
@@ -633,7 +631,6 @@ describe('mongo', function () {
       });
 
       it('should return selected objects in the collection as CSV with names remapped', function () {
-        debugger;
         return request
           .get('/tests?q=gt(y,0)&sort=y&format=csv&csv_fields=myid,y,z&csv_names=a,b,c&csv_options=header=true')
           .expect(200)
