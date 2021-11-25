@@ -3,6 +3,10 @@ import { rulesToQuery } from '@casl/ability/extra';
 import { JSONPatch } from 'jsonref';
 import { ObjectId } from 'mongodb';
 
+function haveKeysInCommon(a: any, b: any): boolean {
+  return !!Object.keys(a).find((k) => (typeof b[k] !== 'undefined' ? k : undefined));
+}
+
 export function addConstraint(query: any, constraint: any): any {
   if (!query) {
     query = {};
@@ -23,13 +27,13 @@ export function addConstraint(query: any, constraint: any): any {
         query = { $and: [query, constraint] };
       } else if (query.$and && Object.keys(constraint).length > 0) {
         const lastCond = query.$and[query.$and.length - 1];
-        if (lastCond && !(lastCond.$or && constraint.$or) && !(lastCond.$and && constraint.$and)) {
+        if (lastCond && !(lastCond.$or && constraint.$or) && !(lastCond.$and && constraint.$and) && !haveKeysInCommon(lastCond, constraint)) {
           Object.assign(lastCond, constraint);
         } else {
           query.$and.push(constraint);
         }
       } else {
-        if (Object.keys(constraint).find((k) => (typeof query[k] !== 'undefined' ? k : undefined))) {
+        if (haveKeysInCommon(query, constraint)) {
           query = { $and: [query, constraint] };
         } else {
           Object.assign(query, constraint);
