@@ -122,7 +122,7 @@ export class QueryMongoOperation extends MongoOperation {
     return job;
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {
-    let matching: number;
+    let matching: number | undefined;
     if (Array.isArray(job.query)) {
       if (job.opts.sort) job.query.push({ $sort: job.opts.sort });
       if (job.opts.fields) job.query.push({ $project: job.opts.fields });
@@ -146,14 +146,19 @@ export class QueryMongoOperation extends MongoOperation {
       job.res.set('Results-Matching', matching + '');
     } else {
       const cursor = job.coll.find(job.query);
-      matching = await cursor.count(false); // false = ignore limit and skip when counting
-      job.res.set('Results-Matching', matching + '');
+      if (job.opts.limit || job.opts.skip) {
+        matching = await cursor.count(false); // false = ignore limit and skip when counting
+      }
       if (job.opts.fields) cursor.project(job.opts.fields);
       if (job.opts.sort) cursor.sort(job.opts.sort);
       if (job.opts.limit) cursor.limit(job.opts.limit);
       if (job.opts.skip) cursor.skip(job.opts.skip);
       if (job.opts.readPreference) cursor.setReadPreference(job.opts.readPreference);
       job.data = await cursor.toArray();
+      if (typeof matching !== 'number') {
+        matching = job.data?.length || 0;
+      }
+      job.res.set('Results-Matching', matching + '');
     }
     if (job.opts.skip) {
       job.res.set('Results-Skipped', job.opts.skip);
