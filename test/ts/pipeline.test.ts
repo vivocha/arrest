@@ -206,7 +206,7 @@ XXX,,YYY`
 
     it('should return the requested top level fields as csv, with quoted fields', function () {
       csv_options = {
-        fields: ['a', 'b'],
+        fields: ['a', 'b', 'c'],
         quotes: true,
       };
       csv_data = [
@@ -219,8 +219,8 @@ XXX,,YYY`
         .expect('Content-Type', /text\/csv/)
         .then(({ text: data }) => {
           data.should.equal(
-            `"AAA","BBB"
-"XXX","YYY"`
+            `"AAA","BBB","1"
+"XXX","YYY","1"`
           );
         });
     });
@@ -284,6 +284,26 @@ XXX,,YYY`
         .expect('Content-Type', /text\/csv/)
         .then(({ text: data }) => {
           data.should.equal(`AAA;BBB|XXX;YYY`);
+        });
+    });
+
+    it('should return the requested top level fields as csv, with custom decimal separator', function () {
+      csv_options = {
+        fields: ['a', 'b', 'c'],
+        decimal: ',',
+        quotes: true,
+      };
+      csv_data = [
+        { a: 'AAA', b: 'BBB', c: 1.5, d: true },
+        { a: 'XXX', b: 'YYY', c: 1.9, d: false },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(`"AAA","BBB","1,5"
+"XXX","YYY","1,9"`);
         });
     });
 

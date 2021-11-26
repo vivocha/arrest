@@ -338,6 +338,7 @@ export interface CSVOptions {
   fields: string[] | { [key: string]: string };
   unwind?: string;
   separator?: string;
+  decimal?: string;
   quotes?: boolean;
   escape?: string;
   eol?: string;
@@ -378,7 +379,12 @@ export function toCSV(data: any[], options: CSVOptions): string {
       const l: string[] = [];
       // TODO optimize with a transversal map
       for (let k in fieldMap) {
-        l.push(dot.get(item, k) || '');
+        const value: any = dot.get(item, k);
+        if (options.decimal && typeof value === 'number') {
+          l.push(value.toString().replace('.', options.decimal));
+        } else {
+          l.push((value || '').toString());
+        }
       }
       out.push(l);
     });

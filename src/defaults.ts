@@ -169,6 +169,12 @@ export const DEFAULT_DOCUMENT: OpenAPIV3.Document = {
               minLength: 1,
               maxLength: 1,
             },
+            decimal: {
+              description: 'decimal separator character (default: ".")',
+              type: 'string',
+              minLength: 1,
+              maxLength: 1,
+            },
             eol: {
               description: 'End-of-line character sequence',
               type: 'string',

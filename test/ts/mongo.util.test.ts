@@ -73,6 +73,7 @@ describe('util', function () {
       });
       it('should handle multiple constraints on a property producing an $and', function () {
         addConstraint({ a: 1 }, { a: 2 }).should.deep.equal({ $and: [{ a: 1 }, { a: 2 }] });
+        addConstraint({ $and: [{ a: 1 }, { a: 2 }] }, { a: 3 }).should.deep.equal({ $and: [{ a: 1 }, { a: 2 }, { a: 3 }] });
       });
     });
   });
