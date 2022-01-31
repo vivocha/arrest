@@ -180,6 +180,16 @@ export const DEFAULT_DOCUMENT: OpenAPIV3.Document = {
               type: 'string',
               minLength: 1,
             },
+            dateFormat: {
+              description: 'Format date according to pattern (see https://moment.github.io/luxon/#/formatting?id=table-of-tokens)',
+              type: 'string',
+              minLength: 1,
+            },
+            timezone: {
+              description: 'Format times according to timezone (e.g. Europe/Rome)',
+              type: 'string',
+              minLength: 1,
+            },
             header: {
               description: 'Include header with field names',
               type: 'boolean',

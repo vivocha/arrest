@@ -382,6 +382,7 @@ XXX,YYY,ppp
 XXX,YYY,qqq`);
         });
     });
+
     it('should ship an object if the unwind field is not an array with at least an element (1)', function () {
       csv_options = {
         fields: ['a', 'b', 'c'],
@@ -402,6 +403,7 @@ XXX,YYY,ppp
 XXX,YYY,qqq`);
         });
     });
+
     it('should ship an object if the unwind field is not an array with at least an element (2)', function () {
       csv_options = {
         fields: ['a', 'b', 'c'],
@@ -422,6 +424,7 @@ XXX,YYY,ppp
 XXX,YYY,qqq`);
         });
     });
+
     it('should ship an object if the unwind field is not an array with at least an element (3)', function () {
       csv_options = {
         fields: ['a', 'b', 'c'],
@@ -440,6 +443,69 @@ XXX,YYY,qqq`);
           data.should.equal(`a,b,c
 XXX,YYY,ppp
 XXX,YYY,qqq`);
+        });
+    });
+
+    it('should format dates as ISO', function () {
+      csv_options = {
+        fields: ['a', 'b'],
+      };
+      csv_data = [
+        { a: 'AAA', b: new Date('2022-01-28'), c: 1, d: true },
+        { a: 'XXX', b: new Date(Date.UTC(2022, 0, 28, 11, 38, 45)), c: 1, d: false },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(
+            `AAA,2022-01-28T00:00:00.000Z
+XXX,2022-01-28T11:38:45.000Z`
+          );
+        });
+    });
+
+    it('should format dates with specific date format', function () {
+      csv_options = {
+        fields: ['a', 'b'],
+        dateFormat: 'dd/LL/yyyy',
+      };
+      csv_data = [
+        { a: 'AAA', b: new Date('2022-01-28'), c: 1, d: true },
+        { a: 'XXX', b: new Date(Date.UTC(2022, 0, 28, 11, 38, 45)), c: 1, d: false },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(
+            `AAA,28/01/2022
+XXX,28/01/2022`
+          );
+        });
+    });
+
+    it('should format dates with specific date and time format', function () {
+      csv_options = {
+        fields: ['a', 'b'],
+        dateFormat: 'dd/LL/yyyy hh.mm.ss',
+        timezone: 'Europe/Rome',
+      };
+      csv_data = [
+        { a: 'AAA', b: new Date('2022-01-28'), c: 1, d: true },
+        { a: 'XXX', b: new Date(Date.UTC(2022, 0, 28, 11, 38, 45)), c: 1, d: false },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(
+            `AAA,28/01/2022 01.00.00
+XXX,28/01/2022 12.38.45`
+          );
         });
     });
   });

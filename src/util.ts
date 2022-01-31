@@ -1,6 +1,7 @@
 import { AnyMongoAbility, ForbiddenError, subject } from '@casl/ability';
 import * as dot from 'dot-prop';
 import * as _ from 'lodash';
+import { DateTime } from 'luxon';
 import { ObjectId } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { API } from './api';
@@ -342,6 +343,8 @@ export interface CSVOptions {
   quotes?: boolean;
   escape?: string;
   eol?: string;
+  dateFormat?: string;
+  timezone?: string;
   header: boolean;
   filename?: string;
 }
@@ -382,6 +385,14 @@ export function toCSV(data: any[], options: CSVOptions): string {
         const value: any = dot.get(item, k);
         if (options.decimal && typeof value === 'number') {
           l.push(value.toString().replace('.', options.decimal));
+        } else if (value instanceof Date) {
+          l.push(
+            options.dateFormat
+              ? DateTime.fromJSDate(value)
+                  .setZone(options.timezone || 'UTC')
+                  .toFormat(options.dateFormat)
+              : value.toISOString()
+          );
         } else {
           l.push((value || '').toString());
         }
