@@ -176,7 +176,7 @@ describe('mongo', function () {
       async prepareOpts(job) {
         job = await super.prepareOpts(job);
         if (!job.req.query.fields) {
-          delete job.opts.fields;
+          delete job.opts.projection;
         }
         return job;
       }

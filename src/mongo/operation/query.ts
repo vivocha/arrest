@@ -99,7 +99,7 @@ export class QueryMongoOperation extends MongoOperation {
     if (typeof job.req.query.skip !== 'undefined') {
       job.opts.skip = job.req.query.skip;
     }
-    job.opts.fields = this.parseFields(job.req.query.fields as string[]);
+    job.opts.projection = this.parseFields(job.req.query.fields as string[]);
     if (job.req.query.sort) {
       job.opts.sort = job.req.query.sort;
     }
@@ -125,7 +125,7 @@ export class QueryMongoOperation extends MongoOperation {
     let matching: number | undefined;
     if (Array.isArray(job.query)) {
       if (job.opts.sort) job.query.push({ $sort: job.opts.sort });
-      if (job.opts.fields) job.query.push({ $project: job.opts.fields });
+      if (job.opts.projection) job.query.push({ $project: job.opts.projection });
       const innerQuery: any[] = [{ $match: {} }];
       if (job.opts.skip) innerQuery.push({ $skip: job.opts.skip });
       if (job.opts.limit) innerQuery.push({ $limit: job.opts.limit });
@@ -149,7 +149,7 @@ export class QueryMongoOperation extends MongoOperation {
       if (job.opts.limit || job.opts.skip) {
         matching = await cursor.count(false); // false = ignore limit and skip when counting
       }
-      if (job.opts.fields) cursor.project(job.opts.fields);
+      if (job.opts.projection) cursor.project(job.opts.projection);
       if (job.opts.sort) cursor.sort(job.opts.sort);
       if (job.opts.limit) cursor.limit(job.opts.limit);
       if (job.opts.skip) cursor.skip(job.opts.skip);
