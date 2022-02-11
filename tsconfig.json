@@ -2,7 +2,7 @@
   "compilerOptions": {
     "incremental": true,
     "module": "commonjs",
-    "target": "es2020",
+    "target": "es2017",
     "noImplicitAny": false,
     "sourceMap": true,
     "declaration": true,
