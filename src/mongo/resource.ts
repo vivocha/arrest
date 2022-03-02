@@ -1,7 +1,7 @@
 import { getLogger } from 'debuggo';
 import decamelize from 'decamelize';
 import * as _ from 'lodash';
-import { Collection, Db, DbCollectionOptions, MongoClient } from 'mongodb';
+import { Collection, CollectionOptions, Db, MongoClient } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { Operation } from '../operation';
 import { Resource, ResourceDefinition, Routes } from '../resource';
@@ -39,7 +39,7 @@ export class MongoResource extends Resource {
   constructor(db: string | Db | Promise<Db>, public info: MongoResourceDefinition, routes: MongoRoutes = MongoResource.defaultRoutes()) {
     super(info, routes);
     if (typeof db === 'string') {
-      this.db = MongoClient.connect(db as string, { useUnifiedTopology: true }).then((client) => client.db());
+      this.db = MongoClient.connect(db as string).then((client) => client.db());
     } else {
       this.db = Promise.resolve(db as Db | Promise<Db>);
     }
@@ -55,7 +55,7 @@ export class MongoResource extends Resource {
       this.info.idIsObjectId = this.info.id === '_id';
     }
     if (!this.info.collection) {
-      this.info.collection = decamelize('' + this.info.namePlural, { separator:  '_' });
+      this.info.collection = decamelize('' + this.info.namePlural, { separator: '_' });
     }
   }
 
@@ -96,24 +96,15 @@ export class MongoResource extends Resource {
     }
     this.indexesChecked = true;
   }
-  async getCollection(opts: DbCollectionOptions = this.getCollectionOptions()): Promise<Collection> {
+  async getCollection(opts: CollectionOptions = this.getCollectionOptions()): Promise<Collection> {
     let db: Db = await this.db;
-    let coll: Collection = await new Promise<Collection>((resolve, reject) => {
-      // TODO change this as soon as mongodb typings are fixed. Current version does not let you get a promise if you pass options
-      db.collection(this.info.collection as string, opts, (err: any, coll?: Collection) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(coll!);
-        }
-      });
-    });
+    let coll: Collection = db.collection(this.info.collection as string, opts);
     if (!this.indexesChecked) {
       await this.checkCollectionIndexes(coll);
     }
     return coll;
   }
-  protected getCollectionOptions(): DbCollectionOptions {
+  protected getCollectionOptions(): CollectionOptions {
     return {};
   }
   protected getIndexes(): any[] | undefined {

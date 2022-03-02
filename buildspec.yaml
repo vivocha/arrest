@@ -16,7 +16,7 @@ phases:
     commands:
       - echo Logging in to Docker...
       - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
-      - n 14
+      - n 16
       - export PATH=$PATH:./node_modules/.bin
       - npm config set //registry.npmjs.org/:_authToken=$NPM_TOKEN
       - npm set unsafe-perm true

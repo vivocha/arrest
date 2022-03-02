@@ -1,3 +1,4 @@
+import { DeleteOptions } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api';
 import { Method } from '../../types';
@@ -37,7 +38,7 @@ export class RemoveMongoOperation extends MongoOperation {
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {
     let opts = job.opts as { w?: number | string; wtimmeout?: number; j?: boolean; bypassDocumentValidation?: boolean };
-    let result = await job.coll.deleteOne(job.query, opts);
+    let result = await job.coll.deleteOne(job.query, opts as DeleteOptions);
     if (result.deletedCount != 1) {
       job.req.logger.error('delete failed', result);
       API.fireError(404, 'not_found');

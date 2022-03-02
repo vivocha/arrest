@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import { CollectionAggregationOptions } from 'mongodb';
+import { AggregateOptions } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { Method } from '../../types';
 import { MongoResource } from '../resource';
@@ -135,7 +135,7 @@ export class QueryMongoOperation extends MongoOperation {
           data: innerQuery,
         },
       });
-      let opts: CollectionAggregationOptions | undefined = undefined;
+      let opts: AggregateOptions | undefined = undefined;
       if (job.opts.readPreference) {
         opts = { readPreference: job.opts.readPreference };
       }
@@ -147,13 +147,13 @@ export class QueryMongoOperation extends MongoOperation {
     } else {
       const cursor = job.coll.find(job.query);
       if (job.opts.limit || job.opts.skip) {
-        matching = await cursor.count(false); // false = ignore limit and skip when counting
+        matching = await job.coll.countDocuments(job.query, {});
       }
       if (job.opts.projection) cursor.project(job.opts.projection);
       if (job.opts.sort) cursor.sort(job.opts.sort);
       if (job.opts.limit) cursor.limit(job.opts.limit);
       if (job.opts.skip) cursor.skip(job.opts.skip);
-      if (job.opts.readPreference) cursor.setReadPreference(job.opts.readPreference);
+      if (job.opts.readPreference) cursor.withReadPreference(job.opts.readPreference);
       job.data = await cursor.toArray();
       if (typeof matching !== 'number') {
         matching = job.data?.length || 0;

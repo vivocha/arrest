@@ -1,6 +1,6 @@
 import { Ability } from '@casl/ability';
 import * as _ from 'lodash';
-import * as mongo from 'mongodb';
+import { Collection, CollectionOptions, ObjectId } from 'mongodb';
 import { API } from '../../api';
 import { Job, PipelineOperation } from '../../pipeline';
 import { APIRequest, APIResponse, Method } from '../../types';
@@ -8,7 +8,7 @@ import { MongoResource } from '../resource';
 import { addConstraint, toMongoQuery, unescapeMongoObject } from '../util';
 
 export interface MongoJob extends Job {
-  coll: mongo.Collection;
+  coll: Collection;
 }
 
 export abstract class MongoOperation extends PipelineOperation {
@@ -16,7 +16,7 @@ export abstract class MongoOperation extends PipelineOperation {
     super(resource, path, method, id);
   }
 
-  get collection(): Promise<mongo.Collection> {
+  get collection(): Promise<Collection> {
     return this.resource.getCollection(this.getCollectionOptions());
   }
   get requestSchema(): any {
@@ -26,13 +26,13 @@ export abstract class MongoOperation extends PipelineOperation {
     return this.resource.responseSchema;
   }
 
-  protected getCollectionOptions(): mongo.DbCollectionOptions | undefined {
+  protected getCollectionOptions(): CollectionOptions | undefined {
     return undefined;
   }
   protected getItemQuery(_id) {
     try {
       return {
-        ['' + this.resource.info.id]: this.resource.info.idIsObjectId ? new mongo.ObjectID(_id) : _id,
+        ['' + this.resource.info.id]: this.resource.info.idIsObjectId ? new ObjectId(_id) : _id,
       };
     } catch (error) {
       API.fireError(404, 'not_found');

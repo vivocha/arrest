@@ -1,4 +1,4 @@
-import * as mongo from 'mongodb';
+import { FindOneAndUpdateOptions } from 'mongodb';
 import { JSONPatch, OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api';
 import { Method } from '../../types';
@@ -92,7 +92,10 @@ export class PatchMongoOperation extends MongoOperation {
           .join('.');
 
       for (let p of patch) {
-        if (!this.checkAbilityForPath(job.req.ability, dottedPath(p.path)) ||  (p['from'] && !this.checkAbilityForPath(job.req.ability, dottedPath(p['from'])))) {
+        if (
+          !this.checkAbilityForPath(job.req.ability, dottedPath(p.path)) ||
+          (p['from'] && !this.checkAbilityForPath(job.req.ability, dottedPath(p['from'])))
+        ) {
           API.fireError(403, 'insufficient privileges', p);
         }
       }
@@ -105,11 +108,11 @@ export class PatchMongoOperation extends MongoOperation {
     return job;
   }
   async prepareOpts(job: MongoJob): Promise<MongoJob> {
-    job.opts = { returnOriginal: false };
+    job.opts = { returnDocument: 'after' };
     return job;
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {
-    let result = await job.coll.findOneAndUpdate(job.query, job.doc, job.opts as mongo.FindOneAndReplaceOption<any>);
+    let result = await job.coll.findOneAndUpdate(job.query, job.doc, job.opts as FindOneAndUpdateOptions);
     if (!result.ok || !result.value) {
       job.req.logger.error('update failed', result);
       API.fireError(404, 'not_found');

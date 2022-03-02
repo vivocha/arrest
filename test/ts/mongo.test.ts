@@ -4,7 +4,7 @@ import * as chaiAsPromised from 'chai-as-promised';
 import * as spies from 'chai-spies';
 import * as express from 'express';
 import * as _ from 'lodash';
-import { MongoClient, ReadPreference } from 'mongodb';
+import { CollectionOptions, MongoClient, ReadPreference } from 'mongodb';
 import { DokiConfiguration, Mongodoki } from 'mongodoki';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
@@ -58,14 +58,14 @@ describe('mongo', function () {
       });
 
       it('should use an existing valid db connection', async function () {
-        const c = MongoClient.connect('mongodb://localhost:27017/local', { useUnifiedTopology: true }).then((c) => c.db());
+        const c = MongoClient.connect('mongodb://localhost:27017/local').then((c) => c.db());
         let r = new MongoResource(c, { name: 'Test' });
         db = r.db;
         return r.db;
       });
 
       it('should fail with an existing failed db connection', function () {
-        const c = MongoClient.connect('mongodb://localhost:97017/local?serverSelectionTimeoutMS=1000', { useUnifiedTopology: true }).then((c) => c.db());
+        const c = MongoClient.connect('mongodb://localhost:97017/local?serverSelectionTimeoutMS=1000').then((c) => c.db());
         const r = new MongoResource(c, { name: 'Test' });
         return r.db.should.be.rejected;
       });
@@ -198,7 +198,7 @@ describe('mongo', function () {
     let db, id, coll, coll2, r1, r2, r3, r4, r5, r6, r7, server;
 
     before(async function () {
-      db = await MongoClient.connect('mongodb://localhost:27017/local', { useUnifiedTopology: true }).then((c) => c.db());
+      db = await MongoClient.connect('mongodb://localhost:27017/local').then((c) => c.db());
       r1 = new MongoResource(db, { name: 'Test', collection: collectionName });
       r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false });
       r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 }, '/2': { get: FakeOp2 } });
@@ -313,7 +313,7 @@ describe('mongo', function () {
       it('should fail to create a new record with an invalid attribute', function () {
         return request
           .post('/others')
-          .send({ myid: 'bbb', 'a.b.c.d': 1 })
+          .send({ myid: 'bbb', _id: { $a: 1 } })
           .expect(500)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
@@ -336,8 +336,8 @@ describe('mongo', function () {
     describe('collection', function () {
       it('should fail to return a non existent collection in strict mode', function () {
         class TestOperation extends MongoOperation {
-          getCollectionOptions() {
-            return { strict: true };
+          getCollectionOptions(): CollectionOptions {
+            return { strict: true } as CollectionOptions;
           }
           runOperation(job: MongoJob): Promise<MongoJob> {
             return Promise.resolve(job);
@@ -926,7 +926,7 @@ describe('mongo', function () {
     let db, r1, server;
 
     before(async function () {
-      db = await MongoClient.connect('mongodb://localhost:27017/local', { useUnifiedTopology: true }).then((c) => c.db());
+      db = await MongoClient.connect('mongodb://localhost:27017/local').then((c) => c.db());
       r1 = new MongoResource(
         db,
         { name: 'Test', collection: collectionName, id: 'id', idIsObjectId: false },

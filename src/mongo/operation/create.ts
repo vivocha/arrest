@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import * as mongo from 'mongodb';
+import { InsertOneOptions, ObjectId } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api';
 import { Method } from '../../types';
@@ -52,7 +52,7 @@ export class CreateMongoOperation extends MongoOperation {
     if (this.resource.info.id === '_id' && this.resource.info.idIsObjectId) {
       delete job.doc['_id'];
     } else if (this.resource.info.id && typeof job.doc[this.resource.info.id] === 'undefined' && this.resource.info.idIsObjectId) {
-      job.doc[this.resource.info.id] = new mongo.ObjectID();
+      job.doc[this.resource.info.id] = new ObjectId();
     }
     delete job.doc._metadata;
     if (job.req.ability) {
@@ -65,13 +65,13 @@ export class CreateMongoOperation extends MongoOperation {
       if (this.resource.info.escapeProperties) {
         job.doc = escapeMongoObject(job.doc);
       }
-      let result = await job.coll.insertOne(job.doc, job.opts as mongo.CollectionInsertOneOptions);
-      job.data = result.ops[0];
+      await job.coll.insertOne(job.doc, job.opts as InsertOneOptions);
+      job.data = job.doc;
       const fullURL = `${job.req.protocol}://${job.req.headers['host']}${job.req.baseUrl}${job.req.path}${job.data['' + this.resource.info.id]}`;
       job.res.set('Location', fullURL);
       job.res.status(201);
     } catch (err) {
-      if (err && err.name === 'MongoError' && err.code === 11000) {
+      if (err && err.name === 'MongoServerError' && err.code === 11000) {
         job.req.logger.error('duplicate key', err);
         API.fireError(400, 'duplicate key');
       } else {

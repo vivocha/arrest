@@ -1,4 +1,4 @@
-import * as mongo from 'mongodb';
+import { FindOptions } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api';
 import { Method } from '../../types';
@@ -46,7 +46,7 @@ export class ReadMongoOperation extends MongoOperation {
     return job;
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {
-    job.data = await job.coll.findOne(job.query, job.opts as mongo.FindOneOptions<any>);
+    job.data = await job.coll.findOne(job.query, job.opts as FindOptions);
     if (!job.data) {
       API.fireError(404, 'not_found');
     }
