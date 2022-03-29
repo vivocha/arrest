@@ -6,9 +6,10 @@ import * as express from 'express';
 import * as _ from 'lodash';
 import { CollectionOptions, MongoClient, ReadPreference } from 'mongodb';
 import { DokiConfiguration, Mongodoki } from 'mongodoki';
+import { OpenAPIV3 } from 'openapi-police';
 import * as supertest from 'supertest';
 import { API } from '../../dist/api';
-import { MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation } from '../../dist/mongo/index';
+import { CreateMongoOperation, MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation } from '../../dist/mongo/index';
 import { APIRequest, APIResponse, Method } from '../../dist/types';
 
 const should = chai.should();
@@ -195,7 +196,21 @@ describe('mongo', function () {
       }
     }
 
-    let db, id, coll, coll2, r1, r2, r3, r4, r5, r6, r7, server;
+    class DateOp extends CreateMongoOperation {
+      get requestSchema(): OpenAPIV3.SchemaObject {
+        return {
+          type: 'object',
+          properties: {
+            ts: {
+              type: 'string',
+              format: 'date-time',
+            },
+          },
+        };
+      }
+    }
+
+    let db, id, coll, coll2, r1, r2, r3, r4, r5, r6, r7, r8, server;
 
     before(async function () {
       db = await MongoClient.connect('mongodb://localhost:27017/local').then((c) => c.db());
@@ -206,6 +221,7 @@ describe('mongo', function () {
       r5 = new MongoResource(db, { name: 'Aggregation', collection: collectionName }, { '/': { get: Aggregation } });
       r6 = new MongoResource(db, { name: 'Escape', collection: collectionName, id: 'myid', escapeProperties: true });
       r7 = new MongoResource(db, { name: 'SecondaryAggregation', collection: collectionName }, { '/': { get: AggregationFromSecondary } });
+      r8 = new MongoResource(db, { name: 'Date', collection: collectionName }, { '/': { post: DateOp } });
       api.addResource(r1);
       api.addResource(r2);
       api.addResource(r3);
@@ -213,6 +229,7 @@ describe('mongo', function () {
       api.addResource(r5);
       api.addResource(r6);
       api.addResource(r7);
+      api.addResource(r8);
 
       let router = await api.router();
       app.use(router);
@@ -329,6 +346,20 @@ describe('mongo', function () {
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 1 });
+          });
+      });
+
+      it('should create a record with a date preserving its type', function () {
+        debugger;
+        return request
+          .post('/dates')
+          .send({ myid: 'ts', ts: new Date() })
+          .expect(201)
+          .expect('Content-Type', /json/)
+          .then(async ({ body: data }) => {
+            const ref = await coll.findOne({}, { sort: { _id: -1 } });
+            await coll.remove({ myid: 'ts' });
+            ref.ts.should.be.a('Date');
           });
       });
     });

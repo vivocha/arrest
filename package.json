@@ -127,7 +127,7 @@
     "luxon": "^2.3.1",
     "mongodb": "^4.4.0",
     "needle": "^3.0.0",
-    "openapi-police": "^2.0.0",
+    "openapi-police": "^3.0.0",
     "rql": "^0.3.3",
     "semver": "^7.3.5"
   },
