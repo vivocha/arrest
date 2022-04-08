@@ -29,6 +29,7 @@ export interface ResourceDefinition {
 }
 
 export class Resource {
+  api: API;
   protected operations: Operation[] = [];
 
   constructor(public info: ResourceDefinition = {}, routes?: Routes) {
@@ -88,6 +89,8 @@ export class Resource {
   }
 
   attach(api: API) {
+    this.api = api;
+
     let tag: OpenAPIV3.TagObject = {
       name: '' + this.info.name,
     };
