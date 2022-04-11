@@ -112,7 +112,7 @@
   "dependencies": {
     "@casl/ability": "^5.4.3",
     "@vivocha/scopes": "^1.0.0",
-    "body-parser": "^1.19.2",
+    "body-parser": "^1.20.0",
     "camelcase": "^6.3.0",
     "cookie-parser": "^1.4.6",
     "debug": "^4.3.4",
@@ -124,11 +124,11 @@
     "jsonref": "^7.0.0",
     "lodash": "^4.17.21",
     "luxon": "^2.3.1",
-    "mongodb": "^4.4.1",
-    "needle": "^3.0.0",
+    "mongodb": "^4.5.0",
+    "needle": "^3.1.0",
     "openapi-police": "^3.0.0",
     "rql": "^0.3.3",
-    "semver": "^7.3.5"
+    "semver": "^7.3.6"
   },
   "engines": {
     "node": ">=16.14.0"
