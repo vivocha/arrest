@@ -1,6 +1,6 @@
 import { Ability, defineAbility } from '@casl/ability';
-import * as chai from 'chai';
-import { addConstraint, escapeMongoKey, escapeMongoObject, patchToMongo, toMongoQuery, unescapeMongoKey, unescapeMongoObject } from '../../dist/mongo/util';
+import chai from 'chai';
+import { addConstraint, escapeMongoKey, escapeMongoObject, patchToMongo, toMongoQuery, unescapeMongoKey, unescapeMongoObject } from '../../dist/mongo/util.js';
 
 const should = chai.should();
 

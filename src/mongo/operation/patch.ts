@@ -1,10 +1,10 @@
 import { FindOneAndUpdateOptions } from 'mongodb';
 import { JSONPatch, OpenAPIV3 } from 'openapi-police';
-import { API } from '../../api';
-import { Method } from '../../types';
-import { MongoResource } from '../resource';
-import { addConstraint, patchToMongo } from '../util';
-import { MongoJob, MongoOperation } from './base';
+import { API } from '../../api.js';
+import { Method } from '../../types.js';
+import { MongoResource } from '../resource.js';
+import { addConstraint, patchToMongo } from '../util.js';
+import { MongoJob, MongoOperation } from './base.js';
 
 export class PatchMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'patch') {

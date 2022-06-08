@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
     "incremental": true,
-    "module": "commonjs",
+    "module": "es2020",
     "target": "es2020",
     "noImplicitAny": false,
     "sourceMap": false,
     "declaration": false,
     "strictNullChecks": true,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node"
   },
   "include": ["./**/*"]
 }

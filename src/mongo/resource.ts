@@ -1,12 +1,19 @@
 import { getLogger } from 'debuggo';
 import decamelize from 'decamelize';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { Collection, CollectionOptions, Db, MongoClient } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
-import { Operation } from '../operation';
-import { Resource, ResourceDefinition, Routes } from '../resource';
-import { Method } from '../types';
-import { CreateMongoOperation, PatchMongoOperation, QueryMongoOperation, ReadMongoOperation, RemoveMongoOperation, UpdateMongoOperation } from './operation';
+import { Operation } from '../operation.js';
+import { Resource, ResourceDefinition, Routes } from '../resource.js';
+import { Method } from '../types.js';
+import {
+  CreateMongoOperation,
+  PatchMongoOperation,
+  QueryMongoOperation,
+  ReadMongoOperation,
+  RemoveMongoOperation,
+  UpdateMongoOperation,
+} from './operation/index.js';
 
 const logger = getLogger('arrest');
 

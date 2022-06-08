@@ -2,20 +2,19 @@ import { Scopes } from '@vivocha/scopes';
 import { getLogger, Logger } from 'debuggo';
 import { Eredita } from 'eredita';
 import express, { NextFunction, Request, Response, Router, RouterOptions } from 'express';
-import * as http from 'http';
-import * as https from 'https';
-import * as refs from 'jsonref'; // TODO include everything from openapi-police
-import * as _ from 'lodash';
+import http from 'http';
+import https from 'https';
+import _ from 'lodash';
 import needle from 'needle';
-import { OpenAPIV3, SchemaObject, ValidationError } from 'openapi-police';
-import * as semver from 'semver';
+import { OpenAPIV3, parse, ParseOptions, rebase, SchemaObject, ValidationError } from 'openapi-police';
+import semver from 'semver';
 import { deprecate } from 'util';
-import { DEFAULT_DOCUMENT } from './defaults';
-import { RESTError } from './error';
-import { Resource } from './resource';
-import { SchemaResource } from './schema';
-import { APIRequest, APIResponse } from './types';
-import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from './util';
+import { DEFAULT_DOCUMENT } from './defaults.js';
+import { RESTError } from './error.js';
+import { Resource } from './resource.js';
+import { SchemaResource } from './schema.js';
+import { APIRequest, APIResponse } from './types.js';
+import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from './util.js';
 
 let reqId: number = 0;
 
@@ -31,7 +30,7 @@ export class API {
     [name: string]: SchemaObject;
   } = {};
   protected internalRouter: Promise<Router>;
-  protected parseOptions: refs.ParseOptions;
+  protected parseOptions: ParseOptions;
 
   constructor(info?: OpenAPIV3.InfoObject) {
     this.document = Eredita.deepExtend(_.cloneDeep(DEFAULT_DOCUMENT), { info: info || {} });
@@ -74,7 +73,7 @@ export class API {
     if (!this.document.components.schemas) {
       this.document.components.schemas = {};
     }
-    this.document.components.schemas[name] = removeSchemaDeclaration(refs.rebase(name, _.cloneDeep(schema), refsRebaser));
+    this.document.components.schemas[name] = removeSchemaDeclaration(rebase(name, _.cloneDeep(schema), refsRebaser));
   }
   registerDynamicSchema(name: string, schema: SchemaObject) {
     this.dynamicSchemas[name] = schema;
@@ -215,7 +214,7 @@ export class API {
           }
         });
 
-        this.document = await refs.parse(this.document, this.parseOptions);
+        this.document = await parse(this.document, this.parseOptions);
         for (let resource of this.resources) {
           await resource.router(router, options);
         }

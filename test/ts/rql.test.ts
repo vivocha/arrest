@@ -1,7 +1,7 @@
 import { ObjectId } from 'bson';
-import * as chai from 'chai';
-import * as spies from 'chai-spies';
-import rql from '../../dist/mongo/rql';
+import chai from 'chai';
+import spies from 'chai-spies';
+import rql from '../../dist/mongo/rql.js';
 
 chai.should();
 chai.use(spies);

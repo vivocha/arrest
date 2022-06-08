@@ -1,20 +1,20 @@
 import { NextFunction } from 'connect';
 import { OpenAPIV3 } from 'openapi-police';
-import { API } from './api';
-import { Operation } from './operation';
-import { Resource } from './resource';
-import { APIRequest, APIResponse, Method } from './types';
+import { API } from './api.js';
+import { Operation } from './operation.js';
+import { Resource } from './resource.js';
+import { APIRequest, APIResponse, Method } from './types.js';
 
 export class SchemaResource extends Resource {
   constructor() {
     super(
       {
-        name: 'Schema'
+        name: 'Schema',
       },
       {
         '/:id': {
-          get: ReadSchemaOperation
-        }
+          get: ReadSchemaOperation,
+        },
       }
     );
   }
@@ -29,8 +29,8 @@ class ReadSchemaOperation extends Operation {
       summary: 'Retrieve a JSON Schema by id',
       parameters: [
         {
-          $ref: '#/components/parameters/id'
-        }
+          $ref: '#/components/parameters/id',
+        },
       ],
       responses: {
         '200': {
@@ -38,14 +38,14 @@ class ReadSchemaOperation extends Operation {
           content: {
             'application/json': {
               schema: {
-                type: 'object'
-              }
-            }
-          }
+                type: 'object',
+              },
+            },
+          },
         },
         '404': { $ref: '#/components/responses/notFound' },
-        default: { $ref: '#/components/responses/defaultError' }
-      }
+        default: { $ref: '#/components/responses/defaultError' },
+      },
     };
   }
   get swaggerScopes(): OpenAPIV3.OAuth2SecurityScopes {

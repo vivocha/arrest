@@ -1,11 +1,11 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { FindOneAndUpdateOptions, ObjectId } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
-import { API } from '../../api';
-import { Method } from '../../types';
-import { MongoResource } from '../resource';
-import { addConstraint, escapeMongoObject } from '../util';
-import { MongoJob, MongoOperation } from './base';
+import { API } from '../../api.js';
+import { Method } from '../../types.js';
+import { MongoResource } from '../resource.js';
+import { addConstraint, escapeMongoObject } from '../util.js';
+import { MongoJob, MongoOperation } from './base.js';
 
 export class UpdateMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'update') {

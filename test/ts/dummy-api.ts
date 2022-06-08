@@ -1,6 +1,6 @@
-import { API } from '../../dist/api';
-import { Operation } from '../../dist/operation';
-import { Resource } from '../../dist/resource';
+import { API } from '../../dist/api.js';
+import { Operation } from '../../dist/operation.js';
+import { Resource } from '../../dist/resource.js';
 /*
  * Simple TEST API instances
  */
@@ -12,10 +12,10 @@ class Op1 extends Operation {
     this.info.requestBody = {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/op1_schema2' }
-        }
+          schema: { $ref: '#/components/schemas/op1_schema2' },
+        },
       },
-      required: true
+      required: true,
     };
   }
   attach(api) {
@@ -24,38 +24,38 @@ class Op1 extends Operation {
       type: 'object',
       definitions: {
         defA: {
-          type: 'string'
+          type: 'string',
         },
         defB: {
           type: 'object',
           properties: {
-            propA: { $ref: '#/definitions/defA' }
-          }
-        }
+            propA: { $ref: '#/definitions/defA' },
+          },
+        },
       },
       properties: {
         a: {
-          type: 'boolean'
+          type: 'boolean',
         },
         b: {
-          type: 'integer'
-        }
+          type: 'integer',
+        },
       },
       additionalProperties: false,
-      required: ['a']
+      required: ['a'],
     });
     api.registerSchema('op1_schema2', {
       $schema: 'http://json-schema.org/schema#',
       type: 'object',
       properties: {
         c: {
-          type: 'string'
+          type: 'string',
         },
         d: { $ref: 'op1_schema1' },
-        e: { $ref: 'op1_schema1#/properties/b' }
+        e: { $ref: 'op1_schema1#/properties/b' },
       },
       additionalProperties: false,
-      required: ['d']
+      required: ['d'],
     });
     super.attach(api);
   }
@@ -74,10 +74,10 @@ class AnOperation extends Operation {
     this.info.requestBody = {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/op1_schema1' }
-        }
+          schema: { $ref: '#/components/schemas/op1_schema1' },
+        },
       },
-      required: true
+      required: true,
     };
   }
   attach(api) {
@@ -86,44 +86,44 @@ class AnOperation extends Operation {
       type: 'object',
       definitions: {
         defA: {
-          type: 'string'
+          type: 'string',
         },
         defB: {
           type: 'object',
           properties: {
-            propA: { $ref: '#/definitions/defA' }
-          }
+            propA: { $ref: '#/definitions/defA' },
+          },
         },
         defC: {
           type: 'object',
           properties: {
-            propA: { $ref: '#/definitions/defA' }
-          }
-        }
+            propA: { $ref: '#/definitions/defA' },
+          },
+        },
       },
       properties: {
         a: {
-          type: 'boolean'
+          type: 'boolean',
         },
         b: {
-          type: 'integer'
-        }
+          type: 'integer',
+        },
       },
       additionalProperties: false,
-      required: ['a']
+      required: ['a'],
     });
     api.registerSchema('op1_schema2', {
       $schema: 'http://json-schema.org/schema#',
       type: 'object',
       properties: {
         c: {
-          $ref: 'op1_schema1#/definitions/defC'
+          $ref: 'op1_schema1#/definitions/defC',
         },
         d: { $ref: 'op1_schema1' },
-        e: { $ref: 'op1_schema1#/properties/b' }
+        e: { $ref: 'op1_schema1#/properties/b' },
       },
       additionalProperties: false,
-      required: ['d']
+      required: ['d'],
     });
     super.attach(api);
   }
@@ -142,10 +142,10 @@ class AnOperation2 extends Operation {
     this.info.requestBody = {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/op1_schema2' }
-        }
+          schema: { $ref: '#/components/schemas/op1_schema2' },
+        },
       },
-      required: true
+      required: true,
     };
   }
   attach(api) {
@@ -154,44 +154,44 @@ class AnOperation2 extends Operation {
       type: 'object',
       definitions: {
         defA: {
-          type: 'string'
+          type: 'string',
         },
         defB: {
           type: 'object',
           properties: {
-            propA: { $ref: '#/definitions/defA' }
-          }
+            propA: { $ref: '#/definitions/defA' },
+          },
         },
         defC: {
           type: 'object',
           properties: {
-            propA: { $ref: '#/definitions/defA' }
-          }
-        }
+            propA: { $ref: '#/definitions/defA' },
+          },
+        },
       },
       properties: {
         a: {
-          type: 'boolean'
+          type: 'boolean',
         },
         b: {
-          type: 'integer'
-        }
+          type: 'integer',
+        },
       },
       additionalProperties: false,
-      required: ['a']
+      required: ['a'],
     });
     api.registerSchema('op1_schema2', {
       $schema: 'http://json-schema.org/schema#',
       type: 'object',
       properties: {
         c: {
-          $ref: 'op1_schema1#/definitions/defC'
+          $ref: 'op1_schema1#/definitions/defC',
         },
         d: { $ref: 'op1_schema1' },
-        e: { $ref: 'op1_schema1#/properties/b' }
+        e: { $ref: 'op1_schema1#/properties/b' },
       },
       additionalProperties: false,
-      required: ['d']
+      required: ['d'],
     });
     super.attach(api);
   }
@@ -210,10 +210,10 @@ class TestOperation extends Operation {
     this.info.requestBody = {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/op1_schema2' }
-        }
+          schema: { $ref: '#/components/schemas/op1_schema2' },
+        },
       },
-      required: true
+      required: true,
     };
   }
   attach(api) {
@@ -225,46 +225,46 @@ class TestOperation extends Operation {
           type: 'string',
           definitions: {
             settings: {
-              type: 'object'
-            }
-          }
+              type: 'object',
+            },
+          },
         },
         defB: {
           type: 'object',
           properties: {
-            propA: { $ref: '#/definitions/defA' }
-          }
+            propA: { $ref: '#/definitions/defA' },
+          },
         },
         defC: {
           type: 'object',
           properties: {
-            propA: { $ref: '#/definitions/defA' }
-          }
-        }
+            propA: { $ref: '#/definitions/defA' },
+          },
+        },
       },
       properties: {
         a: {
-          type: 'boolean'
+          type: 'boolean',
         },
         b: {
-          type: 'integer'
-        }
+          type: 'integer',
+        },
       },
       additionalProperties: false,
-      required: ['a']
+      required: ['a'],
     });
     api.registerSchema('op1_schema2', {
       $schema: 'http://json-schema.org/schema#',
       type: 'object',
       properties: {
         c: {
-          $ref: 'op1_schema1#/definitions/defA/definitions/settings'
+          $ref: 'op1_schema1#/definitions/defA/definitions/settings',
         },
         d: { $ref: 'op1_schema1' },
-        e: { $ref: 'op1_schema1#/properties/b' }
+        e: { $ref: 'op1_schema1#/properties/b' },
       },
       additionalProperties: false,
-      required: ['d']
+      required: ['d'],
     });
     super.attach(api);
   }
@@ -283,10 +283,10 @@ class Operation5 extends Operation {
     this.info.requestBody = {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/op1_schema2' }
-        }
+          schema: { $ref: '#/components/schemas/op1_schema2' },
+        },
       },
-      required: true
+      required: true,
     };
   }
   attach(api) {
@@ -298,46 +298,46 @@ class Operation5 extends Operation {
           type: 'string',
           definitions: {
             settings: {
-              type: 'object'
-            }
-          }
+              type: 'object',
+            },
+          },
         },
         defB: {
           type: 'object',
           properties: {
-            propA: { $ref: '#/definitions/defA' }
-          }
+            propA: { $ref: '#/definitions/defA' },
+          },
         },
         defC: {
           type: 'object',
           properties: {
-            propA: { $ref: '#/definitions/defA' }
-          }
-        }
+            propA: { $ref: '#/definitions/defA' },
+          },
+        },
       },
       properties: {
         a: {
-          type: 'boolean'
+          type: 'boolean',
         },
         b: {
-          type: 'integer'
-        }
+          type: 'integer',
+        },
       },
       additionalProperties: false,
-      required: ['a']
+      required: ['a'],
     });
     api.registerSchema('op1_schema2', {
       $schema: 'http://json-schema.org/schema#',
       type: 'object',
       properties: {
         c: {
-          $ref: 'op1_schema1#/definitions/defA/definitions/ghost_schema'
+          $ref: 'op1_schema1#/definitions/defA/definitions/ghost_schema',
         },
         d: { $ref: 'op1_schema1' },
-        e: { $ref: 'op1_schema1#/properties/b' }
+        e: { $ref: 'op1_schema1#/properties/b' },
       },
       additionalProperties: false,
-      required: ['d']
+      required: ['d'],
     });
     super.attach(api);
   }
@@ -356,53 +356,53 @@ const thingSchema = {
       type: 'object',
       definitions: {
         settings: {
-          type: 'object'
+          type: 'object',
         },
         name: {
-          $ref: 'common#/definitions/notEmptyString'
-        }
-      }
+          $ref: 'common#/definitions/notEmptyString',
+        },
+      },
     },
     model: {
       type: 'object',
       properties: {
         name: { $ref: 'thing#/definitions/info/definitions/name' },
-        code: { type: 'integer' }
-      }
+        code: { type: 'integer' },
+      },
     },
     notes: {
       type: 'object',
       properties: {
-        text: { $ref: 'common#/definitions/notEmptyString' }
-      }
-    }
+        text: { $ref: 'common#/definitions/notEmptyString' },
+      },
+    },
   },
   properties: {
     id: {
       type: 'integer',
-      readOnly: true
+      readOnly: true,
     },
     info: {
-      $ref: '#/definitions/info'
+      $ref: '#/definitions/info',
     },
     model: {
-      $ref: '#/definitions/model'
+      $ref: '#/definitions/model',
     },
     notes: {
-      $ref: '#/definitions/notes'
-    }
+      $ref: '#/definitions/notes',
+    },
   },
   additionalProperties: false,
-  required: ['model']
+  required: ['model'],
 };
 const commonSchema = {
   type: 'object',
   definitions: {
     notEmptyString: {
       type: 'string',
-      minLength: 1
-    }
-  }
+      minLength: 1,
+    },
+  },
 };
 class CreateThingOperation extends Operation {
   count = 0;
@@ -411,20 +411,20 @@ class CreateThingOperation extends Operation {
     this.info.requestBody = {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/thing' }
-        }
+          schema: { $ref: '#/components/schemas/thing' },
+        },
       },
-      required: true
+      required: true,
     };
     this.info.responses = {
       '200': {
         description: 'result...',
         content: {
           'application/json': {
-            schema: { $ref: '#/components/schemas/result' }
-          }
-        }
-      }
+            schema: { $ref: '#/components/schemas/result' },
+          },
+        },
+      },
     };
   }
   attach(api) {
@@ -434,10 +434,10 @@ class CreateThingOperation extends Operation {
       properties: {
         message: 'common#/definitions/notEmptyString',
         thing: {
-          $ref: 'thing'
-        }
+          $ref: 'thing',
+        },
       },
-      additionalProperties: false
+      additionalProperties: false,
     });
     super.attach(api);
   }
@@ -455,11 +455,11 @@ class GetThingsOperation extends Operation {
           'application/json': {
             schema: {
               type: 'array',
-              items: { $ref: '#/components/schemas/thing' }
-            }
-          }
-        }
-      }
+              items: { $ref: '#/components/schemas/thing' },
+            },
+          },
+        },
+      },
     };
   }
   attach(api) {
@@ -482,12 +482,12 @@ const thingSchema2 = {
       type: 'object',
       definitions: {
         settings: {
-          type: 'object'
+          type: 'object',
         },
         name: {
-          $ref: 'common#/definitions/notEmptyString'
-        }
-      }
+          $ref: 'common#/definitions/notEmptyString',
+        },
+      },
     },
     model: {
       type: 'object',
@@ -495,14 +495,14 @@ const thingSchema2 = {
         name: { $ref: 'thing#/definitions/info/definitions/name' },
         code: { type: 'integer' },
         notes: { $ref: '#/definitions/notes' },
-        models: { type: 'array', items: { $ref: '#/definitions/model' } }
-      }
+        models: { type: 'array', items: { $ref: '#/definitions/model' } },
+      },
     },
     notes: {
       type: 'object',
       properties: {
-        model: { $ref: '#/definitions/model' }
-      }
+        model: { $ref: '#/definitions/model' },
+      },
     },
     loop: {
       type: 'object',
@@ -511,12 +511,12 @@ const thingSchema2 = {
           type: 'object',
           definitions: {
             settings: {
-              type: 'object'
+              type: 'object',
             },
             name: {
-              $ref: 'common#/definitions/notEmptyString'
-            }
-          }
+              $ref: 'common#/definitions/notEmptyString',
+            },
+          },
         },
         model: {
           type: 'object',
@@ -524,62 +524,62 @@ const thingSchema2 = {
             name: { $ref: 'thing#/definitions/info/definitions/name' },
             code: { type: 'integer' },
             notes: { $ref: '#/definitions/notes' },
-            models: { type: 'array', items: { $ref: '#/definitions/model' } }
-          }
+            models: { type: 'array', items: { $ref: '#/definitions/model' } },
+          },
         },
         notes: {
           type: 'object',
           properties: {
-            model: { $ref: '#/definitions/model' }
-          }
-        }
+            model: { $ref: '#/definitions/model' },
+          },
+        },
       },
       properties: {
         id: {
           type: 'integer',
-          readOnly: true
+          readOnly: true,
         },
         info: {
-          $ref: '#/definitions/info'
+          $ref: '#/definitions/info',
         },
         model: {
-          $ref: '#/definitions/model'
+          $ref: '#/definitions/model',
         },
         notes: {
-          $ref: '#/definitions/notes'
-        }
+          $ref: '#/definitions/notes',
+        },
       },
       additionalProperties: false,
-      required: ['model']
-    }
+      required: ['model'],
+    },
   },
   properties: {
     id: {
       type: 'integer',
-      readOnly: true
+      readOnly: true,
     },
     info: {
-      $ref: '#/definitions/info'
+      $ref: '#/definitions/info',
     },
     model: {
-      $ref: '#/definitions/model'
+      $ref: '#/definitions/model',
     },
     notes: {
-      $ref: '#/definitions/notes'
+      $ref: '#/definitions/notes',
     },
-    other: { $ref: 'thing#/properties/notes' }
+    other: { $ref: 'thing#/properties/notes' },
   },
   additionalProperties: true,
-  required: ['model']
+  required: ['model'],
 };
 const commonSchema2 = {
   type: 'object',
   definitions: {
     notEmptyString: {
       type: 'string',
-      minLength: 1
-    }
-  }
+      minLength: 1,
+    },
+  },
 };
 class CreateThing2Operation extends Operation {
   count = 0;
@@ -588,20 +588,20 @@ class CreateThing2Operation extends Operation {
     this.info.requestBody = {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/thing' }
-        }
+          schema: { $ref: '#/components/schemas/thing' },
+        },
       },
-      required: true
+      required: true,
     };
     this.info.responses = {
       '200': {
         description: 'result...',
         content: {
           'application/json': {
-            schema: { $ref: '#/components/schemas/result' }
-          }
-        }
-      }
+            schema: { $ref: '#/components/schemas/result' },
+          },
+        },
+      },
     };
   }
   attach(api) {
@@ -611,10 +611,10 @@ class CreateThing2Operation extends Operation {
       properties: {
         message: 'common#/definitions/notEmptyString',
         thing: {
-          $ref: 'thing'
-        }
+          $ref: 'thing',
+        },
       },
-      additionalProperties: false
+      additionalProperties: false,
     });
     super.attach(api);
   }
@@ -632,11 +632,11 @@ class GetThings2Operation extends Operation {
           'application/json': {
             schema: {
               type: 'array',
-              items: { $ref: '#/components/schemas/thing' }
-            }
-          }
-        }
-      }
+              items: { $ref: '#/components/schemas/thing' },
+            },
+          },
+        },
+      },
     };
   }
   attach(api) {

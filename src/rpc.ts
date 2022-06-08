@@ -1,7 +1,7 @@
 import { NextFunction } from 'express';
 import { OpenAPIV3 } from 'openapi-police';
-import { Operation } from './operation';
-import { APIRequest, APIResponse } from './types';
+import { Operation } from './operation.js';
+import { APIRequest, APIResponse } from './types.js';
 
 export function rpc(target: JSONRPC, propertyKey: string) {
   target[propertyKey].rpc = true;
@@ -27,22 +27,22 @@ export abstract class JSONRPC extends Operation {
               additionalProperties: false,
               properties: {
                 jsonrpc: {
-                  enum: ['2.0']
+                  enum: ['2.0'],
                 },
                 method: {
                   type: 'string',
-                  minLength: 1
+                  minLength: 1,
                 },
                 params: {
-                  oneOf: [{ type: 'object' }, { type: 'array' }]
+                  oneOf: [{ type: 'object' }, { type: 'array' }],
                 },
                 id: {
-                  oneOf: [{ type: 'string' }, { type: 'integer' }, { type: 'null' }]
-                }
-              }
-            }
-          }
-        }
+                  oneOf: [{ type: 'string' }, { type: 'integer' }, { type: 'null' }],
+                },
+              },
+            },
+          },
+        },
       },
       responses: {
         '200': {
@@ -55,7 +55,7 @@ export abstract class JSONRPC extends Operation {
                 additionalProperties: false,
                 properties: {
                   jsonrpc: {
-                    enum: ['2.0']
+                    enum: ['2.0'],
                   },
                   result: {},
                   error: {
@@ -64,24 +64,24 @@ export abstract class JSONRPC extends Operation {
                     additionalProperties: false,
                     properties: {
                       code: {
-                        type: 'integer'
+                        type: 'integer',
                       },
                       message: {
                         type: 'string',
-                        minLength: 1
+                        minLength: 1,
                       },
-                      data: {}
-                    }
+                      data: {},
+                    },
                   },
                   id: {
-                    oneOf: [{ type: 'string' }, { type: 'integer' }, { type: 'null' }]
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+                    oneOf: [{ type: 'string' }, { type: 'integer' }, { type: 'null' }],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     };
   }
   handler(req: APIRequest, res: APIResponse, next: NextFunction): any {
@@ -95,7 +95,7 @@ export abstract class JSONRPC extends Operation {
             res.json({
               jsonrpc: '2.0',
               result: out,
-              id: req.body.id
+              id: req.body.id,
             });
           } else {
             res.end();
@@ -113,18 +113,18 @@ export abstract class JSONRPC extends Operation {
         error: {
           code: err.code,
           message: err.message,
-          data: err.data
+          data: err.data,
         },
-        id: req.body.id || null
+        id: req.body.id || null,
       });
     } else {
       res.json({
         jsonrpc: '2.0',
         error: {
           code: -32000,
-          message: 'server error'
+          message: 'server error',
         },
-        id: req.body.id || null
+        id: req.body.id || null,
       });
     }
   }

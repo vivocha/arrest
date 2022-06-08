@@ -1,6 +1,6 @@
 import { defineAbility } from '@casl/ability';
-import * as chai from 'chai';
-import { checkAbility, rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/util';
+import chai from 'chai';
+import { checkAbility, rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/util.js';
 import {
   complexSpec,
   jsonSchema,
@@ -19,8 +19,8 @@ import {
   specWithUnreferencedSchemasButWrongRef,
   specWithWrongComplexRef,
   specWithWrongParamRef,
-  wrongSpec
-} from './specs';
+  wrongSpec,
+} from './specs.js';
 
 const should = chai.should();
 
@@ -4738,22 +4738,22 @@ describe('util', function () {
     });
   });
 
-  describe('checkAbility', function() {
-    it('should return undefined if data does not fulfill the conditions', function() {
+  describe('checkAbility', function () {
+    it('should return undefined if data does not fulfill the conditions', function () {
       const ability = defineAbility((can) => {
-        can('doSomething', 'Resource', { x: { $gt: 2 }});
+        can('doSomething', 'Resource', { x: { $gt: 2 } });
       });
       const ok = checkAbility(ability, 'Resource', 'doSomething', { x: 3 }, false, true);
       const nok = checkAbility(ability, 'Resource', 'doSomething', { x: 2 }, false, true);
-      ok.should.deep.equal({x: 3});
+      ok.should.deep.equal({ x: 3 });
       should.not.exist(nok);
-    })
-    it('should filter array items that do not fulfill the conditions', function() {
+    });
+    it('should filter array items that do not fulfill the conditions', function () {
       const ability = defineAbility((can) => {
-        can('doSomething', 'Resource', { x: { $gt: 2 }});
+        can('doSomething', 'Resource', { x: { $gt: 2 } });
       });
       const out = checkAbility(ability, 'Resource', 'doSomething', [{ x: 1 }, { x: 4 }, { x: 3 }, { x: 2 }], false, true);
       out.should.deep.equal([{ x: 4 }, { x: 3 }]);
-    })
+    });
   });
 });

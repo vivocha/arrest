@@ -1,11 +1,11 @@
 import { Ability } from '@casl/ability';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { Collection, CollectionOptions, ObjectId } from 'mongodb';
-import { API } from '../../api';
-import { Job, PipelineOperation } from '../../pipeline';
-import { APIRequest, APIResponse, Method } from '../../types';
-import { MongoResource } from '../resource';
-import { addConstraint, toMongoQuery, unescapeMongoObject } from '../util';
+import { API } from '../../api.js';
+import { Job, PipelineOperation } from '../../pipeline.js';
+import { APIRequest, APIResponse, Method } from '../../types.js';
+import { MongoResource } from '../resource.js';
+import { addConstraint, toMongoQuery, unescapeMongoObject } from '../util.js';
 
 export interface MongoJob extends Job {
   coll: Collection;

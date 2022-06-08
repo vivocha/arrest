@@ -1,16 +1,16 @@
 import { Ability, defineAbility } from '@casl/ability';
-import * as chai from 'chai';
-import * as chaiAsPromised from 'chai-as-promised';
-import * as spies from 'chai-spies';
-import * as express from 'express';
-import * as _ from 'lodash';
+import chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+import spies from 'chai-spies';
+import express from 'express';
+import _ from 'lodash';
 import { CollectionOptions, MongoClient, ReadPreference } from 'mongodb';
 import { DokiConfiguration, Mongodoki } from 'mongodoki';
 import { OpenAPIV3 } from 'openapi-police';
-import * as supertest from 'supertest';
-import { API } from '../../dist/api';
-import { CreateMongoOperation, MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation } from '../../dist/mongo/index';
-import { APIRequest, APIResponse, Method } from '../../dist/types';
+import supertest from 'supertest';
+import { API } from '../../dist/api.js';
+import { CreateMongoOperation, MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation } from '../../dist/mongo/index.js';
+import { APIRequest, APIResponse, Method } from '../../dist/types.js';
 
 const should = chai.should();
 chai.use(spies);

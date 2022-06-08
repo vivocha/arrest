@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "incremental": true,
-    "module": "commonjs",
+    "module": "es2020",
     "target": "es2020",
     "noImplicitAny": false,
     "sourceMap": true,
@@ -10,7 +10,9 @@
     "strictNullChecks": true,
     "allowJs": false,
     "experimentalDecorators": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node"
   },
   "include": ["src/**/*.ts"]
 }

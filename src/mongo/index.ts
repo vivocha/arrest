@@ -1,2 +1,2 @@
-export * from './operation';
-export * from './resource';
+export * from './operation/index.js';
+export * from './resource.js';

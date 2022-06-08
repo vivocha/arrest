@@ -1,11 +1,11 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { AggregateOptions } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
-import { Method } from '../../types';
-import { MongoResource } from '../resource';
-import rql from '../rql';
-import { addConstraint } from '../util';
-import { MongoJob, MongoOperation } from './base';
+import { Method } from '../../types.js';
+import { MongoResource } from '../resource.js';
+import rql from '../rql.js';
+import { addConstraint } from '../util.js';
+import { MongoJob, MongoOperation } from './base.js';
 
 export class QueryMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'query') {

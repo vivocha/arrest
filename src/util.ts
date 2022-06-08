@@ -1,10 +1,10 @@
 import { AnyMongoAbility, ForbiddenError, subject } from '@casl/ability';
-import * as dot from 'dot-prop';
-import * as _ from 'lodash';
+import { deleteProperty, getProperty, setProperty } from 'dot-prop';
+import _ from 'lodash';
 import { DateTime } from 'luxon';
 import { ObjectId } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
-import { API } from './api';
+import { API } from './api.js';
 
 /*
  * Rebasing patterns
@@ -81,23 +81,23 @@ function rebaseOASDefinition(fullSpec: any, schemaKey: string, schema: any, path
       // current recursive definition path chain
       const chain = [...definitionsPath, defKey];
       const newPath = `${path}.definitions.${defKey}`;
-      const definition = dot.get(fullSpec, newPath);
+      const definition = getProperty(fullSpec, newPath);
       fullSpec = rebaseOASDefinition(fullSpec, defKey, definition, newPath, chain);
       const newSchemaName = `${chain.join('_')}`;
       // move to components/schemas and get a new ref related to the new path
       fullSpec = moveDefinition(fullSpec, newSchemaName, newPath);
     }
-    dot.delete(fullSpec, `${path}.definitions`);
+    deleteProperty(fullSpec, `${path}.definitions`);
   }
   return fullSpec;
 }
 
 function moveDefinition(spec: any, newSchemaKey: string, path: string): any {
   // copy the definition to components.schemas root
-  const defSchema = dot.get(spec, path);
-  dot.set(spec, `components.schemas.${newSchemaKey}`, defSchema);
+  const defSchema = getProperty(spec, path);
+  setProperty(spec, `components.schemas.${newSchemaKey}`, defSchema);
   // delete the definition at current path
-  dot.delete(spec, path);
+  deleteProperty(spec, path);
   const newRef = `#/components/schemas/${newSchemaKey}`;
   return updateRefs(spec, `#/${path.split('.').join('/')}`, newRef);
 }
@@ -169,7 +169,7 @@ export function removeUnusedSchemas(spec: OpenAPIV3.Document): OpenAPIV3.Documen
         if (key === '$ref') {
           const refPath = obj[key].split('/');
           // check if ref path is relative to the current spec AND if it points to an existing schema element
-          if (obj[key].startsWith('#/components/schemas') && !dot.get(spec as any, refPath.slice(1).join('.'))) {
+          if (obj[key].startsWith('#/components/schemas') && !getProperty(spec as any, refPath.slice(1).join('.'))) {
             throw new Error(`Referenced path "${obj[key]}" doesn't exist in spec.`);
           }
           let type: string;
@@ -195,7 +195,7 @@ export function removeUnusedSchemas(spec: OpenAPIV3.Document): OpenAPIV3.Documen
           }
           if (['schemas', 'parameters', 'responses'].includes(type)) {
             // check if the reference points to an existing path in spec
-            if (!dot.get(spec as any, refPath.slice(1).join('.'))) {
+            if (!getProperty(spec as any, refPath.slice(1).join('.'))) {
               throw new Error(`Referenced path "${obj[key]}" doesn't exist in spec.`);
             } else {
               occurrences[type][schemaName]['count'] += 1;
@@ -245,7 +245,7 @@ function deleteUnreferencedSchemas(occurrences: any, spec: OpenAPIV3.Document): 
       const referencedByPath = `components.schemas.${referencedByKey}`;
       if (referencedBy[referencedByKey].count - 1 === 0) {
         // current schema was the last reference in the other schema referencing it, then remove also that schema
-        dot.delete(spec as any, referencedByPath);
+        deleteProperty(spec as any, referencedByPath);
       } else {
         // or, update the referencing schema removing the current schema:
         // remove the entry from the referencedBy array in occurrences table
@@ -255,11 +255,11 @@ function deleteUnreferencedSchemas(occurrences: any, spec: OpenAPIV3.Document): 
           count: referencedBy[referencedByKey].count - 1,
           referencedBy: referencedBy[referencedByKey].referencedBy,
         };
-        dot.set(occurrences['schemas'] as any, referencedByKey, updatedOccurrence);
+        setProperty(occurrences['schemas'] as any, referencedByKey, updatedOccurrence);
       }
     }
     // finally, delete the current schema with count === 0
-    dot.delete(spec as any, pathToDelete);
+    deleteProperty(spec as any, pathToDelete);
   }
   return spec;
 }
@@ -267,7 +267,7 @@ function deleteUnreferencedSchemas(occurrences: any, spec: OpenAPIV3.Document): 
 function deleteUnreferencedParameters(occurrences: any, spec: OpenAPIV3.Document): OpenAPIV3.Document {
   const toDelete = Object.keys(_.pickBy(occurrences['parameters'], (value) => value.count === 0));
   for (const paramName of toDelete) {
-    dot.delete(spec as any, `components.parameters.${paramName}`);
+    deleteProperty(spec as any, `components.parameters.${paramName}`);
   }
   return spec;
 }
@@ -382,7 +382,7 @@ export function toCSV(data: any[], options: CSVOptions): string {
       const l: string[] = [];
       // TODO optimize with a transversal map
       for (let k in fieldMap) {
-        const value: any = dot.get(item, k);
+        const value: any = getProperty(item, k);
         if (options.decimal && typeof value === 'number') {
           l.push(value.toString().replace('.', options.decimal));
         } else if (value instanceof Date) {

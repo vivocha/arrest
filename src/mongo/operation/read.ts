@@ -1,10 +1,10 @@
 import { FindOptions } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
-import { API } from '../../api';
-import { Method } from '../../types';
-import { MongoResource } from '../resource';
-import { addConstraint } from '../util';
-import { MongoJob, MongoOperation } from './base';
+import { API } from '../../api.js';
+import { Method } from '../../types.js';
+import { MongoResource } from '../resource.js';
+import { addConstraint } from '../util.js';
+import { MongoJob, MongoOperation } from './base.js';
 
 export class ReadMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'read') {

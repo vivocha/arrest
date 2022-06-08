@@ -1,12 +1,12 @@
 import { defineAbility } from '@casl/ability';
-import * as chai from 'chai';
-import * as spies from 'chai-spies';
-import * as express from 'express';
-import * as supertest from 'supertest';
-import { API } from '../../dist/api';
-import { Job, PipelineOperation, SimplePipelineOperation } from '../../dist/pipeline';
-import { Resource } from '../../dist/resource';
-import { APIRequest, APIResponse } from '../../dist/types';
+import chai from 'chai';
+import spies from 'chai-spies';
+import express from 'express';
+import supertest from 'supertest';
+import { API } from '../../dist/api.js';
+import { Job, PipelineOperation, SimplePipelineOperation } from '../../dist/pipeline.js';
+import { Resource } from '../../dist/resource.js';
+import { APIRequest, APIResponse } from '../../dist/types.js';
 
 chai.use(spies);
 

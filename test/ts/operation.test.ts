@@ -1,13 +1,13 @@
 import { defineAbility } from '@casl/ability';
 import { Scopes } from '@vivocha/scopes';
-import * as chai from 'chai';
-import * as spies from 'chai-spies';
-import * as express from 'express';
-import * as supertest from 'supertest';
-import { API } from '../../dist/api';
-import { Operation, SimpleOperation } from '../../dist/operation';
-import { Resource } from '../../dist/resource';
-import { APIRequest, APIResponse } from '../../dist/types';
+import chai from 'chai';
+import spies from 'chai-spies';
+import express from 'express';
+import supertest from 'supertest';
+import { API } from '../../dist/api.js';
+import { Operation, SimpleOperation } from '../../dist/operation.js';
+import { Resource } from '../../dist/resource.js';
+import { APIRequest, APIResponse } from '../../dist/types.js';
 
 const should = chai.should();
 chai.use(spies);

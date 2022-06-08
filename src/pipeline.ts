@@ -1,7 +1,7 @@
-import { Operation } from './operation';
-import { Resource } from './resource';
-import { APIRequest, APIResponse, Method } from './types';
-import { CSVOptions, toCSV } from './util';
+import { Operation } from './operation.js';
+import { Resource } from './resource.js';
+import { APIRequest, APIResponse, Method } from './types.js';
+import { CSVOptions, toCSV } from './util.js';
 
 export interface Job {
   req: APIRequest;

@@ -1,17 +1,17 @@
 import { Scopes } from '@vivocha/scopes';
-import * as chai from 'chai';
-import * as chaiAsPromised from 'chai-as-promised';
-import * as spies from 'chai-spies';
-import * as express from 'express';
+import chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+import spies from 'chai-spies';
+import express from 'express';
 import { OpenAPIV3, ParserError, RetrieverError, SchemaObject, ValidationError } from 'openapi-police';
-import * as pem from 'pem';
-import * as supertest from 'supertest';
-import { API } from '../../dist/api';
-import { DEFAULT_DOCUMENT } from '../../dist/defaults';
-import { RESTError } from '../../dist/error';
-import { Operation } from '../../dist/operation';
-import { Resource } from '../../dist/resource';
-import { simpleAPI, simpleAPI2, simpleAPI3, simpleAPI4, simpleAPI5, simpleAPI6, simpleAPI7 } from './dummy-api';
+import pem from 'pem';
+import supertest from 'supertest';
+import { API } from '../../dist/api.js';
+import { DEFAULT_DOCUMENT } from '../../dist/defaults.js';
+import { RESTError } from '../../dist/error.js';
+import { Operation } from '../../dist/operation.js';
+import { Resource } from '../../dist/resource.js';
+import { simpleAPI, simpleAPI2, simpleAPI3, simpleAPI4, simpleAPI5, simpleAPI6, simpleAPI7 } from './dummy-api.js';
 
 const should = chai.should();
 chai.use(spies);
@@ -21,19 +21,19 @@ describe('API', function () {
   describe('constructor', function () {
     it('should fail to create an API instance if an invalid version is specified', function () {
       (function () {
-        new API(({ version: true } as any) as OpenAPIV3.InfoObject);
+        new API({ version: true } as any as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
       (function () {
-        new API(({ version: 'a' } as any) as OpenAPIV3.InfoObject);
+        new API({ version: 'a' } as any as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
       (function () {
-        new API(({ version: 1 } as any) as OpenAPIV3.InfoObject);
+        new API({ version: 1 } as any as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
       (function () {
-        new API(({ version: '1' } as any) as OpenAPIV3.InfoObject);
+        new API({ version: '1' } as any as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
       (function () {
-        new API(({ version: '1.0' } as any) as OpenAPIV3.InfoObject);
+        new API({ version: '1.0' } as any as OpenAPIV3.InfoObject);
       }.should.throw(Error, 'Invalid version'));
       (function () {
         new API();
@@ -305,7 +305,7 @@ describe('API', function () {
 
     it('should fail if no ports are specified', function () {
       const api = new API({ version: '3.2.1', title: 'test' });
-      return api.listen((undefined as any) as number).then(
+      return api.listen(undefined as any as number).then(
         () => {
           throw new Error('should not get here');
         },

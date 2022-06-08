@@ -1,16 +1,16 @@
 import { Ability, AnyMongoAbility } from '@casl/ability';
 import { permittedFieldsOf } from '@casl/ability/extra';
 import { Scopes } from '@vivocha/scopes';
-import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser';
+import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
 import { Eredita } from 'eredita';
 import { NextFunction, RequestHandler, Router } from 'express';
-import * as _ from 'lodash';
-import { OpenAPIV3, ParameterObject, StaticSchemaObject, ValidationError, Schema } from 'openapi-police';
-import { API } from './api';
-import { Resource } from './resource';
-import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
-import { checkAbility } from './util';
-import cookieParser = require('cookie-parser');
+import _ from 'lodash';
+import { OpenAPIV3, ParameterObject, Schema, StaticSchemaObject, ValidationError } from 'openapi-police';
+import { API } from './api.js';
+import { Resource } from './resource.js';
+import { APIRequest, APIRequestHandler, APIResponse, Method } from './types.js';
+import { checkAbility } from './util.js';
 
 const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
 
@@ -94,10 +94,10 @@ export abstract class Operation {
     };
   }
   protected createJSONParser(): RequestHandler {
-    return jsonParser() as RequestHandler;
+    return bodyParser.json() as RequestHandler;
   }
   protected createUrlencodedParser(): RequestHandler {
-    return urlencodedParser({ extended: true }) as RequestHandler;
+    return bodyParser.urlencoded({ extended: true }) as RequestHandler;
   }
   protected createBodyValidators(): undefined | APIRequestHandler[] {
     if (this.info.requestBody) {

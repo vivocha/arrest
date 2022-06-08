@@ -2,9 +2,9 @@ import camelcase from 'camelcase';
 import decamelize from 'decamelize';
 import { NextFunction, Router, RouterOptions } from 'express';
 import { OpenAPIV3 } from 'openapi-police';
-import { API } from './api';
-import { Operation, SimpleOperation } from './operation';
-import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
+import { API } from './api.js';
+import { Operation, SimpleOperation } from './operation.js';
+import { APIRequest, APIRequestHandler, APIResponse, Method } from './types.js';
 
 export interface OperationFactory {
   new (resource: Resource, path: string, method: Method): Operation;

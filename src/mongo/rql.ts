@@ -1,7 +1,6 @@
 import { ObjectId } from 'bson';
-import { addConstraint } from './util';
-
-const rqlParser = require('rql/parser').parseQuery;
+import { parseQuery } from 'rql/parser.js';
+import { addConstraint } from './util.js';
 
 export default function (query: any, opts: any, data: string, objectId?: string) {
   return (function _rqlToMongo(query: any, opts: any, data: any) {
@@ -103,5 +102,5 @@ export default function (query: any, opts: any, data: string, objectId?: string)
         break;
     }
     return query;
-  })(query, opts, rqlParser(data));
+  })(query, opts, parseQuery(data));
 }
