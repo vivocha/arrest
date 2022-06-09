@@ -3,8 +3,13 @@
   "version": "0.0.0-development",
   "description": "OpenAPI v3 compliant REST framework for Node.js, with support for MongoDB and JSON-Schema",
   "type": "module",
-  "main": "dist/index.js",
-  "typings": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./dist/*.js": "./dist/*.js",
+    "./dist/mongo/*.js": "./dist/mongo/*.js",
+    "./dist/mongo/operation/*.js": "./dist/mongo/operation/*.js"
+  },
+  "types": "./dist/index.d.ts",
   "directories": {
     "test": "test"
   },
@@ -99,7 +104,7 @@
     "mongodoki": "^5.0.0",
     "pem": "^1.14.6",
     "rimraf": "^3.0.2",
-    "semantic-release": "^19.0.2",
+    "semantic-release": "^19.0.3",
     "supertest": "^6.2.3",
     "typescript": "^4.7.3"
   },
@@ -115,12 +120,12 @@
     "dot-prop": "^7.2.0",
     "eredita": "^1.2.1",
     "express": "^4.18.1",
-    "jsonref": "^8.0.4",
+    "jsonref": "^8.0.8",
     "lodash": "^4.17.21",
     "luxon": "^2.4.0",
     "mongodb": "^4.7.0",
     "needle": "^3.1.0",
-    "openapi-police": "^4.0.0",
+    "openapi-police": "^4.0.2",
     "rql": "^0.3.3",
     "semver": "^7.3.7"
   },
