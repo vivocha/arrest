@@ -186,11 +186,11 @@ XXX,YYY`
 
     it('should return the requested top level fields as csv, with empty fields', function () {
       csv_options = {
-        fields: ['a', 'e', 'b'],
+        fields: ['a', 'e', 'b', 'c', 'd'],
       };
       csv_data = [
         { a: 'AAA', b: 'BBB', c: 1, d: true },
-        { a: 'XXX', b: 'YYY', c: 1, d: false },
+        { a: 'XXX', b: 'YYY', c: 0, d: false },
       ];
       return request
         .get('/tests')
@@ -198,8 +198,8 @@ XXX,YYY`
         .expect('Content-Type', /text\/csv/)
         .then(({ text: data }) => {
           data.should.equal(
-            `AAA,,BBB
-XXX,,YYY`
+            `AAA,,BBB,1,true
+XXX,,YYY,0,false`
           );
         });
     });
