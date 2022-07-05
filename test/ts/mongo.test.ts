@@ -615,7 +615,7 @@ describe('mongo', function () {
           .expect('Content-Type', /text\/csv/)
           .expect('Results-Matching', '4')
           .then(({ text: data }) => {
-            data.should.equal('test2,11,\ntest1,13,true\ntest4,20,\ntest3,30,');
+            data.should.equal('test2,11,false\ntest1,13,true\ntest4,20,\ntest3,30,false');
           });
       });
 
@@ -626,7 +626,7 @@ describe('mongo', function () {
           .expect('Content-Type', /text\/csv/)
           .expect('Results-Matching', '4')
           .then(({ text: data }) => {
-            data.should.equal('myid,y,z\ntest2,11,\ntest1,13,true\ntest4,20,\ntest3,30,');
+            data.should.equal('myid,y,z\ntest2,11,false\ntest1,13,true\ntest4,20,\ntest3,30,false');
           });
       });
 
@@ -637,7 +637,7 @@ describe('mongo', function () {
           .expect('Content-Type', /text\/csv/)
           .expect('Results-Matching', '4')
           .then(({ text: data }) => {
-            data.should.equal('a,b,c\ntest2,11,\ntest1,13,true\ntest4,20,\ntest3,30,');
+            data.should.equal('a,b,c\ntest2,11,false\ntest1,13,true\ntest4,20,\ntest3,30,false');
           });
       });
 
