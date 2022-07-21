@@ -394,7 +394,7 @@ export function toCSV(data: any[], options: CSVOptions): string {
               : value.toISOString()
           );
         } else {
-          l.push((value || '').toString());
+          l.push((typeof value !== 'undefined' ? value : '').toString());
         }
       }
       out.push(l);
