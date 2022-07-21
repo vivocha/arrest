@@ -96,6 +96,9 @@ export class QueryMongoOperation extends MongoOperation {
     if (typeof job.req.query.limit !== 'undefined') {
       job.opts.limit = job.req.query.limit;
     }
+    if ((this.resource.info.queryLimit || 0) > 0 && !(job.opts.limit < this.resource.info.queryLimit!)) {
+      job.opts.limit = this.resource.info.queryLimit;
+    }
     if (typeof job.req.query.skip !== 'undefined') {
       job.opts.skip = job.req.query.skip;
     }

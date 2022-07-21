@@ -200,7 +200,7 @@ describe('mongo', function () {
     before(async function () {
       db = await MongoClient.connect('mongodb://localhost:27017/local', { useUnifiedTopology: true }).then((c) => c.db());
       r1 = new MongoResource(db, { name: 'Test', collection: collectionName });
-      r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false });
+      r2 = new MongoResource(db, { name: 'Other', collection: collectionName, id: 'myid', idIsObjectId: false, queryLimit: 5 });
       r3 = new MongoResource(db, { name: 'Fake', collection: collectionName }, { '/1': { get: FakeOp1 }, '/2': { get: FakeOp2 } });
       r4 = new MongoResource(db, { name: 'Oid', collection: collectionName + '_oid', id: 'myoid', idIsObjectId: true });
       r5 = new MongoResource(db, { name: 'Aggregation', collection: collectionName }, { '/': { get: Aggregation } });
@@ -329,6 +329,19 @@ describe('mongo', function () {
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 1 });
+          });
+      });
+
+      it('should create a record with a date preserving its type', function () {
+        return request
+          .post('/dates')
+          .send({ myid: 'ts', ts: new Date() })
+          .expect(201)
+          .expect('Content-Type', /json/)
+          .then(async ({ body: data }) => {
+            const ref = await coll.findOne({}, { sort: { _id: -1 } });
+            await coll.remove({ myid: 'ts' });
+            ref.ts.should.be.a('Date');
           });
       });
     });
@@ -682,6 +695,39 @@ describe('mongo', function () {
           .expect('Results-Matching', '7')
           .then(({ body: data }) => {
             data.length.should.equal(7);
+          });
+      });
+
+      it('should return all objects in the collection (6), up to hardcoded limit', function () {
+        return request
+          .get('/others')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '7')
+          .then(({ body: data }) => {
+            data.length.should.equal(5);
+          });
+      });
+
+      it('should return all objects in the collection (7), up to the lower of requested and hardcoded limits', function () {
+        return request
+          .get('/others?limit=6')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '7')
+          .then(({ body: data }) => {
+            data.length.should.equal(5);
+          });
+      });
+
+      it('should return all objects in the collection (8), up to the lower of requested and hardcoded limits', function () {
+        return request
+          .get('/others?limit=4')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '7')
+          .then(({ body: data }) => {
+            data.length.should.equal(4);
           });
       });
 
