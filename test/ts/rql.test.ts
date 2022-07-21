@@ -12,6 +12,11 @@ describe('rql', function () {
     query.x.should.deep.equal({ $in: ['a', 'b', 'c'] });
   });
 
+  it('should parse "out"', function () {
+    let query = rql({}, {}, 'out(x,a,b,c)');
+    query.x.should.deep.equal({ $nin: ['a', 'b', 'c'] });
+  });
+
   it('should parse "contains"', function () {
     let query = rql({}, {}, 'contains(x,aaa)');
     query.x.should.equal('aaa');
@@ -44,6 +49,11 @@ describe('rql', function () {
     query4.should.deep.equal({ $or: [{ x: 'b', y: 'c' }, { z: { $in: ['a', 'b'] } }] });
     let query5 = rql({}, {}, 'or(or(eq(x,b)),aggregate())');
     query5.should.deep.equal({ x: 'b' });
+  });
+
+  it('should parse "not"', function () {
+    let query = rql({}, {}, 'not(eq(x,b))');
+    query.should.deep.equal({ $not: { x: 'b' } });
   });
 
   it('should parse "eq"', function () {

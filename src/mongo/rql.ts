@@ -6,8 +6,10 @@ export default function (query: any, opts: any, data: string, objectId?: string)
   return (function _rqlToMongo(query: any, opts: any, data: any) {
     switch (data.name) {
       case 'in':
+      case 'out':
         const key = data.args.shift();
-        query = addConstraint(query, { [key]: { $in: data.args.map((i) => (key === objectId ? new ObjectId(i) : i)) } });
+        const op = data.name === 'in' ? '$in' : '$nin';
+        query = addConstraint(query, { [key]: { [op]: data.args.map((i) => (key === objectId ? new ObjectId(i) : i)) } });
         break;
       case 'contains':
         query = addConstraint(query, { [data.args[0]]: data.args.length > 2 ? data.args.slice(1) : data.args[1] });
@@ -45,6 +47,9 @@ export default function (query: any, opts: any, data: string, objectId?: string)
           }
           query = addConstraint(query, constraint);
         }
+        break;
+      case 'not':
+        query = addConstraint(query, { $not: _rqlToMongo({}, opts, data.args[0]) });
         break;
       case 'eq':
         query = addConstraint(query, { [data.args[0]]: data.args[0] === objectId ? new ObjectId(data.args[1]) : data.args[1] });
