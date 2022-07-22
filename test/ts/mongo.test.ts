@@ -331,19 +331,6 @@ describe('mongo', function () {
             data.should.deep.equal({ myid: 'bbb', 'a.b.c.d': 1 });
           });
       });
-
-      it('should create a record with a date preserving its type', function () {
-        return request
-          .post('/dates')
-          .send({ myid: 'ts', ts: new Date() })
-          .expect(201)
-          .expect('Content-Type', /json/)
-          .then(async ({ body: data }) => {
-            const ref = await coll.findOne({}, { sort: { _id: -1 } });
-            await coll.remove({ myid: 'ts' });
-            ref.ts.should.be.a('Date');
-          });
-      });
     });
 
     describe('collection', function () {
