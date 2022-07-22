@@ -4,9 +4,8 @@ import { Scopes } from '@vivocha/scopes';
 import { json as jsonParser, urlencoded as urlencodedParser } from 'body-parser';
 import { Eredita } from 'eredita';
 import { NextFunction, RequestHandler, Router } from 'express';
-import * as jp from 'jsonpolice';
 import * as _ from 'lodash';
-import { OpenAPIV3, ParameterObject, StaticSchemaObject } from 'openapi-police';
+import { OpenAPIV3, ParameterObject, StaticSchemaObject, ValidationError, Schema } from 'openapi-police';
 import { API } from './api';
 import { Resource } from './resource';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types';
@@ -75,7 +74,7 @@ export abstract class Operation {
         req.logger.debug(`validator ${key}.${parameter.name}, required ${required}, value ${req[key][parameter.name]}`);
         if (typeof req[key][parameter.name] === 'undefined') {
           if (required === true) {
-            throw new jp.ValidationError(`${key}.${parameter.name}`, (schema as any).scope, 'required');
+            throw new ValidationError(`${key}.${parameter.name}`, (schema as any).scope, 'required');
           }
         } else {
           req[key][parameter.name] = await schema.validate(req[key][parameter.name], { setDefault: true }, `${key}.${parameter.name}`);
@@ -127,7 +126,7 @@ export abstract class Operation {
     return async (req: APIRequest, res: APIResponse, next: NextFunction) => {
       if (_.isEqual(req.body, {}) && !parseInt('' + req.header('content-length'))) {
         if (required === true) {
-          next(new jp.ValidationError('body', jp.Schema.scope(schema), 'required'));
+          next(new ValidationError('body', Schema.scope(schema), 'required'));
         } else {
           next();
         }
