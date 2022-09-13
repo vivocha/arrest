@@ -1,5 +1,6 @@
 import { AnyMongoAbility, ForbiddenError, subject } from '@casl/ability';
 import { deleteProperty, getProperty, setProperty } from 'dot-prop';
+import { dot } from 'eredita';
 import _ from 'lodash';
 import { DateTime } from 'luxon';
 import { ObjectId } from 'mongodb';
@@ -338,6 +339,7 @@ export function checkAbility(ability: AnyMongoAbility, resource: string, action:
 export interface CSVOptions {
   fields: string[] | { [key: string]: string };
   unwind?: string;
+  forceUnwind?: boolean;
   separator?: string;
   decimal?: string;
   quotes?: boolean;
@@ -367,6 +369,10 @@ export function toCSV(data: any[], options: CSVOptions): string {
   data.forEach((originalItem) => {
     const unwound: any[] = [];
     if (options.unwind) {
+      if (options.unwind[0] === '!') {
+        options.forceUnwind = true;
+        options.unwind = options.unwind.substring(1);
+      }
       if (originalItem[options.unwind]?.length) {
         originalItem[options.unwind].forEach((i) => {
           unwound.push({
@@ -374,6 +380,9 @@ export function toCSV(data: any[], options: CSVOptions): string {
             [options.unwind!]: i,
           });
         });
+      } else if (options.forceUnwind) {
+        originalItem[options.unwind] = undefined;
+        unwound.push(originalItem);
       }
     } else {
       unwound.push(originalItem);
@@ -382,7 +391,7 @@ export function toCSV(data: any[], options: CSVOptions): string {
       const l: string[] = [];
       // TODO optimize with a transversal map
       for (let k in fieldMap) {
-        const value: any = getProperty(item, k);
+        const value: any = dot(item, k);
         if (options.decimal && typeof value === 'number') {
           l.push(value.toString().replace('.', options.decimal));
         } else if (value instanceof Date) {

@@ -383,7 +383,7 @@ XXX,YYY,qqq`);
         });
     });
 
-    it('should ship an object if the unwind field is not an array with at least an element (1)', function () {
+    it('should skip an object if the unwind field is not an array with at least an element (1)', function () {
       csv_options = {
         fields: ['a', 'b', 'c'],
         header: true,
@@ -404,7 +404,7 @@ XXX,YYY,qqq`);
         });
     });
 
-    it('should ship an object if the unwind field is not an array with at least an element (2)', function () {
+    it('should skip an object if the unwind field is not an array with at least an element (2)', function () {
       csv_options = {
         fields: ['a', 'b', 'c'],
         header: true,
@@ -425,7 +425,7 @@ XXX,YYY,qqq`);
         });
     });
 
-    it('should ship an object if the unwind field is not an array with at least an element (3)', function () {
+    it('should skip an object if the unwind field is not an array with at least an element (3)', function () {
       csv_options = {
         fields: ['a', 'b', 'c'],
         header: true,
@@ -443,6 +443,68 @@ XXX,YYY,qqq`);
           data.should.equal(`a,b,c
 XXX,YYY,ppp
 XXX,YYY,qqq`);
+        });
+    });
+
+    it('should unwind an empty array, if forced', function () {
+      csv_options = {
+        fields: ['a', 'b', 'c'],
+        header: true,
+        unwind: '!c',
+      };
+      csv_data = [
+        { a: 'AAA', b: 'BBB' },
+        { a: 'XXX', b: 'YYY', c: ['ppp', 'qqq'] },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(`a,b,c
+AAA,BBB,
+XXX,YYY,ppp
+XXX,YYY,qqq`);
+        });
+    });
+
+    it('should return the requested nested fields as csv (1)', function () {
+      csv_options = {
+        fields: ['a', 'b', 'c.d'],
+      };
+      csv_data = [
+        { a: 'AAA', b: 'BBB', c: { d: 1 } },
+        { a: 'XXX', b: 'YYY', c: { d: 2 } },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(
+            `AAA,BBB,1
+XXX,YYY,2`
+          );
+        });
+    });
+
+    it('should return the requested nested fields as csv (2)', function () {
+      csv_options = {
+        fields: ['a', 'b', 'c.0.d'],
+      };
+      csv_data = [
+        { a: 'AAA', b: 'BBB', c: [{ d: 1 }, { d: 2 }] },
+        { a: 'XXX', b: 'YYY', c: [{ d: 3 }, { d: 4 }] },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(
+            `AAA,BBB,1
+XXX,YYY,3`
+          );
         });
     });
 
