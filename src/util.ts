@@ -403,7 +403,7 @@ export function toCSV(data: any[], options: CSVOptions): string {
               : value.toISOString()
           );
         } else {
-          l.push((typeof value !== 'undefined' ? value : '').toString());
+          l.push((typeof value !== 'undefined' && value !== null ? value : '').toString());
         }
       }
       out.push(l);

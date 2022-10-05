@@ -204,6 +204,26 @@ XXX,,YYY,0,false`
         });
     });
 
+    it('should return the requested top level fields as csv, with empty fields also for null values', function () {
+      csv_options = {
+        fields: ['a', 'e', 'b', 'c', 'd'],
+      };
+      csv_data = [
+        { a: 'AAA', b: 'BBB', c: 1, d: true, e: null },
+        { a: 'XXX', b: 'YYY', c: 0, d: false, e: null },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /text\/csv/)
+        .then(({ text: data }) => {
+          data.should.equal(
+            `AAA,,BBB,1,true
+XXX,,YYY,0,false`
+          );
+        });
+    });
+
     it('should return the requested top level fields as csv, with quoted fields', function () {
       csv_options = {
         fields: ['a', 'b', 'c'],
