@@ -281,7 +281,7 @@ export function checkAbility(ability: AnyMongoAbility, resource: string, action:
     const fieldsCache = new Map<string, boolean>();
     function innerCheckAbility(data: any, path?: string[]): any {
       let foundOne = false;
-      if (typeof data === 'object' && !ObjectId.isValid(data) && !(data instanceof Date)) {
+      if (typeof data === 'object' && data !== null && !ObjectId.isValid(data) && !(data instanceof Date)) {
         if (Array.isArray(data)) {
           data = data.filter((i) => {
             try {
