@@ -612,6 +612,7 @@ describe('Operation', function () {
               in: 'query',
               schema: {
                 type: 'number',
+                default: 10,
               },
             },
             {
@@ -644,7 +645,7 @@ describe('Operation', function () {
         server.close();
       });
 
-      it('should fail if a required query parameter is missing', function () {
+      it('should fail if a required query parameter is missing and no default is defined', function () {
         return request
           .get('/tests/')
           .expect(400)
@@ -707,6 +708,18 @@ describe('Operation', function () {
             data.query.p2.should.equal(5);
             data.query.p3.should.deep.equal([1, 2, 3]);
             spy.should.have.been.called.once;
+          });
+      });
+
+      it('should use the default values if a query parameter is missing', function () {
+        return request
+          .get('/tests/?p1=true')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.query.p1.should.equal(true);
+            data.query.p2.should.equal(10);
+            spy.should.have.been.called.twice;
           });
       });
     });

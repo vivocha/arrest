@@ -67,7 +67,6 @@ export const DEFAULT_DOCUMENT: OpenAPIV3.Document = {
         description: 'Maximum number of items to return',
         schema: {
           type: 'integer',
-          default: 20,
           minimum: 1,
           maximum: 100,
         },
@@ -78,7 +77,6 @@ export const DEFAULT_DOCUMENT: OpenAPIV3.Document = {
         description: 'Skip the specified number of items',
         schema: {
           type: 'integer',
-          default: 0,
           minimum: 0,
         },
       },

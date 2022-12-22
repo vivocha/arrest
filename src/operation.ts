@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import { Eredita } from 'eredita';
 import { NextFunction, RequestHandler, Router } from 'express';
 import _ from 'lodash';
-import { OpenAPIV3, ParameterObject, Schema, StaticSchemaObject, ValidationError } from 'openapi-police';
+import { OpenAPIV3, ParameterObject, Schema, SchemaObject, StaticSchemaObject, ValidationError } from 'openapi-police';
 import { API } from './api.js';
 import { Resource } from './resource.js';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types.js';
@@ -68,15 +68,14 @@ export abstract class Operation {
   protected createParameterValidators(key: string, parameters: OpenAPIV3.ParameterObject[]): APIRequestHandler {
     let validators: ((req: APIRequest) => Promise<void>)[] = parameters.map((parameter: OpenAPIV3.ParameterObject) => {
       let required = parameter.required || false;
+      let hasDefault = typeof parameter.schema === 'object' && typeof (parameter.schema as any).default !== 'undefined';
       let schema: ParameterObject = new ParameterObject(parameter);
 
       return async function (req: APIRequest) {
         req.logger.debug(`validator ${key}.${parameter.name}, required ${required}, value ${req[key][parameter.name]}`);
-        if (typeof req[key][parameter.name] === 'undefined') {
-          if (required === true) {
-            throw new ValidationError(`${key}.${parameter.name}`, (schema as any).scope, 'required');
-          }
-        } else {
+        if (typeof req[key][parameter.name] === 'undefined' && required === true) {
+          throw new ValidationError(`${key}.${parameter.name}`, (schema as any).scope, 'required');
+        } else if (typeof req[key][parameter.name] !== 'undefined' || hasDefault) {
           req[key][parameter.name] = await schema.validate(req[key][parameter.name], { setDefault: true }, `${key}.${parameter.name}`);
         }
       };
