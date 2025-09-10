@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "0.0.0-development",
+  "version": "13.2.6",
   "description": "OpenAPI v3 compliant REST framework for Node.js, with support for MongoDB and JSON-Schema",
   "type": "module",
   "exports": {
