@@ -1,10 +1,9 @@
-import { ObjectId } from 'bson';
-import chai from 'chai';
-import spies from 'chai-spies';
+import { ObjectId } from 'mongodb';
+import * as chai from 'chai';
+import * as sinon from 'sinon';
 import rql from '../../dist/mongo/rql.js';
 
 chai.should();
-chai.use(spies);
 
 describe('rql', function () {
   it('should parse "in"', function () {

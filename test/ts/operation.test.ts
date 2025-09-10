@@ -1,8 +1,8 @@
 import { defineAbility } from '@casl/ability';
 import { Scopes } from '@vivocha/scopes';
-import chai from 'chai';
-import spies from 'chai-spies';
+import * as chai from 'chai';
 import express from 'express';
+import * as sinon from 'sinon';
 import supertest from 'supertest';
 import { API } from '../../dist/api.js';
 import { Operation, SimpleOperation } from '../../dist/operation.js';
@@ -10,7 +10,6 @@ import { Resource } from '../../dist/resource.js';
 import { APIRequest, APIResponse } from '../../dist/types.js';
 
 const should = chai.should();
-chai.use(spies);
 
 describe('Operation', function () {
   describe('constructor', function () {
@@ -122,7 +121,7 @@ describe('Operation', function () {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function (req, res) {
+      const spyFunc = sinon.spy(function (req, res) {
         res.send({ a: 5 });
       });
       class Op1 extends Operation {
@@ -130,7 +129,7 @@ describe('Operation', function () {
           super(resource, path, method, 'op1');
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -150,7 +149,7 @@ describe('Operation', function () {
             .then(({ body: data }) => {
               should.exist(data);
               data.a.should.equal(5);
-              spy.should.have.been.called.once;
+              spyFunc.calledOnce.should.be.true;
             });
         })
         .then(
@@ -218,7 +217,7 @@ describe('Operation', function () {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function (req, res) {
+      const spyFunc = sinon.spy(function (req, res) {
         res.send({ headers: req.headers });
       });
       class Op1 extends Operation {
@@ -251,7 +250,7 @@ describe('Operation', function () {
           ];
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -280,7 +279,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('required');
             data.info.path.should.equal('headers.x-test-p1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -294,7 +293,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('headers.x-test-p1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -309,7 +308,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('headers.x-test-p2');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -326,7 +325,7 @@ describe('Operation', function () {
             data.info.type.should.equal('items');
             data.info.errors[0].type.should.equal('type');
             data.info.errors[0].path.should.equal('headers.x-test-p3/0');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -342,7 +341,7 @@ describe('Operation', function () {
             data.headers['x-test-p1'].should.equal(true);
             data.headers['x-test-p2'].should.equal(5);
             data.headers['x-test-p3'].should.deep.equal([1, 2, 3]);
-            spy.should.have.been.called.once;
+            spyFunc.calledOnce.should.be.true;
           });
       });
     });
@@ -356,7 +355,7 @@ describe('Operation', function () {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function (req, res) {
+      const spyFunc = sinon.spy(function (req, res) {
         res.send({ cookies: req.cookies });
       });
       class Op1 extends Operation {
@@ -389,7 +388,7 @@ describe('Operation', function () {
           ];
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -418,7 +417,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('required');
             data.info.path.should.equal('cookies.test-p1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -432,7 +431,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('cookies.test-p1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -446,7 +445,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('cookies.test-p2');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -461,7 +460,7 @@ describe('Operation', function () {
             data.info.type.should.equal('items');
             data.info.errors[0].type.should.equal('type');
             data.info.errors[0].path.should.equal('cookies.test-p3/0');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -475,7 +474,7 @@ describe('Operation', function () {
             data.cookies['test-p1'].should.equal(true);
             data.cookies['test-p2'].should.equal(5);
             data.cookies['test-p3'].should.deep.equal([1, 2, 3]);
-            spy.should.have.been.called.once;
+            spyFunc.calledOnce.should.be.true;
           });
       });
     });
@@ -489,7 +488,7 @@ describe('Operation', function () {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function (req, res) {
+      const spyFunc = sinon.spy(function (req, res) {
         res.send({ params: req.params });
       });
       class Op1 extends Operation {
@@ -513,7 +512,7 @@ describe('Operation', function () {
           ];
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -540,7 +539,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('required');
             data.info.path.should.equal('params.p2');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -553,7 +552,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('params.p1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -566,7 +565,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('params.p2');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -578,7 +577,7 @@ describe('Operation', function () {
           .then(({ body: data }) => {
             data.params.p1.should.equal(true);
             data.params.p2.should.equal(5);
-            spy.should.have.been.called.once;
+            spyFunc.calledOnce.should.be.true;
           });
       });
     });
@@ -592,7 +591,7 @@ describe('Operation', function () {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function (req, res) {
+      const spyFunc = sinon.spy(function (req, res) {
         res.send({ query: req.query });
       });
       class Op1 extends Operation {
@@ -627,7 +626,7 @@ describe('Operation', function () {
           ];
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -654,7 +653,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('required');
             data.info.path.should.equal('query.p1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -667,7 +666,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('query.p1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -680,7 +679,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('query.p2');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -694,7 +693,7 @@ describe('Operation', function () {
             data.info.type.should.equal('items');
             data.info.errors[0].type.should.equal('type');
             data.info.errors[0].path.should.equal('query.p3/1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -707,7 +706,7 @@ describe('Operation', function () {
             data.query.p1.should.equal(true);
             data.query.p2.should.equal(5);
             data.query.p3.should.deep.equal([1, 2, 3]);
-            spy.should.have.been.called.once;
+            spyFunc.calledOnce.should.be.true;
           });
       });
 
@@ -719,7 +718,7 @@ describe('Operation', function () {
           .then(({ body: data }) => {
             data.query.p1.should.equal(true);
             data.query.p2.should.equal(10);
-            spy.should.have.been.called.twice;
+            spyFunc.calledTwice.should.be.true;
           });
       });
     });
@@ -733,7 +732,7 @@ describe('Operation', function () {
       let server;
 
       const api = new API();
-      const spy = chai.spy(function (req, res) {
+      const spyFunc = sinon.spy(function (req, res) {
         res.send({ body: req.body });
       });
       class Op1 extends Operation {
@@ -761,7 +760,7 @@ describe('Operation', function () {
           };
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
       class Op2 extends Operation {
@@ -802,7 +801,7 @@ describe('Operation', function () {
           };
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -818,7 +817,7 @@ describe('Operation', function () {
           };
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -878,7 +877,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('required');
             data.info.path.should.equal('body');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -900,7 +899,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('required');
             data.info.path.should.equal('body/a');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -915,7 +914,7 @@ describe('Operation', function () {
             data.info.type.should.equal('properties');
             data.info.errors[0].type.should.equal('type');
             data.info.errors[0].path.should.equal('body/a');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -930,7 +929,7 @@ describe('Operation', function () {
             data.info.type.should.equal('properties');
             data.info.errors[0].type.should.equal('type');
             data.info.errors[0].path.should.equal('body/b');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -943,7 +942,7 @@ describe('Operation', function () {
           .then(({ body: data }) => {
             data.body.a.should.equal(true);
             data.body.b.should.equal(5);
-            spy.should.have.been.called.once;
+            spyFunc.calledOnce.should.be.true;
           });
       });
 
@@ -1014,7 +1013,7 @@ describe('Operation', function () {
         },
       };
 
-      const spy = chai.spy(function (req, res) {
+      const spyFunc = sinon.spy(function (req, res) {
         res.send({ query: req.query });
       });
       class Op1 extends Operation {
@@ -1023,7 +1022,7 @@ describe('Operation', function () {
           this.info.parameters = [{ $ref: '#/components/parameters/p1' }, { $ref: '#/components/parameters/p2' }, { $ref: '#/components/parameters/p3' }];
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -1050,7 +1049,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('required');
             data.info.path.should.equal('query.p1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -1063,7 +1062,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('query.p1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -1076,7 +1075,7 @@ describe('Operation', function () {
             data.message.should.equal('ValidationError');
             data.info.type.should.equal('type');
             data.info.path.should.equal('query.p2');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -1090,7 +1089,7 @@ describe('Operation', function () {
             data.info.type.should.equal('items');
             data.info.errors[0].type.should.equal('type');
             data.info.errors[0].path.should.equal('query.p3/1');
-            spy.should.not.have.been.called.once;
+            spyFunc.calledOnce.should.be.false;
           });
       });
 
@@ -1103,7 +1102,7 @@ describe('Operation', function () {
             data.query.p1.should.equal(true);
             data.query.p2.should.equal(5);
             data.query.p3.should.deep.equal([1, 2, 3]);
-            spy.should.have.been.called.once;
+            spyFunc.calledOnce.should.be.true;
           });
       });
     });
@@ -1124,7 +1123,7 @@ describe('Operation', function () {
         }
       }
       const api = new API1();
-      const spy = chai.spy(function (req, res) {
+      const spyFunc = sinon.spy(function (req, res) {
         res.send({});
       });
       class Op1 extends Operation {
@@ -1135,11 +1134,11 @@ describe('Operation', function () {
           return {};
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/1': { get: Op1 }, '/2': { get: spy } });
+      let r = new Resource({ name: 'Test' }, { '/1': { get: Op1 }, '/2': { get: spyFunc } });
       api.addResource(r);
 
       before(function () {
@@ -1159,7 +1158,7 @@ describe('Operation', function () {
           .expect(200)
           .expect('Content-Type', /json/)
           .then(() => {
-            spy.should.have.been.called.once;
+            spyFunc.calledOnce.should.be.true;
           });
       });
 
@@ -1169,7 +1168,7 @@ describe('Operation', function () {
           .expect(401)
           .expect('Content-Type', /json/)
           .then(() => {
-            spy.should.have.been.called.once;
+            spyFunc.calledOnce.should.be.true;
           });
       });
     });
@@ -1189,7 +1188,7 @@ describe('Operation', function () {
         }
       }
       const api = new API1();
-      const spy = chai.spy(function (req, res) {
+      const spyFunc = sinon.spy(function (req, res) {
         res.send({});
       });
       api.addResource(
@@ -1197,10 +1196,10 @@ describe('Operation', function () {
           { name: 'a', namePlural: 'a' },
           {
             '/x': {
-              get: spy,
+              get: spyFunc,
             },
             '/y': {
-              get: spy,
+              get: spyFunc,
             },
           }
         )
@@ -1210,10 +1209,10 @@ describe('Operation', function () {
           { name: 'b', namePlural: 'b' },
           {
             '/x': {
-              get: spy,
+              get: spyFunc,
             },
             '/y': {
-              get: spy,
+              get: spyFunc,
             },
           }
         )
@@ -1223,10 +1222,10 @@ describe('Operation', function () {
           { name: 'c', namePlural: 'c' },
           {
             '/x': {
-              get: spy,
+              get: spyFunc,
             },
             '/y': {
-              get: spy,
+              get: spyFunc,
             },
           }
         )
@@ -1278,7 +1277,7 @@ describe('Operation', function () {
       }
     }
     const api = new API1();
-    const spy = chai.spy(function (req, res) {
+    const spyFunc = sinon.spy(function (req, res) {
       res.send({});
     });
     api.addResource(
@@ -1286,10 +1285,10 @@ describe('Operation', function () {
         { name: 'a', namePlural: 'a' },
         {
           '/x': {
-            get: spy,
+            get: spyFunc,
           },
           '/y': {
-            get: spy,
+            get: spyFunc,
           },
         }
       )
@@ -1299,10 +1298,10 @@ describe('Operation', function () {
         { name: 'b', namePlural: 'b' },
         {
           '/x': {
-            get: spy,
+            get: spyFunc,
           },
           '/y': {
-            get: spy,
+            get: spyFunc,
           },
         }
       )
@@ -1312,10 +1311,10 @@ describe('Operation', function () {
         { name: 'c', namePlural: 'c' },
         {
           '/x': {
-            get: spy,
+            get: spyFunc,
           },
           '/y': {
-            get: spy,
+            get: spyFunc,
           },
         }
       )

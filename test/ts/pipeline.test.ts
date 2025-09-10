@@ -1,14 +1,12 @@
 import { defineAbility } from '@casl/ability';
-import chai from 'chai';
-import spies from 'chai-spies';
+import * as chai from 'chai';
+import * as sinon from 'sinon';
 import express from 'express';
 import supertest from 'supertest';
 import { API } from '../../dist/api.js';
 import { Job, PipelineOperation, SimplePipelineOperation } from '../../dist/pipeline.js';
 import { Resource } from '../../dist/resource.js';
 import { APIRequest, APIResponse } from '../../dist/types.js';
-
-chai.use(spies);
 
 describe('pipeline', function () {
   describe('SimplePipelineOperation', function () {

@@ -72,11 +72,11 @@ export class UpdateMongoOperation extends MongoOperation {
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {
     let result = await job.coll.findOneAndUpdate(job.query, job.doc, job.opts as FindOneAndUpdateOptions);
-    if (!result.ok || !result.value) {
+    if (!result) {
       job.req.logger.error('update failed', result);
       API.fireError(404, 'not_found');
     }
-    job.data = result.value;
+    job.data = result;
     return job;
   }
   async redactResult(job: MongoJob): Promise<MongoJob> {

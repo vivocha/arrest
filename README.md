@@ -1,286 +1,687 @@
-arrest
-======
+# arrest
 
-Swagger REST framework for Node.js, with support for MongoDB and [JSON-Schema](http://json-schema.org/)
+A powerful OpenAPI v3 compliant REST framework for Node.js with comprehensive MongoDB support, JSON Schema validation, authentication, and authorization. Build production-ready RESTful APIs in minutes with automatic OpenAPI documentation generation.
 
-[![travis build](https://img.shields.io/travis/vivocha/arrest.svg)](https://travis-ci.org/vivocha/arrest)
-[![Coverage Status](https://coveralls.io/repos/github/vivocha/arrest/badge.svg?branch=master)](https://coveralls.io/github/vivocha/arrest?branch=master)
 [![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
+[![CI](https://github.com/vivocha/arrest/actions/workflows/ci.yml/badge.svg)](https://github.com/vivocha/arrest/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/vivocha/arrest/badge.svg?branch=master)](https://coveralls.io/github/vivocha/arrest?branch=master)
 
-Arrest lets you write RESTful web services in minutes. It automatically generates a [Swagger](http://swagger.io/) description
-of the API and support input validation using JSON-Schemas.
+## Features
 
-Highlight features:
-- Compatible with Express 4.x
-- Implements simple CRUD semantics on MongoDB
-- Supports querying object with the RQL syntax
-- Input validation with JSON-Schema
-- Oauth2 scope checks per operation
+- ✅ **OpenAPI v3 Compliant**: Automatic OpenAPI specification generation with full v3 support
+- ✅ **MongoDB Integration**: Built-in MongoDB operations (CRUD) with advanced querying
+- ✅ **JSON Schema Validation**: Comprehensive input validation using JSON Schema
+- ✅ **Authentication & Authorization**: OAuth2 scopes and CASL ability-based permissions
+- ✅ **Resource Query Language (RQL)**: Advanced querying with filtering, sorting, and pagination
+- ✅ **Express.js Integration**: Works seamlessly with existing Express.js applications
+- ✅ **CSV Export**: Built-in CSV export functionality for data endpoints
+- ✅ **JSON-RPC Support**: Dual REST and JSON-RPC endpoint support
+- ✅ **Pipeline Operations**: Complex data processing with pipeline support
+- ✅ **TypeScript Support**: Full TypeScript definitions included
+- ✅ **Modern ES Modules**: Supports both ESM and CommonJS
 
-**Note for 1.3 users**: arrest 3.x is a complete rewrite of the old module and it's not backwards compatible.
-
-## How to Install
+## Installation
 
 ```bash
+# npm
 npm install arrest
+
+# pnpm  
+pnpm add arrest
+
+# yarn
+yarn add arrest
 ```
 
-## Super Simple Example
+## Quick Start
 
-The following sample application shows how to create a simple REST API, using a MongoDB collection as
-the data store. In the sample, the path */tests* is linked to a *tests* collection on a MongoDB
-instance running on *localhost*:
+### Basic REST API
 
-```js
-const arrest = require('arrest');
-const api = new arrest.API();
+```javascript
+import { API, MongoResource } from 'arrest';
 
-api.addResource(new arrest.MongoResource('mongodb://localhost:27017', { name: 'Test' }));
+const api = new API({
+  info: {
+    title: 'My API',
+    version: '1.0.0'
+  }
+});
 
+// Add a MongoDB-backed resource
+api.addResource(new MongoResource('mongodb://localhost:27017/mydb', {
+  name: 'User',
+  collection: 'users'
+}));
+
+// Start the server
 api.listen(3000);
+console.log('API running at http://localhost:3000');
+console.log('OpenAPI spec at http://localhost:3000/openapi.json');
 ```
 
-The Swagger specification of the API you just created is available at `http://localhost:3000/swagger.json`
+This creates a full CRUD API for users with the following endpoints:
+- `GET /users` - List users with filtering, sorting, pagination
+- `POST /users` - Create a new user
+- `GET /users/{id}` - Get user by ID
+- `PUT /users/{id}` - Update user
+- `PATCH /users/{id}` - Partial update user with JSON Patch
+- `DELETE /users/{id}` - Delete user
 
-Now you can query your *data* collection like this:
+### Testing Your API
+
+Once your API is running, you can interact with it using curl or any HTTP client:
 
 ```bash
-curl "http://localhost:3000/tests"
+# List all users
+curl "http://localhost:3000/users"
+
+# Create a new user
+curl "http://localhost:3000/users" \
+  -H "Content-Type: application/json" \
+  -X POST \
+  -d '{"name": "John Doe", "email": "john@example.com"}'
+
+# Get a specific user
+curl "http://localhost:3000/users/507f1f77bcf86cd799439011"
+
+# Update a user
+curl "http://localhost:3000/users/507f1f77bcf86cd799439011" \
+  -H "Content-Type: application/json" \
+  -X PUT \
+  -d '{"name": "John Smith", "email": "john.smith@example.com"}'
+
+# Delete a user
+curl "http://localhost:3000/users/507f1f77bcf86cd799439011" -X DELETE
 ```
 
-You can add a new item:
+### Custom Operations
 
-```bash
-curl "http://localhost:3000/tests" -H "Content-Type: application/json" -X POST -d '{ "name": "Jimbo", "surname": "Johnson" }'
-```
+```javascript
+import { API, Resource, Operation } from 'arrest';
 
-You can query a specific item by appeding the identifier of the record (the _id attribute):
+class CustomOperation extends Operation {
+  constructor(resource, path, method) {
+    super(resource, path, method, 'customOp');
+  }
 
-```bash
-curl "http://localhost:3000/tests/51acc04f196573941f000002"
-```
+  getDefaultInfo() {
+    return {
+      summary: 'Custom operation',
+      description: 'Performs a custom operation',
+      responses: {
+        '200': {
+          description: 'Success',
+          content: {
+            'application/json': {
+              schema: { type: 'object' }
+            }
+          }
+        }
+      }
+    };
+  }
 
-You can update an item:
-
-```bash
-curl "http://localhost:3000/tests/51acc04f196573941f000002" -H "Content-Type: application/json" -X PUT -d '{ "name": "Jimbo", "surname": "Smith" }'
-```
-
-And finally you can delete an item:
-
-```bash
-curl "http://localhost:3000/tests/51acc04f196573941f000002" -X DELETE
-```
-
-## Creating an API
-
-An _API_ is a collection of _Resources_, each supporting one or more _Operations_.
-
-In arrest you create an API by creating an instance of the base `API` class or of a derived class.
-You then add instances of the `Resource` class or a derived one. Each resource contains its supported `Routes`, that is
-a collection of instances of classes derived from the abstract `Operation`, which represents an operation to be executed
-when an HTTP method is called on a path.
-
-The following code demonstrates this three level structure:
-
-```js
-const arrest = require('arrest');
-const api = new arrest.API();
-
-const operation1 = function(req, res, next) {
-  res.json({ data: 'this is operation 1' });
-}
-const operation2 = function(req, res, next) {
-  res.json({ data: 'this is operation 2' });
-}
-const operation3 = function(req, res, next) {
-  res.json({ data: 'this is operation 3' });
-}
-const resource1 = new arrest.Resource({
-  name: 'SomeResource',
-  routes: {
-    '/': {
-      get: operation1,
-      post: operation2
-    },
-    '/some-path': {
-      put: operation3
+  async handler(req, res, next) {
+    try {
+      const result = await this.runOperation({ req, res });
+      res.json(result);
+    } catch (error) {
+      next(error);
     }
   }
+
+  async runOperation(job) {
+    return { message: 'Custom operation executed', timestamp: new Date() };
+  }
+}
+
+const api = new API();
+const resource = new Resource({ name: 'Custom' });
+
+resource.addOperation(new CustomOperation(resource, '/action', 'post'));
+api.addResource(resource);
+```
+
+## Core Concepts
+
+arrest follows a three-tier architecture:
+
+1. **API** - The top-level container that manages resources and generates OpenAPI specifications
+2. **Resource** - A collection of related operations (e.g., User resource with CRUD operations)
+3. **Operation** - Individual HTTP endpoints that handle specific requests
+
+### Architecture Overview
+
+```javascript
+import { API, Resource, Operation } from 'arrest';
+
+// 1. Create API instance
+const api = new API({
+  info: {
+    title: 'My REST API',
+    version: '1.0.0',
+    description: 'A comprehensive REST API built with arrest'
+  }
+});
+
+// 2. Create resource with operations
+const userResource = new Resource({
+  name: 'User',
+  path: 'users' // Optional: defaults to plural of name
+});
+
+// 3. Add custom operations to resource
+userResource.addOperation('/profile', 'get', async (req, res) => {
+  res.json({ profile: 'user profile data' });
+});
+
+// 4. Add resource to API
+api.addResource(userResource);
+
+// 5. Start the server
+api.listen(3000);
+```
+
+### Resource Naming and Paths
+
+arrest automatically converts resource names to RESTful paths:
+
+```javascript
+// Resource name -> Path conversion
+new Resource({ name: 'User' });        // -> /users
+new Resource({ name: 'BlogPost' });    // -> /blog-posts  
+new Resource({ name: 'UserProfile' }); // -> /user-profiles
+
+// Custom path override
+new Resource({ 
+  name: 'User', 
+  path: 'customers',           // Custom path
+  namePlural: 'CustomerList'   // Custom plural name
+});
+```
+
+## API Reference
+
+### API Class
+
+The main API container that manages resources and server configuration.
+
+**Constructor Options:**
+```javascript
+new API({
+  info: {
+    title: 'API Title',
+    version: '1.0.0',
+    description: 'API Description'
+  },
+  servers: [
+    { url: 'https://api.example.com', description: 'Production' },
+    { url: 'http://localhost:3000', description: 'Development' }
+  ],
+  security: [
+    { bearerAuth: [] }
+  ]
 })
-
-api.addResource(resource1);
-api.listen(3000);
 ```
 
-The API above supports the following operations:
-- `GET` on `http://localhost/some-resources`
-- `POST` on `http://localhost/some-resources`
-- `PUT` on `http://localhost/some-resources/some-path`
+**Key Methods:**
+- `addResource(resource)` - Add a resource to the API
+- `listen(port, callback?)` - Start HTTP server
+- `listen({ http: 3000, https: 3443, options })` - Start HTTP/HTTPS servers
+- `router()` - Get Express router for integration
+- `attach(app, path?)` - Attach to existing Express app
 
-Please note how the some-resources path was automatically constructed using the name of the resource `SomeResource`, making
-it plural and converting the camelcase in a dash-separated name. This default behaviour can be changed specifying the
-namePlural and path when creating the resource (e.g. `new Resource({ name: 'OneResource', namePlural: 'ManyResources', path: 'my_resources' })`)
+### Resource Class
 
-Another other way to produce the same result is:
+Represents a collection of related operations.
 
-```js
-const arrest = require('arrest');
-const api = new arrest.API();
-
-const resource1 = new arrest.Resource({ name: 'SomeResource' });
-
-resource1.addOperation('/', 'get', function(req, res, next) {
-  res.json({ data: 'this is operation 1' });
-});
-resource1.addOperation('/', 'post', function(req, res, next) {
-  res.json({ data: 'this is operation 2' });
-});
-resource1.addOperation('/some-path', 'put', function(req, res, next) {
-  res.json({ data: 'this is operation 3' });
-});
-
-api.addResource(resource1);
-api.listen(3000);
+**Constructor Options:**
+```javascript
+new Resource({
+  name: 'User',                    // Resource name (required)
+  path: 'users',                   // Custom path (optional)
+  namePlural: 'Users',             // Custom plural name (optional)
+  description: 'User management'    // OpenAPI description (optional)
+})
 ```
 
-In real world applications, where resources and operation are in fact more complex, you will want to create class that
-extend the basic classes in arrest, like in the next example:
+**Key Methods:**
+- `addOperation(path, method, handler)` - Add simple operation
+- `addOperation(operationInstance)` - Add operation instance
 
-```js
-const arrest = require('arrest');
+### MongoResource Class
 
-class MyOperation extends arrest.Operation {
+Specialized resource for MongoDB collections with built-in CRUD operations.
+
+**Constructor:**
+```javascript
+new MongoResource(connectionUri, options, customRoutes?)
+```
+
+**Options:**
+```javascript
+{
+  name: 'User',                    // Resource name
+  collection: 'users',            // MongoDB collection name
+  id: '_id',                       // ID field name (default: '_id')
+  idIsObjectId: true,              // Whether ID is ObjectId (default: true)
+  queryLimit: 100,                 // Maximum query results (default: no limit)
+  createIndexes: false,            // Auto-create indexes (default: false)
+  escapeProperties: false          // Escape MongoDB special characters (default: false)
+}
+```
+
+### Operation Class
+
+Base class for individual API operations.
+
+**Constructor:**
+```javascript
+new Operation(resource, path, method, operationId)
+```
+
+**Key Methods to Override:**
+- `getDefaultInfo()` - Return OpenAPI operation info
+- `handler(req, res, next)` - Express request handler
+- `runOperation(job)` - Main operation logic
+
+## Advanced Features
+
+### JSON Schema Validation
+
+arrest provides comprehensive input validation using OpenAPI v3 and JSON Schema:
+
+```javascript
+import { Operation } from 'arrest';
+
+class CreateUserOperation extends Operation {
   constructor(resource, path, method) {
-    super('op1', resource, path, method);
+    super(resource, path, method, 'createUser');
   }
-  handler(req, res, next) {
-    res.json({ data: 'this is a custom operation' });
-  }
-}
 
-class MyResource extends arrest.Resource {
-  constructor() {
-    super();
-    this.addOperation(new MyOperation(this, '/', 'get'));
-  }
-}
-
-class MyAPI extends arrest.API {
-  constructor() {
-    super({
-      info: {
-        title: 'This is a custom API',
-        version: '0.9.5'
-      }
-    });
-    this.addResource(new MyResource());
-  }
-}
-
-const api = new MyAPI();
-api.listen(3000);
-```
-
-The API above supports `GET`s on `http://localhost/my-resources` (note how the path was in this case constructed automatically
-from the name of the class MyResource).
-
-By the default, arrest APIs add a special route `/swagger.json` that returns the Swagger description of the API: the Swagger
-object is populated with the properties of the API object, Resources are converted into Swagger Tags and Operations are
-mapped to Swagger Operations.
-
-### Data validation
-
-arrest supports JSON-Schema for data validation. Validation rules are set using the [Swagger specification](http://swagger.io/specification/). For instance,
-the following code show how to validate the body of a `POST` and the query paramters of a `GET`:
-
-```js
-class MyOperation1 extends arrest.Operation {
-  constructor(resource, path, method) {
-    super('op1', resource, path, method);
-    this.setInfo({
-      parameters: [
-        {
-          name: 'body',
-          in: 'body',
-          required: true,
-          schema: {
-            type: 'object',
-            required: [ 'name' ],
-            additionalProperties: false,
-            properties: {
-              name: {
-                type: 'string'
-              },
-              surname: {
-                type: 'string'
+  getDefaultInfo() {
+    return {
+      summary: 'Create a new user',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['name', 'email'],
+              additionalProperties: false,
+              properties: {
+                name: {
+                  type: 'string',
+                  minLength: 1,
+                  maxLength: 100
+                },
+                email: {
+                  type: 'string',
+                  format: 'email'
+                },
+                age: {
+                  type: 'integer',
+                  minimum: 0,
+                  maximum: 150
+                }
               }
             }
           }
         }
-      ]
-    });
-  }
-  handler(req, res, next) {
-    res.json({ data: 'this is a op1' });
-  }
-}
-
-class MyOperation2 extends arrest.Operation {
-  constructor(resource, path, method) {
-    super('op2', resource, path, method);
-    this.setInfo({
+      },
       parameters: [
         {
-          name: 'lang',
+          name: 'include',
           in: 'query',
-          type: 'string',
-          required: true
-        },
-        {
-          name: 'count',
-          in: 'query',
-          type: 'integer'
+          schema: {
+            type: 'array',
+            items: { type: 'string', enum: ['profile', 'preferences'] }
+          },
+          style: 'form',
+          explode: false
         }
       ]
-    });
+    };
   }
-  handler(req, res, next) {
-    res.json({ data: 'this is a op2' });
-  }
-}
 
-class MyResource extends arrest.Resource {
-  constructor() {
-    super();
-    this.addOperation(new MyOperation1(this, '/', 'post'));
-    this.addOperation(new MyOperation2(this, '/', 'get'));
+  async runOperation(job) {
+    const { name, email, age } = job.req.body;
+    const include = job.req.query.include || [];
+    
+    // Create user logic here
+    return { id: '123', name, email, age, created: new Date() };
   }
 }
 ```
 
-Omitting the body or passing an invalid body (e.g. an object without the name property) when `POST`ing to
-`http://localhost/my-resources` will return an error. Likewise `GET`ting without a lang parameter or with a count
-set to anything other than a number will fail.
+### Resource Query Language (RQL)
 
-## Scopes and security validators
+arrest supports powerful querying with RQL syntax:
 
-**TBA**
+```javascript
+// Examples of RQL queries
+const queries = [
+  // Basic filtering
+  'eq(status,active)',
+  'gt(age,18)',
+  'in(category,electronics,books)',
+  
+  // Complex queries
+  'and(eq(status,active),gt(price,100))',
+  'or(eq(category,sale),lt(price,50))',
+  
+  // Sorting and pagination
+  'sort(+name,-created)',
+  'limit(10,20)', // limit(count, offset)
+  
+  // Field selection
+  'select(name,email,created)'
+];
 
-## Creating an API with a MongoDB data store
+// Use in API calls
+// GET /users?q=and(eq(status,active),gt(age,18))&sort=-created&limit(10)
+```
 
-**TBA**
-(default api routes)
+### Authentication and Authorization
 
-## Using arrest with express
+#### OAuth2 Scopes
 
-**TBA**
+```javascript
+import { API, MongoResource } from 'arrest';
 
-## Debugging
+class SecureAPI extends API {
+  initSecurity(req, res, next) {
+    // Extract and validate OAuth2 token
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ error: 'Missing authorization token' });
+    }
 
-**TBA**
+    // Validate token and set scopes
+    req.scopes = ['read:users', 'write:users']; // From token validation
+    next();
+  }
+}
 
-## API documentation
+class SecureOperation extends Operation {
+  get swaggerScopes() {
+    return {
+      'oauth2': ['read:users', 'write:users']
+    };
+  }
+}
+```
 
-**TBA**
+#### CASL Ability-based Permissions
+
+```javascript
+import { defineAbility } from '@casl/ability';
+
+class AuthorizedAPI extends API {
+  initSecurity(req, res, next) {
+    // Define user abilities based on their role
+    req.ability = defineAbility((can, cannot) => {
+      if (req.user.role === 'admin') {
+        can('manage', 'all');
+      } else if (req.user.role === 'user') {
+        can('read', 'User', { ownerId: req.user.id });
+        can('update', 'User', { ownerId: req.user.id });
+        cannot('delete', 'User');
+      }
+    });
+    next();
+  }
+}
+```
+
+### MongoDB Integration
+
+#### Advanced MongoDB Operations
+
+```javascript
+import { MongoResource, QueryMongoOperation } from 'arrest';
+
+class AdvancedUserResource extends MongoResource {
+  constructor() {
+    super('mongodb://localhost:27017/myapp', {
+      name: 'User',
+      collection: 'users',
+      createIndexes: true
+    });
+  }
+
+  getIndexes() {
+    return [
+      { key: { email: 1 }, unique: true },
+      { key: { 'profile.tags': 1 } },
+      { key: { createdAt: -1 } }
+    ];
+  }
+}
+
+// Custom aggregation operation
+class UserStatsOperation extends QueryMongoOperation {
+  async prepareQuery(job) {
+    // Return MongoDB aggregation pipeline instead of simple query
+    return [
+      { $match: { status: 'active' } },
+      { $group: {
+          _id: '$department',
+          count: { $sum: 1 },
+          averageAge: { $avg: '$age' }
+        }
+      },
+      { $sort: { count: -1 } }
+    ];
+  }
+}
+```
+
+### CSV Export
+
+Built-in CSV export functionality:
+
+```javascript
+// GET /users?format=csv&csv_fields=name,email,created
+// GET /users?format=csv&csv_fields=name,email&csv_options=header=true&csv_names=Name,Email
+```
+
+### JSON-RPC Support
+
+arrest supports dual REST and JSON-RPC interfaces:
+
+```javascript
+import { RPCOperation } from 'arrest';
+
+class UserRPCOperation extends RPCOperation {
+  async getUserProfile(params) {
+    const { userId } = params;
+    // Fetch user profile logic
+    return { profile: { id: userId, name: 'John Doe' } };
+  }
+
+  async updateUserProfile(params) {
+    const { userId, updates } = params;
+    // Update logic
+    return { success: true, updated: updates };
+  }
+}
+
+// JSON-RPC calls:
+// POST /users/rpc
+// {"jsonrpc": "2.0", "method": "getUserProfile", "params": {"userId": "123"}, "id": 1}
+```
+
+### Pipeline Operations
+
+Complex data processing with pipeline support:
+
+```javascript
+import { PipelineOperation } from 'arrest';
+
+class DataProcessingPipeline extends PipelineOperation {
+  async runOperation(job) {
+    let data = await super.runOperation(job);
+    
+    // Apply transformations
+    data = this.filterSensitiveData(data);
+    data = this.calculateDerivedFields(data);
+    data = this.formatForOutput(data, job.req.query.format);
+    
+    return data;
+  }
+
+  filterSensitiveData(data) {
+    // Remove sensitive fields based on user permissions
+    return data.map(item => this.filterFields(item, job.req.ability));
+  }
+}
+```
+
+### Express.js Integration
+
+arrest works seamlessly with existing Express applications:
+
+```javascript
+import express from 'express';
+import { API, MongoResource } from 'arrest';
+
+const app = express();
+const api = new API();
+
+// Add resources to API
+api.addResource(new MongoResource('mongodb://localhost:27017/mydb', {
+  name: 'User'
+}));
+
+// Mount API on Express app
+app.use('/api/v1', await api.router());
+
+// Add other Express routes
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy' });
+});
+
+app.listen(3000);
+```
+
+### Error Handling
+
+Comprehensive error handling with detailed responses:
+
+```javascript
+import { API } from 'arrest';
+
+class CustomAPI extends API {
+  handleError(error, req, res, next) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: error.errors,
+        path: error.path
+      });
+    }
+    
+    if (error.code === 11000) { // MongoDB duplicate key
+      return res.status(409).json({
+        error: 'Resource already exists',
+        field: Object.keys(error.keyPattern)[0]
+      });
+    }
+    
+    // Default error handling
+    super.handleError(error, req, res, next);
+  }
+}
+```
+
+## TypeScript Support
+
+Full TypeScript definitions are included:
+
+```typescript
+import { API, MongoResource, Operation } from 'arrest';
+import { Request, Response } from 'express';
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+}
+
+class TypedUserOperation extends Operation {
+  async runOperation(job: { req: Request; res: Response }): Promise<User> {
+    const userData = job.req.body as Partial<User>;
+    
+    // Implementation with type safety
+    return {
+      id: 'generated-id',
+      name: userData.name!,
+      email: userData.email!,
+      createdAt: new Date()
+    };
+  }
+}
+```
+
+## Performance and Production
+
+### Optimization Tips
+
+1. **Use MongoDB indexes** - Define indexes for frequently queried fields
+2. **Implement caching** - Use Redis or memory caching for frequently accessed data  
+3. **Limit query results** - Set reasonable queryLimit on resources
+4. **Use projections** - Only fetch needed fields with the `fields` parameter
+5. **Enable compression** - Use gzip compression in production
+
+### Production Configuration
+
+```javascript
+import { API, MongoResource } from 'arrest';
+
+const api = new API({
+  info: { title: 'Production API', version: '1.0.0' }
+});
+
+// Production MongoDB resource with optimization
+api.addResource(new MongoResource('mongodb://mongo-cluster/prod-db', {
+  name: 'User',
+  collection: 'users',
+  queryLimit: 100,        // Limit results
+  createIndexes: true,    // Auto-create indexes
+  escapeProperties: true  // Security: escape special chars
+}));
+
+// Start with both HTTP and HTTPS
+api.listen({
+  http: 8080,
+  https: 8443,
+  httpsOptions: {
+    key: fs.readFileSync('private-key.pem'),
+    cert: fs.readFileSync('certificate.pem')
+  }
+});
+```
+
+## License
+
+MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! Please ensure all tests pass:
+
+```bash
+pnpm install
+pnpm test
+pnpm run coverage
+```
+
+## Related Projects
+
+- [jsonref](https://github.com/vivocha/jsonref) - JSON Reference resolution
+- [jsonpolice](https://github.com/vivocha/jsonpolice) - JSON Schema validation  
+- [openapi-police](https://github.com/vivocha/openapi-police) - OpenAPI validation utilities
 

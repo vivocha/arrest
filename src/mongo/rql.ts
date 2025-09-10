@@ -1,4 +1,4 @@
-import { ObjectId } from 'bson';
+import { ObjectId } from 'mongodb';
 import { parseQuery } from 'rql/parser.js';
 import { addConstraint } from './util.js';
 

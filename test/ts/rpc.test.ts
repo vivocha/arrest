@@ -1,5 +1,5 @@
-import chai from 'chai';
-import spies from 'chai-spies';
+import * as chai from 'chai';
+import * as sinon from 'sinon';
 import express from 'express';
 import supertest from 'supertest';
 import { API } from '../../dist/api.js';
@@ -7,7 +7,6 @@ import { Resource } from '../../dist/resource.js';
 import { JSONRPC, rpc } from '../../dist/rpc.js';
 
 const should = chai.should();
-chai.use(spies);
 
 describe('JSONRPC Operation', function () {
   const port = 9876;

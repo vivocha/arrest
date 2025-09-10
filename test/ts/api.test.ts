@@ -1,10 +1,10 @@
 import { Scopes } from '@vivocha/scopes';
-import chai from 'chai';
+import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import spies from 'chai-spies';
 import express from 'express';
 import { OpenAPIV3, ParserError, RetrieverError, SchemaObject, ValidationError } from 'openapi-police';
 import pem from 'pem';
+import * as sinon from 'sinon';
 import supertest from 'supertest';
 import { API } from '../../dist/api.js';
 import { DEFAULT_DOCUMENT } from '../../dist/defaults.js';
@@ -14,7 +14,6 @@ import { Resource } from '../../dist/resource.js';
 import { simpleAPI, simpleAPI2, simpleAPI3, simpleAPI4, simpleAPI5, simpleAPI6, simpleAPI7 } from './dummy-api.js';
 
 const should = chai.should();
-chai.use(spies);
 chai.use(chaiAsPromised);
 
 describe('API', function () {
@@ -71,18 +70,18 @@ describe('API', function () {
       const basePath = 'http://' + host;
       const request = supertest(basePath);
       const app = express();
-      const spy1 = chai.spy();
-      const spy2 = chai.spy();
+      const spy1 = sinon.spy();
+      const spy2 = sinon.spy();
       let server;
 
       class DeprecatedAPI extends API {
         initSecurity(req, res, next) {
-          spy1.should.have.been.called;
+          spy1.called.should.be.true;
           spy2();
           super.initSecurity(req, res, next);
         }
         securityValidator(req, res, next) {
-          spy2.should.not.have.been.called;
+          spy2.called.should.be.false;
           spy1();
           super.securityValidator(req, res, next);
         }
@@ -108,8 +107,8 @@ describe('API', function () {
           .expect(200)
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
-            spy1.should.have.been.called.once;
-            spy2.should.have.been.called.once;
+            spy1.calledOnce.should.be.true;
+            spy2.calledOnce.should.be.true;
           });
       });
     });
@@ -415,7 +414,7 @@ describe('API', function () {
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     const app = express();
-    let server, spy;
+    let server, spyHandler;
 
     const api = new API();
     class Op1 extends Operation {
@@ -423,7 +422,7 @@ describe('API', function () {
         super(resource, path, method, 'op1');
       }
       handler(req, res, next?) {
-        spy(req, res, next);
+        spyHandler(req, res, next);
       }
     }
 
@@ -442,7 +441,7 @@ describe('API', function () {
     });
 
     it('should return the specified rest error', function () {
-      spy = chai.spy(function (req, res) {
+      spyHandler = sinon.spy(function (req, res) {
         API.fireError(418);
       });
       return request
@@ -452,12 +451,12 @@ describe('API', function () {
         .then(({ body: data }) => {
           data.message.should.equal('');
           should.not.exist(data.info);
-          spy.should.have.been.called.once();
+          spyHandler.calledOnce.should.be.true;
         });
     });
 
     it('should return the specified rest error', function () {
-      spy = chai.spy(function (req, res) {
+      spyHandler = sinon.spy(function (req, res) {
         API.fireError(418);
       });
       return request
@@ -467,12 +466,12 @@ describe('API', function () {
         .then(({ body: data }) => {
           data.message.should.equal('');
           should.not.exist(data.info);
-          spy.should.have.been.called.once();
+          spyHandler.calledOnce.should.be.true;
         });
     });
 
     it('should return 500 as the default error', function () {
-      spy = chai.spy(function (req, res) {
+      spyHandler = sinon.spy(function (req, res) {
         throw new Error('bla bla bla');
       });
       return request
@@ -482,12 +481,12 @@ describe('API', function () {
         .then(({ body: data }) => {
           data.message.should.equal('internal');
           should.not.exist(data.info);
-          spy.should.have.been.called.once();
+          spyHandler.calledOnce.should.be.true;
         });
     });
 
     it('should return 405 if an unsupported method is called on a known path', function () {
-      spy = chai.spy(function (req, res) {
+      spyHandler = sinon.spy(function (req, res) {
         throw new Error('bla bla bla');
       });
       return request
@@ -497,12 +496,12 @@ describe('API', function () {
         .then(({ body: data }) => {
           data.message.should.equal('Method Not Allowed');
           data.info.should.be.a('string');
-          spy.should.not.have.been.called();
+          spyHandler.called.should.be.false;
         });
     });
 
     it('should convert nested ValidationErrors', function () {
-      spy = chai.spy(function (req, res, next) {
+      spyHandler = sinon.spy(function (req, res, next) {
         const error = new ValidationError('/', 'http://example.com', 'level1', [
           new ValidationError('/', 'http://example.com', 'level2-1', [new Error('level3')]),
           new ValidationError('/', 'http://example.com', 'level2-2'),
@@ -516,7 +515,7 @@ describe('API', function () {
         .then(({ body: data }) => {
           // console.log(JSON.stringify(data, null, 2));
           data.info.errors[0].errors[0].type.should.equal('level3');
-          spy.should.have.been.called.once();
+          spyHandler.calledOnce.should.be.true;
         });
     });
   });
@@ -527,13 +526,13 @@ describe('API', function () {
     const basePath = 'http://' + host;
     const request = supertest(basePath);
     const api = new API();
-    let spy, server;
+    let spyFunc, server;
     class Op1 extends Operation {
       constructor(resource, path, method) {
         super(resource, path, method, 'op1');
       }
       handler(req, res) {
-        spy(req, res);
+        spyFunc(req, res);
       }
     }
     let r = new Resource({ name: 'Test' }, { '/a': { get: Op1 } });
@@ -659,7 +658,7 @@ describe('API', function () {
     });
 
     it('should be able to resolve an internal schema', function () {
-      const spy = chai.spy((req, res) => {
+      const spyFunc = sinon.spy((req, res) => {
         res.json({});
       });
       const api = new API();
@@ -704,7 +703,7 @@ describe('API', function () {
           super.attach(api);
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -758,13 +757,13 @@ describe('API', function () {
               should.exist(data);
             }),
         ]).then(() => {
-          spy.should.have.been.called.once;
+          spyFunc.calledOnce.should.be.true;
         });
       });
     });
 
     it('should be able to resolve dynamic schemas', function () {
-      const spy = chai.spy((req, res) => {
+      const spyFunc = sinon.spy((req, res) => {
         res.json({});
       });
       const api = new API();
@@ -819,7 +818,7 @@ describe('API', function () {
           super.attach(api);
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -873,13 +872,13 @@ describe('API', function () {
               should.exist(data);
             }),
         ]).then(() => {
-          spy.should.have.been.called.once;
+          spyFunc.calledOnce.should.be.true;
         });
       });
     });
 
     it('should fail if an external schema cannot be retrieved (1)', async function () {
-      const spy = chai.spy((req, res) => {
+      const spyFunc = sinon.spy((req, res) => {
         res.json({});
       });
       const api = new API();
@@ -896,7 +895,7 @@ describe('API', function () {
           };
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -909,7 +908,7 @@ describe('API', function () {
     });
 
     it('should fail if an external schema cannot be retrieved (2)', async function () {
-      const spy = chai.spy((req, res) => {
+      const spyFunc = sinon.spy((req, res) => {
         res.json({});
       });
       const api = new API();
@@ -926,7 +925,7 @@ describe('API', function () {
           };
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -941,7 +940,7 @@ describe('API', function () {
     });
 
     it('should be able to resolve an external schema', function () {
-      const spy = chai.spy((req, res) => {
+      const spyFunc = sinon.spy((req, res) => {
         res.json({});
       });
       const api = new API();
@@ -958,7 +957,7 @@ describe('API', function () {
           };
         }
         handler(req, res) {
-          spy(req, res);
+          spyFunc(req, res);
         }
       }
 
@@ -1028,7 +1027,7 @@ describe('API', function () {
               should.exist(data);
             }),
         ]).then(() => {
-          spy.should.have.been.called.once;
+          spyFunc.calledOnce.should.be.true;
         });
       });
     });
