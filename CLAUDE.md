@@ -20,7 +20,7 @@ OpenAPI v3 compliant REST framework for Node.js with support for MongoDB and JSO
 - **express**: ^4.19.2 - Web framework
 - **mongodb**: ^6.8.0 - MongoDB driver
 - **jsonref**: ^9.0.0 - JSON reference resolution
-- **openapi-police**: ^0.0.0-development - OpenAPI validation
+- **openapi-police**: next - OpenAPI 3.1 validation
 - **@casl/ability**: ^6.7.1 - Authorization framework
 - **luxon**: ^3.4.4 - Date/time handling
 

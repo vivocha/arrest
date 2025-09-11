@@ -1,11 +1,12 @@
 import { OpenAPIV3 } from 'openapi-police';
 
 export const DEFAULT_DOCUMENT: OpenAPIV3.Document = {
-  openapi: '3.0.2',
+  openapi: '3.1.0',
   info: {
     title: 'REST API',
     version: '1.0.0',
   },
+  jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
   components: {
     schemas: {
       metadata: {
@@ -209,9 +210,9 @@ export const DEFAULT_DOCUMENT: OpenAPIV3.Document = {
   },
   paths: {},
 };
-export const JSON_SCHEMA_DRAFT_7 = {
-  $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'http://json-schema.org/draft-07/schema#',
+export const JSON_SCHEMA_DRAFT_2020_12 = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $id: 'https://json-schema.org/draft/2020-12/schema',
   title: 'Core schema meta-schema',
   definitions: {
     schemaArray: {
@@ -327,6 +328,14 @@ export const JSON_SCHEMA_DRAFT_7 = {
       additionalProperties: {
         anyOf: [{ $ref: '#' }, { $ref: '#/definitions/stringArray' }],
       },
+    },
+    dependentRequired: {
+      type: 'object',
+      additionalProperties: { $ref: '#/definitions/stringArray' },
+    },
+    dependentSchemas: {
+      type: 'object',
+      additionalProperties: { $ref: '#' },
     },
     propertyNames: { $ref: '#' },
     const: true,

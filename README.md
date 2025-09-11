@@ -1,6 +1,6 @@
 # arrest
 
-A powerful OpenAPI v3 compliant REST framework for Node.js with comprehensive MongoDB support, JSON Schema validation, authentication, and authorization. Build production-ready RESTful APIs in minutes with automatic OpenAPI documentation generation.
+A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive MongoDB support, JSON Schema validation, authentication, and authorization. Build production-ready RESTful APIs in minutes with automatic OpenAPI documentation generation.
 
 [![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
 [![CI](https://github.com/vivocha/arrest/actions/workflows/ci.yml/badge.svg)](https://github.com/vivocha/arrest/actions/workflows/ci.yml)
@@ -8,7 +8,7 @@ A powerful OpenAPI v3 compliant REST framework for Node.js with comprehensive Mo
 
 ## Features
 
-- ✅ **OpenAPI v3 Compliant**: Automatic OpenAPI specification generation with full v3 support
+- ✅ **OpenAPI v3.1 Compliant**: Automatic OpenAPI specification generation with full v3.1 support including JSON Schema Draft 2020-12
 - ✅ **MongoDB Integration**: Built-in MongoDB operations (CRUD) with advanced querying
 - ✅ **JSON Schema Validation**: Comprehensive input validation using JSON Schema
 - ✅ **Authentication & Authorization**: OAuth2 scopes and CASL ability-based permissions
@@ -289,7 +289,7 @@ new Operation(resource, path, method, operationId)
 
 ### JSON Schema Validation
 
-arrest provides comprehensive input validation using OpenAPI v3 and JSON Schema:
+arrest provides comprehensive input validation using OpenAPI v3.1 and JSON Schema Draft 2020-12:
 
 ```javascript
 import { Operation } from 'arrest';
