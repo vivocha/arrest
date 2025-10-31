@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "incremental": true,
-    "module": "NodeNext",
-    "target": "ES2022",
+    "module": "es2020",
+    "target": "es2020",
     "noImplicitAny": false,
     "sourceMap": true,
     "declaration": true,
@@ -12,7 +12,7 @@
     "experimentalDecorators": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "node"
   },
   "include": ["src/**/*.ts"]
 }

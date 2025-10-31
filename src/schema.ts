@@ -1,4 +1,4 @@
-import { NextFunction } from 'express';
+import { NextFunction } from 'connect';
 import { OpenAPIV3 } from 'openapi-police';
 import { API } from './api.js';
 import { Operation } from './operation.js';

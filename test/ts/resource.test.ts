@@ -1,11 +1,12 @@
-import * as chai from 'chai';
-import * as sinon from 'sinon';
+import chai from 'chai';
+import spies from 'chai-spies';
 import { API } from '../../dist/api.js';
 import { Operation, SimpleOperation } from '../../dist/operation.js';
 import { Resource } from '../../dist/resource.js';
 import { APIRequest, APIRequestHandler, APIResponse } from '../../dist/types.js';
 
 const should = chai.should();
+chai.use(spies);
 
 describe('Resource', function () {
   describe('constructor', function () {

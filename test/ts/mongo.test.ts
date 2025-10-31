@@ -1,7 +1,7 @@
 import { Ability, defineAbility } from '@casl/ability';
-import * as chai from 'chai';
+import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import * as sinon from 'sinon';
+import spies from 'chai-spies';
 import express from 'express';
 import _ from 'lodash';
 import { CollectionOptions, MongoClient, ReadPreference } from 'mongodb';
@@ -13,6 +13,7 @@ import { CreateMongoOperation, MongoJob, MongoOperation, MongoResource, PatchMon
 import { APIRequest, APIResponse, Method } from '../../dist/types.js';
 
 const should = chai.should();
+chai.use(spies);
 chai.use(chaiAsPromised);
 
 describe('mongo', function () {
@@ -356,7 +357,7 @@ describe('mongo', function () {
           .expect('Content-Type', /json/)
           .then(async ({ body: data }) => {
             const ref = await coll.findOne({}, { sort: { _id: -1 } });
-            await coll.deleteMany({ myid: 'ts' });
+            await coll.remove({ myid: 'ts' });
             ref.ts.should.be.a('Date');
           });
       });
