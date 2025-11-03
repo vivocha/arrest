@@ -1,5 +1,5 @@
 import { defineAbility } from '@casl/ability';
-import chai from 'chai';
+import * as chai from 'chai';
 import { checkAbility, rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/util.js';
 import {
   complexSpec,
