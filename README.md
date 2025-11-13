@@ -395,6 +395,34 @@ arrest supports powerful querying with Resource Query Language (RQL), allowing c
 | `select` | Select fields | `select(field1,field2,...)` | `select(name,email,createdAt)` | Returns only specified fields |
 | `limit` | Pagination | `limit(skip,count)` | `limit(0,10)` | Skip N records, return M records |
 
+#### Query Parameters
+
+In addition to RQL operators, arrest supports standard query parameters that can be used independently or combined with RQL:
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `q` | string | RQL query expression | `?q=eq(status,active)` |
+| `fields` | array | Comma-separated list of fields to return | `?fields=name,email,createdAt` |
+| `sort` | array | Comma-separated sort fields with +/- prefix | `?sort=+name,-createdAt` |
+| `limit` | integer | Maximum number of results (1-100) | `?limit=20` |
+| `skip` | integer | Number of results to skip (pagination) | `?skip=40` |
+| `format` | enum | Response format: `json` or `csv` | `?format=csv` |
+| `csv_fields` | array | Fields to include in CSV export | `?csv_fields=name,email` |
+| `csv_names` | array | Custom column names for CSV | `?csv_names=Name,Email` |
+| `csv_options` | object | CSV formatting options | `?csv_options=header=true` |
+
+**Combining Parameters:**
+```bash
+# Filtering + field selection + sorting + pagination
+GET /users?q=eq(status,active)&fields=name,email&sort=-createdAt&limit=20&skip=0
+
+# Complex RQL query with additional parameters
+GET /users?q=and(gt(age,18),in(role,admin,user))&fields=name,role,age&sort=+name&limit=50
+
+# CSV export with specific fields
+GET /users?q=eq(status,active)&format=csv&csv_fields=name,email,createdAt&csv_options=header=true
+```
+
 #### Practical Examples
 
 **Basic Filtering:**
@@ -482,12 +510,24 @@ GET /users?q=and(eq(status,active),sort(-createdAt))
 ```
 
 **Field Selection (Projection):**
+
+There are two ways to select specific fields:
+
 ```bash
-# Return only name and email
+# Using the fields query parameter (recommended for simple selections)
+GET /users?fields=name,email
+
+# Using RQL select() operator (useful in complex queries)
 GET /users?q=select(name,email)
 
-# Return specific fields from filtered results
+# Combine fields parameter with other query parameters
+GET /users?fields=name,email,createdAt&sort=name
+
+# Combine RQL select() with filtering
 GET /users?q=and(eq(status,active),select(name,email,role))
+
+# Fields parameter with filtering (separate parameters)
+GET /users?q=eq(status,active)&fields=name,email,role
 ```
 
 **Pagination:**
