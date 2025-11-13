@@ -6,6 +6,8 @@ A powerful OpenAPI v3 compliant REST framework for Node.js with comprehensive Mo
 [![CI](https://github.com/vivocha/arrest/actions/workflows/ci.yml/badge.svg)](https://github.com/vivocha/arrest/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/vivocha/arrest/badge.svg?branch=master)](https://coveralls.io/github/vivocha/arrest?branch=master)
 
+**[Documentation](https://github.com/vivocha/arrest#readme)** • **[API Reference](#api-reference)** • **[Examples](#quick-start)** • **[Contributing](#contributing)**
+
 ## Features
 
 - ✅ **OpenAPI v3 Compliant**: Automatic OpenAPI specification generation with full v3 support
@@ -20,13 +22,18 @@ A powerful OpenAPI v3 compliant REST framework for Node.js with comprehensive Mo
 - ✅ **TypeScript Support**: Full TypeScript definitions included
 - ✅ **Modern ES Modules**: Supports both ESM and CommonJS
 
+## Requirements
+
+- **Node.js**: >= 18.17.0
+- **MongoDB**: 6.x or higher (if using MongoResource)
+
 ## Installation
 
 ```bash
 # npm
 npm install arrest
 
-# pnpm  
+# pnpm
 pnpm add arrest
 
 # yarn
@@ -41,10 +48,8 @@ yarn add arrest
 import { API, MongoResource } from 'arrest';
 
 const api = new API({
-  info: {
-    title: 'My API',
-    version: '1.0.0'
-  }
+  title: 'My API',
+  version: '1.0.0'
 });
 
 // Add a MongoDB-backed resource
@@ -157,11 +162,9 @@ import { API, Resource, Operation } from 'arrest';
 
 // 1. Create API instance
 const api = new API({
-  info: {
-    title: 'My REST API',
-    version: '1.0.0',
-    description: 'A comprehensive REST API built with arrest'
-  }
+  title: 'My REST API',
+  version: '1.0.0',
+  description: 'A comprehensive REST API built with arrest'
 });
 
 // 2. Create resource with operations
@@ -208,28 +211,27 @@ The main API container that manages resources and server configuration.
 
 **Constructor Options:**
 ```javascript
-new API({
-  info: {
-    title: 'API Title',
-    version: '1.0.0',
-    description: 'API Description'
-  },
-  servers: [
-    { url: 'https://api.example.com', description: 'Production' },
-    { url: 'http://localhost:3000', description: 'Development' }
-  ],
-  security: [
-    { bearerAuth: [] }
-  ]
-})
+const api = new API({
+  title: 'API Title',
+  version: '1.0.0',
+  description: 'API Description'
+});
+
+// Additional OpenAPI document properties can be set directly:
+api.document.servers = [
+  { url: 'https://api.example.com', description: 'Production' },
+  { url: 'http://localhost:3000', description: 'Development' }
+];
+api.document.security = [
+  { bearerAuth: [] }
+];
 ```
 
 **Key Methods:**
 - `addResource(resource)` - Add a resource to the API
-- `listen(port, callback?)` - Start HTTP server
-- `listen({ http: 3000, https: 3443, options })` - Start HTTP/HTTPS servers
-- `router()` - Get Express router for integration
-- `attach(app, path?)` - Attach to existing Express app
+- `listen(httpPort, httpsPort?, httpsOptions?)` - Start HTTP and/or HTTPS server
+- `router(options?)` - Get Express router for integration
+- `attach(base, options?)` - Attach to existing Express app with automatic versioning
 
 ### Resource Class
 
@@ -642,7 +644,8 @@ class TypedUserOperation extends Operation {
 import { API, MongoResource } from 'arrest';
 
 const api = new API({
-  info: { title: 'Production API', version: '1.0.0' }
+  title: 'Production API',
+  version: '1.0.0'
 });
 
 // Production MongoDB resource with optimization
@@ -655,13 +658,9 @@ api.addResource(new MongoResource('mongodb://mongo-cluster/prod-db', {
 }));
 
 // Start with both HTTP and HTTPS
-api.listen({
-  http: 8080,
-  https: 8443,
-  httpsOptions: {
-    key: fs.readFileSync('private-key.pem'),
-    cert: fs.readFileSync('certificate.pem')
-  }
+api.listen(8080, 8443, {
+  key: fs.readFileSync('private-key.pem'),
+  cert: fs.readFileSync('certificate.pem')
 });
 ```
 
@@ -669,15 +668,67 @@ api.listen({
 
 MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Development
+
+This project uses **pnpm** as the package manager and **TypeScript** for development.
+
+### Available Scripts
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build the project (compile TypeScript)
+pnpm run build
+
+# Run tests (builds and compiles tests first)
+pnpm run test
+
+# Run tests with coverage
+pnpm run cover
+
+# Check that coverage meets 100% requirement
+pnpm run check-coverage
+
+# Clean build artifacts
+pnpm run clean
+
+# Watch mode for tests
+pnpm run test:watch
+```
+
+### Build Output
+
+- **Source**: `src/` (TypeScript)
+- **Compiled**: `dist/` (JavaScript + type definitions)
+- **Tests**: `test/ts/` (TypeScript) → `test/` (compiled JavaScript)
+
 ## Contributing
 
-Contributions are welcome! Please ensure all tests pass:
+Contributions are welcome! Please follow these guidelines:
+
+1. **Fork the repository** on [GitHub](https://github.com/vivocha/arrest)
+2. **Create a feature branch** (`git checkout -b feature/my-feature`)
+3. **Write tests** for your changes
+4. **Ensure 100% test coverage** is maintained
+5. **Run the test suite** and verify all tests pass:
 
 ```bash
 pnpm install
-pnpm test
-pnpm run coverage
+pnpm run build
+pnpm run test
+pnpm run check-coverage  # Must show 100% coverage
 ```
+
+6. **Commit your changes** using conventional commits
+7. **Push to your fork** and submit a pull request
+
+### Testing Requirements
+
+- All code must have **100% test coverage** (statements, branches, functions, lines)
+- Tests use **mocha** as the test framework
+- MongoDB integration tests use **mongodoki** for test database setup
+- Tests are written in TypeScript and compiled before running
 
 ## Related Projects
 
