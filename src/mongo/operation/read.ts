@@ -42,7 +42,9 @@ export class ReadMongoOperation extends MongoOperation {
     return job;
   }
   async prepareOpts(job: MongoJob): Promise<MongoJob> {
-    job.opts.projection = this.parseFields(job.req.query.fields as string[]);
+    // Use fields from RQL select() if present, otherwise use fields query parameter
+    const fieldsToUse = job.opts.fields || job.req.query.fields;
+    job.opts.projection = this.parseFields(fieldsToUse as string[]);
     return job;
   }
   async runOperation(job: MongoJob): Promise<MongoJob> {

@@ -405,6 +405,16 @@ describe('mongo', function () {
           });
       });
 
+      it('should return selected fields using RQL select() for a single record', function () {
+        return request
+          .get(`/tests/${id}?q=select(a,b)`)
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.should.deep.equal({ a: 1, b: true, _id: id });
+          });
+      });
+
       it('should fail with a malformed object id', function () {
         return request
           .get('/tests/x')
@@ -759,6 +769,23 @@ describe('mongo', function () {
             data[1].should.deep.equal({ y: 11 });
             data[2].should.deep.equal({ y: 30 });
             data[3].should.deep.equal({ y: 20 });
+          });
+      });
+
+      it('should return selected fields using RQL select() operator', function () {
+        return request
+          .get('/tests?q=select(y,myid)&sort=myid')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .expect('Results-Matching', '7')
+          .then(({ body: data }) => {
+            data.length.should.equal(6); // 6 records have myid or y (1 record has only _id)
+            data[0].should.deep.equal({ myid: 'aaa' });
+            data[1].should.deep.equal({ myid: 'bbb' });
+            data[2].should.deep.equal({ myid: 'test1', y: 13 });
+            data[3].should.deep.equal({ myid: 'test2', y: 11 });
+            data[4].should.deep.equal({ myid: 'test3', y: 30 });
+            data[5].should.deep.equal({ myid: 'test4', y: 20 });
           });
       });
 

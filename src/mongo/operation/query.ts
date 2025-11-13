@@ -102,7 +102,9 @@ export class QueryMongoOperation extends MongoOperation {
     if (typeof job.req.query.skip !== 'undefined') {
       job.opts.skip = job.req.query.skip;
     }
-    job.opts.projection = this.parseFields(job.req.query.fields as string[]);
+    // Use fields from RQL select() if present, otherwise use fields query parameter
+    const fieldsToUse = job.opts.fields || job.req.query.fields;
+    job.opts.projection = this.parseFields(fieldsToUse as string[]);
     if (job.req.query.sort) {
       job.opts.sort = job.req.query.sort;
     }
