@@ -359,31 +359,257 @@ class CreateUserOperation extends Operation {
 
 ### Resource Query Language (RQL)
 
-arrest supports powerful querying with RQL syntax:
+arrest supports powerful querying with Resource Query Language (RQL), allowing complex filtering, sorting, and pagination through URL parameters. RQL queries are converted to MongoDB queries automatically.
+
+#### RQL Operators Reference
+
+**Comparison Operators:**
+
+| Operator | Description | Syntax | Example | MongoDB Equivalent |
+|----------|-------------|--------|---------|-------------------|
+| `eq` | Equal | `eq(field,value)` | `eq(status,active)` | `{status: "active"}` |
+| `ne` | Not equal | `ne(field,value)` | `ne(status,inactive)` | `{status: {$ne: "inactive"}}` |
+| `lt` | Less than | `lt(field,value)` | `lt(age,30)` | `{age: {$lt: 30}}` |
+| `le` | Less than or equal | `le(field,value)` | `le(price,100)` | `{price: {$lte: 100}}` |
+| `gt` | Greater than | `gt(field,value)` | `gt(age,18)` | `{age: {$gt: 18}}` |
+| `ge` | Greater than or equal | `ge(field,value)` | `ge(score,90)` | `{score: {$gte: 90}}` |
+| `in` | In array | `in(field,val1,val2,...)` | `in(category,books,electronics)` | `{category: {$in: ["books","electronics"]}}` |
+| `out` | Not in array | `out(field,val1,val2,...)` | `out(status,draft,deleted)` | `{status: {$nin: ["draft","deleted"]}}` |
+| `contains` | Contains value | `contains(field,value)` | `contains(tags,urgent)` | `{tags: "urgent"}` |
+| `matches` | Regex match | `matches(field,pattern,flags?)` | `matches(email,.*@gmail.com,i)` | `{email: /.*@gmail.com/i}` |
+| `text` | Full-text search | `text(searchTerm,language?)` | `text(javascript,en)` | `{$text: {$search: "javascript"}}` |
+
+**Logical Operators:**
+
+| Operator | Description | Syntax | Example |
+|----------|-------------|--------|---------|
+| `and` | Logical AND | `and(expr1,expr2,...)` | `and(eq(status,active),gt(age,18))` |
+| `or` | Logical OR | `or(expr1,expr2,...)` | `or(eq(role,admin),eq(role,moderator))` |
+| `not` | Logical NOT | `not(expr)` | `not(eq(deleted,true))` |
+
+**Query Modifiers:**
+
+| Operator | Description | Syntax | Example | Notes |
+|----------|-------------|--------|---------|-------|
+| `sort` | Sort results | `sort(field1,field2,...)` | `sort(+name,-createdAt)` | Prefix with `+` (asc) or `-` (desc) |
+| `select` | Select fields | `select(field1,field2,...)` | `select(name,email,createdAt)` | Returns only specified fields |
+| `limit` | Pagination | `limit(skip,count)` | `limit(0,10)` | Skip N records, return M records |
+
+#### Practical Examples
+
+**Basic Filtering:**
+```bash
+# Find active users
+GET /users?q=eq(status,active)
+
+# Find users older than 18
+GET /users?q=gt(age,18)
+
+# Find users with specific roles
+GET /users?q=in(role,admin,moderator,editor)
+
+# Find users NOT in certain departments
+GET /users?q=out(department,sales,marketing)
+
+# Find products with price less than or equal to 50
+GET /products?q=le(price,50)
+```
+
+**Logical Combinations:**
+```bash
+# Active users older than 18
+GET /users?q=and(eq(status,active),gt(age,18))
+
+# Users who are admins OR moderators
+GET /users?q=or(eq(role,admin),eq(role,moderator))
+
+# Products on sale OR cheap products
+GET /products?q=or(eq(onSale,true),lt(price,20))
+
+# Active users in specific countries
+GET /users?q=and(eq(status,active),in(country,US,UK,CA))
+
+# Complex nested conditions
+GET /products?q=and(eq(available,true),or(lt(price,50),eq(category,sale)))
+
+# Not deleted items
+GET /items?q=not(eq(deleted,true))
+```
+
+**Pattern Matching:**
+```bash
+# Find emails from Gmail (case-insensitive)
+GET /users?q=matches(email,.*@gmail\.com,i)
+
+# Find names starting with "John"
+GET /users?q=matches(name,^John,i)
+
+# Case-sensitive exact pattern
+GET /products?q=matches(sku,^PROD-[0-9]{4}$)
+```
+
+**Full-Text Search:**
+```bash
+# Search in text-indexed fields
+GET /articles?q=text(javascript tutorial)
+
+# Search with specific language
+GET /articles?q=text(programmazione,it)
+```
+
+**Array Fields:**
+```bash
+# Documents containing specific tag
+GET /posts?q=contains(tags,javascript)
+
+# Documents with any of multiple tags
+GET /posts?q=contains(tags,javascript,typescript,node)
+```
+
+**Sorting:**
+```bash
+# Sort by name ascending
+GET /users?q=sort(+name)
+
+# Sort by creation date descending
+GET /users?q=sort(-createdAt)
+
+# Multiple sort fields: name ascending, then age descending
+GET /users?q=sort(+name,-age)
+
+# Combine with filtering
+GET /users?q=and(eq(status,active),sort(-createdAt))
+```
+
+**Field Selection (Projection):**
+```bash
+# Return only name and email
+GET /users?q=select(name,email)
+
+# Return specific fields from filtered results
+GET /users?q=and(eq(status,active),select(name,email,role))
+```
+
+**Pagination:**
+```bash
+# Get first 10 users
+GET /users?q=limit(0,10)
+
+# Get next 10 users (skip 10, return 10)
+GET /users?q=limit(10,10)
+
+# Page 3 with 20 items per page (skip 40, return 20)
+GET /users?q=limit(40,20)
+
+# Combine with sorting and filtering
+GET /users?q=and(eq(status,active),sort(-createdAt),limit(0,20))
+```
+
+#### Complete Real-World Examples
+
+```bash
+# E-commerce: Active products under $100, sorted by price
+GET /products?q=and(eq(status,active),lt(price,100),sort(+price))
+
+# Users: Active admins or moderators, sorted by name
+GET /users?q=and(eq(status,active),or(eq(role,admin),eq(role,moderator)),sort(+name))
+
+# Blog: Published posts with specific tags, paginated
+GET /posts?q=and(eq(published,true),in(category,tech,programming),sort(-publishedAt),limit(0,10))
+
+# Search: Full-text search with filters and field selection
+GET /articles?q=and(text(mongodb tutorial),ge(rating,4),select(title,author,publishedAt))
+
+# Complex: Multiple conditions with nested OR
+GET /orders?q=and(in(status,pending,processing),or(gt(total,100),eq(priority,high)),sort(-createdAt),limit(0,50))
+```
+
+#### URL Encoding
+
+When using RQL in URLs, special characters must be properly encoded:
 
 ```javascript
-// Examples of RQL queries
-const queries = [
-  // Basic filtering
-  'eq(status,active)',
-  'gt(age,18)',
-  'in(category,electronics,books)',
-  
-  // Complex queries
-  'and(eq(status,active),gt(price,100))',
-  'or(eq(category,sale),lt(price,50))',
-  
-  // Sorting and pagination
-  'sort(+name,-created)',
-  'limit(10,20)', // limit(count, offset)
-  
-  // Field selection
-  'select(name,email,created)'
-];
+// JavaScript example: encoding RQL queries
+const query = 'and(eq(status,active),gt(age,18))';
+const encodedQuery = encodeURIComponent(query);
+// Result: and%28eq%28status%2Cactive%29%2Cgt%28age%2C18%29%29
 
-// Use in API calls
-// GET /users?q=and(eq(status,active),gt(age,18))&sort=-created&limit(10)
+// Using fetch
+fetch(`/api/users?q=${encodeURIComponent('eq(status,active)')}`);
+
+// Using axios
+axios.get('/api/users', {
+  params: {
+    q: 'eq(status,active)'  // axios handles encoding automatically
+  }
+});
 ```
+
+**Common encoding requirements:**
+- Parentheses: `(` → `%28`, `)` → `%29`
+- Commas: `,` → `%2C`
+- Spaces: ` ` → `%20` or `+`
+- Equals: `=` → `%3D` (in values, not query params)
+- Ampersands: `&` → `%26` (in RQL expressions)
+
+```bash
+# Before encoding
+GET /users?q=and(eq(status,active),matches(name,John.*))
+
+# After encoding (what actually gets sent)
+GET /users?q=and%28eq%28status%2Cactive%29%2Cmatches%28name%2CJohn.*%29%29
+```
+
+#### Best Practices and Tips
+
+1. **Use appropriate operators**: Choose the most specific operator for your needs
+   - Use `in` instead of multiple `or(eq(...))` expressions
+   - Use `ge`/`le` for inclusive ranges, `gt`/`lt` for exclusive
+
+2. **Optimize complex queries**:
+   - Put most selective filters first in `and()` expressions
+   - Use indexes on frequently queried fields
+   - Consider using `select()` to reduce payload size
+
+3. **Text search requires indexes**:
+   ```javascript
+   // Define text index in your MongoResource
+   getIndexes() {
+     return [
+       { key: { title: 'text', description: 'text' } }
+     ];
+   }
+   ```
+
+4. **ObjectId handling**:
+   - RQL automatically converts string IDs to MongoDB ObjectId for `_id` field
+   - Example: `eq(_id,507f1f77bcf86cd799439011)` works automatically
+
+5. **Regex performance**:
+   - Avoid leading wildcards when possible: `^John` is faster than `.*John`
+   - Use case-insensitive flag sparingly
+   - Consider full-text search for complex text queries
+
+6. **Combining operators**:
+   ```bash
+   # Good: Logical structure
+   GET /items?q=and(eq(active,true),or(lt(price,50),eq(sale,true)),sort(-date),limit(0,20))
+
+   # Avoid: Overly complex nesting - split into multiple requests if needed
+   ```
+
+7. **Default query limits**:
+   - Consider setting `queryLimit` in MongoResource options to prevent excessive results
+   - Always use `limit()` for paginated interfaces
+
+8. **Testing RQL queries**:
+   ```bash
+   # Use curl for testing
+   curl "http://localhost:3000/users?q=$(node -p 'encodeURIComponent("eq(status,active)")')"
+
+   # Or use a tool that handles encoding
+   http GET "localhost:3000/users" q=="eq(status,active)"  # HTTPie
+   ```
 
 ### Authentication and Authorization
 
