@@ -2,6 +2,8 @@
 
 A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive MongoDB support, JSON Schema validation, authentication, and authorization. Build production-ready RESTful APIs in minutes with automatic OpenAPI documentation generation.
 
+> **Latest Release:** [v14.1.1](https://github.com/vivocha/arrest/releases/tag/v14.1.1) - Stable dependencies with improved documentation
+
 [![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
 [![CI](https://github.com/vivocha/arrest/actions/workflows/ci.yml/badge.svg)](https://github.com/vivocha/arrest/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/vivocha/arrest/badge.svg?branch=master)](https://coveralls.io/github/vivocha/arrest?branch=master)
@@ -64,7 +66,7 @@ A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive 
 - ✅ **JSON-RPC Support**: Dual REST and JSON-RPC endpoint support
 - ✅ **Pipeline Operations**: Complex data processing with pipeline support
 - ✅ **TypeScript Support**: Full TypeScript definitions included
-- ✅ **Modern ES Modules**: Supports both ESM and CommonJS
+- ✅ **Modern ES Modules**: Native ESM with Node.js 18+
 
 ## Requirements
 
@@ -155,6 +157,7 @@ class CustomOperation extends Operation {
 
   getDefaultInfo() {
     return {
+      operationId: `${this.resource.info.name}.${this.internalId}`,
       summary: 'Custom operation',
       description: 'Performs a custom operation',
       responses: {
@@ -338,6 +341,129 @@ new Operation(resource, path, method, operationId)
 ---
 
 ## Advanced Topics
+
+### OpenAPI 3.1 and JSON Schema Draft 2020-12 Features
+
+arrest v14.1.0+ supports **OpenAPI 3.1** with full **JSON Schema Draft 2020-12** compatibility, bringing powerful new validation capabilities.
+
+#### New Validation Keywords
+
+**1. `dependentRequired` - Conditional Required Fields**
+
+Specify that certain fields become required when another field is present:
+
+```javascript
+class CreatePaymentOperation extends Operation {
+  getDefaultInfo() {
+    return {
+      operationId: `${this.resource.info.name}.${this.internalId}`,
+      summary: 'Process payment',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                paymentMethod: {
+                  type: 'string',
+                  enum: ['credit_card', 'paypal', 'bank_transfer']
+                },
+                cardNumber: { type: 'string' },
+                cardExpiry: { type: 'string' },
+                cardCvv: { type: 'string' },
+                paypalEmail: { type: 'string', format: 'email' },
+                bankAccount: { type: 'string' }
+              },
+              required: ['paymentMethod'],
+              // If paymentMethod is credit_card, these fields become required
+              dependentRequired: {
+                credit_card: ['cardNumber', 'cardExpiry', 'cardCvv']
+              }
+            }
+          }
+        }
+      }
+    };
+  }
+}
+```
+
+**2. `if/then/else` - Conditional Schemas**
+
+Apply different validation rules based on field values:
+
+```javascript
+schema: {
+  type: 'object',
+  properties: {
+    userType: { type: 'string', enum: ['individual', 'company'] },
+    name: { type: 'string' },
+    vatNumber: { type: 'string' },
+    companyName: { type: 'string' }
+  },
+  required: ['userType', 'name'],
+  // Conditional validation based on userType
+  if: {
+    properties: { userType: { const: 'company' } }
+  },
+  then: {
+    required: ['vatNumber', 'companyName']
+  }
+}
+```
+
+**3. `prefixItems` - Tuple Validation**
+
+Validate arrays as tuples with specific types for each position:
+
+```javascript
+schema: {
+  type: 'object',
+  properties: {
+    location: {
+      type: 'array',
+      prefixItems: [
+        { type: 'number', minimum: -90, maximum: 90 },    // latitude
+        { type: 'number', minimum: -180, maximum: 180 }   // longitude
+      ],
+      minItems: 2,
+      maxItems: 2
+    }
+  }
+}
+```
+
+**4. `const` - Constant Values**
+
+Enforce exact constant values:
+
+```javascript
+schema: {
+  type: 'object',
+  properties: {
+    apiVersion: { const: 'v2' },
+    type: { const: 'webhook' }
+  }
+}
+```
+
+**5. Type Arrays for Nullable Fields**
+
+OpenAPI 3.1 uses JSON Schema's native type arrays for nullable fields:
+
+```javascript
+// OpenAPI 3.1 way (recommended)
+{
+  type: ['string', 'null']
+}
+
+// Legacy way (still supported for backward compatibility)
+{
+  type: 'string',
+  nullable: true
+}
+```
 
 ### JSON Schema Validation
 
@@ -907,11 +1033,99 @@ class UserStatsOperation extends QueryMongoOperation {
 
 ### CSV Export
 
-Built-in CSV export functionality:
+arrest provides built-in CSV export functionality for any resource. Simply add `format=csv` to your query parameters to export data as CSV instead of JSON.
+
+#### Basic CSV Export
+
+```bash
+# Export all users as CSV
+GET /users?format=csv
+
+# Export with specific fields
+GET /users?format=csv&csv_fields=name,email,createdAt
+
+# Export with custom column names
+GET /users?format=csv&csv_fields=name,email&csv_names=Full Name,Email Address
+```
+
+#### CSV Query Parameters
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `format` | string | Set to `csv` to enable CSV export | `format=csv` |
+| `csv_fields` | array | Comma-separated list of fields to include | `csv_fields=name,email,age` |
+| `csv_names` | array | Custom column names (must match csv_fields count) | `csv_names=Name,Email,Age` |
+| `csv_options` | object | CSV formatting options | `csv_options=header=true` |
+
+#### CSV Options
+
+The `csv_options` parameter supports these formatting options:
+
+- `header=true/false` - Include header row (default: true)
+- `delimiter=,` - Field delimiter (default: comma)
+- `quote="` - Quote character for values with special chars
+- `escape=\` - Escape character
+- `linebreak=\n` - Line break character
+
+#### Combining CSV with RQL
+
+CSV export works seamlessly with RQL queries and other parameters:
+
+```bash
+# Export active users only
+GET /users?q=eq(status,active)&format=csv&csv_fields=name,email
+
+# Export with sorting and pagination
+GET /users?q=and(eq(status,active),sort(-createdAt),limit(0,100))&format=csv
+
+# Complex query with field selection
+GET /orders?q=and(gt(total,100),in(status,pending,processing))&format=csv&csv_fields=id,customer,total,status&csv_names=Order ID,Customer Name,Total Amount,Status
+
+# CSV with nested fields
+GET /users?format=csv&csv_fields=name,email,profile.city,profile.country&csv_names=Name,Email,City,Country
+```
+
+#### Programmatic CSV Export
+
+Use CSV export in your custom operations:
 
 ```javascript
-// GET /users?format=csv&csv_fields=name,email,created
-// GET /users?format=csv&csv_fields=name,email&csv_options=header=true&csv_names=Name,Email
+import { QueryMongoOperation } from 'arrest';
+
+class CustomReportOperation extends QueryMongoOperation {
+  getDefaultInfo() {
+    return {
+      operationId: `${this.resource.info.name}.${this.internalId}`,
+      summary: 'Generate custom report',
+      parameters: [
+        {
+          name: 'format',
+          in: 'query',
+          schema: { type: 'string', enum: ['json', 'csv'] }
+        },
+        {
+          name: 'csv_fields',
+          in: 'query',
+          schema: {
+            type: 'array',
+            items: { type: 'string' }
+          },
+          style: 'form',
+          explode: false
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Report data',
+          content: {
+            'application/json': { schema: { type: 'array' } },
+            'text/csv': { schema: { type: 'string' } }
+          }
+        }
+      }
+    };
+  }
+}
 ```
 
 ### JSON-RPC Support
@@ -1109,9 +1323,11 @@ class CustomAPI extends API {
 
 **4. Validation Error Handling**
 
-arrest automatically validates requests against OpenAPI schemas. Handle validation errors:
+arrest automatically validates requests against OpenAPI schemas using **openapi-police**. Handle validation errors:
 
 ```javascript
+import { ValidationError } from 'openapi-police';
+
 class ValidationAwareAPI extends API {
   handleError(err, req, res, next) {
     if (err.name === 'ValidationError') {
@@ -1131,6 +1347,57 @@ class ValidationAwareAPI extends API {
   }
 }
 ```
+
+**Example Validation Error Response:**
+
+When a request fails validation, openapi-police returns detailed error information:
+
+```json
+{
+  "error": 400,
+  "message": "ValidationError",
+  "info": {
+    "failedValidation": true,
+    "path": "body",
+    "errors": [
+      {
+        "keyword": "required",
+        "dataPath": "",
+        "schemaPath": "#/required",
+        "params": { "missingProperty": "email" },
+        "message": "must have required property 'email'"
+      },
+      {
+        "keyword": "format",
+        "dataPath": ".email",
+        "schemaPath": "#/properties/email/format",
+        "params": { "format": "email" },
+        "message": "must match format \"email\""
+      },
+      {
+        "keyword": "minimum",
+        "dataPath": ".age",
+        "schemaPath": "#/properties/age/minimum",
+        "params": { "comparison": ">=", "limit": 0 },
+        "message": "must be >= 0"
+      }
+    ]
+  }
+}
+```
+
+**Common Validation Error Types:**
+
+| Keyword | Description | Example Message |
+|---------|-------------|-----------------|
+| `required` | Required field is missing | "must have required property 'email'" |
+| `type` | Wrong data type | "must be string" |
+| `format` | Invalid format (email, date, etc.) | "must match format \"email\"" |
+| `minimum`/`maximum` | Number out of range | "must be >= 0" |
+| `minLength`/`maxLength` | String length violation | "must NOT be shorter than 1 characters" |
+| `pattern` | Regex pattern mismatch | "must match pattern \"^[A-Z]\"" |
+| `enum` | Value not in allowed list | "must be equal to one of the allowed values" |
+| `additionalProperties` | Extra properties not allowed | "must NOT have additional properties" |
 
 **5. Security and Authorization Errors**
 
@@ -1421,11 +1688,12 @@ All errors follow a consistent JSON format:
 
 ### TypeScript Support
 
-Full TypeScript definitions are included:
+Full TypeScript definitions are included with proper OpenAPI v3.1 types:
 
 ```typescript
 import { API, MongoResource, Operation } from 'arrest';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import type { OpenAPIV3_1 } from 'openapi-police';
 
 interface User {
   id: string;
@@ -1434,19 +1702,92 @@ interface User {
   createdAt: Date;
 }
 
+interface CreateUserRequest {
+  name: string;
+  email: string;
+  age?: number;
+}
+
 class TypedUserOperation extends Operation {
-  async runOperation(job: { req: Request; res: Response }): Promise<User> {
-    const userData = job.req.body as Partial<User>;
-    
-    // Implementation with type safety
+  getDefaultInfo(): OpenAPIV3_1.OperationObject {
     return {
-      id: 'generated-id',
-      name: userData.name!,
-      email: userData.email!,
-      createdAt: new Date()
+      operationId: `${this.resource.info.name}.${this.internalId}`,
+      summary: 'Create a new user',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['name', 'email'],
+              properties: {
+                name: { type: 'string', minLength: 1 },
+                email: { type: 'string', format: 'email' },
+                age: { type: 'integer', minimum: 0 }
+              },
+              additionalProperties: false
+            }
+          }
+        }
+      },
+      responses: {
+        '201': {
+          description: 'User created',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  name: { type: 'string' },
+                  email: { type: 'string' },
+                  createdAt: { type: 'string', format: 'date-time' }
+                }
+              }
+            }
+          }
+        }
+      }
     };
   }
+
+  async runOperation(job: { req: Request; res: Response }): Promise<User> {
+    const userData = job.req.body as CreateUserRequest;
+
+    // Type-safe implementation
+    const user: User = {
+      id: 'generated-id',
+      name: userData.name,
+      email: userData.email,
+      createdAt: new Date()
+    };
+
+    return user;
+  }
+
+  async handler(req: Request, res: Response, next: Function): Promise<void> {
+    try {
+      const result = await this.runOperation({ req, res });
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
+
+// Usage with typed API
+const api = new API({
+  title: 'Typed API',
+  version: '1.0.0'
+});
+
+// TypeScript will provide full IntelliSense for all methods
+const userResource = new MongoResource('mongodb://localhost:27017/mydb', {
+  name: 'User',
+  collection: 'users'
+});
+
+api.addResource(userResource);
 ```
 
 ### Performance and Production
@@ -1564,6 +1905,5 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 ### Related Projects
 
 - [jsonref](https://github.com/vivocha/jsonref) - JSON Reference resolution
-- [jsonpolice](https://github.com/vivocha/jsonpolice) - JSON Schema validation  
 - [openapi-police](https://github.com/vivocha/openapi-police) - OpenAPI validation utilities
 

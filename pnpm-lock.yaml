@@ -42,8 +42,8 @@ importers:
         specifier: ^4.19.2
         version: 4.21.2
       jsonref:
-        specifier: ^9.0.0
-        version: 9.0.0
+        specifier: ^9.0.2
+        version: 9.0.2
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -57,8 +57,8 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
       openapi-police:
-        specifier: next
-        version: 5.0.0-beta.1
+        specifier: ^5.0.1
+        version: 5.0.1
       rql:
         specifier: ^0.3.3
         version: 0.3.3
@@ -1891,13 +1891,9 @@ packages:
   jsonfile@6.2.0:
     resolution: {integrity: sha512-FGuPw30AdOIUTRMC2OMRtQV+jkVj2cfPqSeWXv1NEAJ1qZ5zb1X6z1mFhbfOB/iy3ssJCD+3KuZ8r8C3uVFlAg==}
 
-  jsonpolice@13.0.0-beta.2:
-    resolution: {integrity: sha512-Eu8s0Li7wlvUHiaqqUYOU/mRTG4MHRZEtzIW2uS9HOTSXMwxhkGasJl8juujAY6xd+rU24U0egloNGj/1BhhvA==}
+  jsonpolice@13.0.0:
+    resolution: {integrity: sha512-8bYJJwja1SVvvqRJKuJcwWeeJvDk3ISgTk/Ic8aisFQbSTCMaVVSEKLLfR8vOSgbOdqpbRq67eR0TUMeVk/bIw==}
     engines: {node: '>=18.17.0'}
-
-  jsonref@9.0.0:
-    resolution: {integrity: sha512-ZTL2Q9aus/aycsxw/pB5ffWcbrr/219DTlJ/TTvTOMWMcxkUCCMxdvJ/6zrWGNACVdlO2ySad5EShC8d52IwEA==}
-    engines: {node: '>=16.14.0'}
 
   jsonref@9.0.2:
     resolution: {integrity: sha512-XrEwAyAS8cF3m+OLOT2iRs0/6r4F2eNI9OFg7g4z+D9WCPjLtjZ9ZZ727/waRTRy/Yjw905ZWVA7wgIsxUTiZA==}
@@ -2300,8 +2296,8 @@ packages:
     resolution: {integrity: sha512-1FlR+gjXK7X+AsAHso35MnyN5KqGwJRi/31ft6x0M194ht7S+rWAvd7PHss9xSKMzE0asv1pyIHaJYq+BbacAQ==}
     engines: {node: '>=12'}
 
-  openapi-police@5.0.0-beta.1:
-    resolution: {integrity: sha512-iLUws66kjt1s8DsWZWkWbUCV4tr6JyCjE9+zt4msZwbsRB2Z/00yM/HXqtDzkHT3JLdbjUB5YUwijXCGNfajAA==}
+  openapi-police@5.0.1:
+    resolution: {integrity: sha512-bra7H9EBuN41ZxE9KXHy/AE7z97PsmLWTmuXr3jzaR2/Yd5VnblndKA5qeGirQGDBLwhwthj+RoviEV/r5ZW5Q==}
     engines: {node: '>=18.17.0'}
 
   opener@1.5.2:
@@ -5453,12 +5449,10 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
-  jsonpolice@13.0.0-beta.2:
+  jsonpolice@13.0.0:
     dependencies:
       jsonref: 9.0.2
       lodash: 4.17.21
-
-  jsonref@9.0.0: {}
 
   jsonref@9.0.2: {}
 
@@ -5780,9 +5774,9 @@ snapshots:
     dependencies:
       mimic-fn: 4.0.0
 
-  openapi-police@5.0.0-beta.1:
+  openapi-police@5.0.1:
     dependencies:
-      jsonpolice: 13.0.0-beta.2
+      jsonpolice: 13.0.0
       jsonref: 9.0.2
 
   opener@1.5.2: {}
