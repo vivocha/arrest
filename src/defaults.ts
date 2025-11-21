@@ -369,3 +369,8 @@ export const JSON_SCHEMA_DRAFT_2020_12 = {
   },
   default: true,
 };
+
+/**
+ * @deprecated Use JSON_SCHEMA_DRAFT_2020_12 instead. This alias is provided for backward compatibility.
+ */
+export const JSON_SCHEMA_DRAFT_7 = JSON_SCHEMA_DRAFT_2020_12;

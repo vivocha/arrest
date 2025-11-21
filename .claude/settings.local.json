@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm run clean)",
+      "Bash(pnpm run build)",
+      "Bash(pnpm list:*)",
+      "Bash(node -e:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm run test)",
+      "Bash(git restore:*)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(gh release create:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(pnpm:*)",
+      "Bash(corepack prepare pnpm@latest --activate)",
+      "Bash(gh run watch:*)",
+      "Bash(npm view:*)",
+      "Bash(cat:*)",
+      "Bash(gh workflow:*)",
+      "Bash(npm:*)",
+      "Bash(git revert:*)",
+      "Bash(git fetch:*)",
+      "Bash(mocha --exit --no-timeouts test/**/openapi-3.1.test.js)",
+      "Bash(npx mocha:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
