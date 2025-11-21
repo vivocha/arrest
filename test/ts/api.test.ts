@@ -41,7 +41,7 @@ describe('API', function () {
 
     it('should create an API instance', function () {
       let api = new API();
-      api.document.openapi.should.equal('3.0.2');
+      api.document.openapi.should.equal('3.1.0');
       api.document.info.version.should.equal('1.0.0');
       api.document.info.title.should.equal('REST API');
     });
@@ -1131,11 +1131,12 @@ describe('API', function () {
     });
     it('should return a complete and clean OpenAPI spec for a defined API instance', async function () {
       const expectedSpec = {
-        openapi: '3.0.2',
+        openapi: '3.1.0',
         info: {
           title: 'REST API',
           version: '1.0.0',
         },
+        jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
         components: {
           schemas: {
             errorResponse: {
@@ -1313,11 +1314,12 @@ describe('API', function () {
     });
     it('should return a complete and clean OpenAPI spec for a defined API instance with cross references between schemas', async function () {
       const expectedSpec = {
-        openapi: '3.0.2',
+        openapi: '3.1.0',
         info: {
           title: 'REST API',
           version: '1.0.0',
         },
+        jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
         components: {
           schemas: {
             errorResponse: {
@@ -1489,12 +1491,13 @@ describe('API', function () {
     });
     it('should return a complete and clean OpenAPI spec for a defined API instance with cross references and custom info', async function () {
       const expectedSpec = {
-        openapi: '3.0.2',
+        openapi: '3.1.0',
         info: {
           title: 'simpleAPI3',
           version: '1.1.1',
           contact: { email: 'me@test.org' },
         },
+        jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
         components: {
           schemas: {
             errorResponse: {
@@ -1682,12 +1685,13 @@ describe('API', function () {
     });
     it('should return a complete and clean OpenAPI spec', async function () {
       const expectedSpec = {
-        openapi: '3.0.2',
+        openapi: '3.1.0',
         info: {
           title: 'simpleAPI4',
           version: '1.1.1',
           contact: { email: 'me@test.org' },
         },
+        jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
         components: {
           schemas: {
             errorResponse: {
@@ -1873,8 +1877,9 @@ describe('API', function () {
     });
     it('should have a well-composed openapi spec and all references rebased and rewritten', async function () {
       const expectedSpec = {
-        openapi: '3.0.2',
+        openapi: '3.1.0',
         info: { title: 'simpleAPI6', version: '2.2.22', contact: { email: 'me@test.org' } },
+        jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
         components: {
           schemas: {
             errorResponse: {
@@ -2014,8 +2019,9 @@ describe('API', function () {
     });
     it('should have a well-composed openapi spec and all references rebased and rewritten', async function () {
       const expectedSpec = {
-        openapi: '3.0.2',
+        openapi: '3.1.0',
         info: { title: 'simpleAPI7', version: '2.2.22', contact: { email: 'me@test.org' } },
+        jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
         components: {
           schemas: {
             errorResponse: {

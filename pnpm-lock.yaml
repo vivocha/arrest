@@ -57,8 +57,8 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
       openapi-police:
-        specifier: ^4.0.5
-        version: 4.0.5
+        specifier: next
+        version: 5.0.0-beta.1
       rql:
         specifier: ^0.3.3
         version: 0.3.3
@@ -1891,8 +1891,8 @@ packages:
   jsonfile@6.2.0:
     resolution: {integrity: sha512-FGuPw30AdOIUTRMC2OMRtQV+jkVj2cfPqSeWXv1NEAJ1qZ5zb1X6z1mFhbfOB/iy3ssJCD+3KuZ8r8C3uVFlAg==}
 
-  jsonpolice@12.0.1:
-    resolution: {integrity: sha512-A9XzzaxMNZyWiUrx7z2TQLaj3OCYXjT8fwmaDpuudcMn+oZ36IiAlnTlGBfBz+oSBiIjXbVEDWrpc5VJDcBCkw==}
+  jsonpolice@13.0.0-beta.2:
+    resolution: {integrity: sha512-Eu8s0Li7wlvUHiaqqUYOU/mRTG4MHRZEtzIW2uS9HOTSXMwxhkGasJl8juujAY6xd+rU24U0egloNGj/1BhhvA==}
     engines: {node: '>=18.17.0'}
 
   jsonref@9.0.0:
@@ -2300,8 +2300,8 @@ packages:
     resolution: {integrity: sha512-1FlR+gjXK7X+AsAHso35MnyN5KqGwJRi/31ft6x0M194ht7S+rWAvd7PHss9xSKMzE0asv1pyIHaJYq+BbacAQ==}
     engines: {node: '>=12'}
 
-  openapi-police@4.0.5:
-    resolution: {integrity: sha512-p8uO1pZgGFB/g2IeFoWMeexNOlCehqQY/2OeBkI1jTQuE1bw3ajndlFiqRpkguSoSqBmMtLwHdCrNio3bldhpQ==}
+  openapi-police@5.0.0-beta.1:
+    resolution: {integrity: sha512-iLUws66kjt1s8DsWZWkWbUCV4tr6JyCjE9+zt4msZwbsRB2Z/00yM/HXqtDzkHT3JLdbjUB5YUwijXCGNfajAA==}
     engines: {node: '>=18.17.0'}
 
   opener@1.5.2:
@@ -5453,7 +5453,7 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
-  jsonpolice@12.0.1:
+  jsonpolice@13.0.0-beta.2:
     dependencies:
       jsonref: 9.0.2
       lodash: 4.17.21
@@ -5780,10 +5780,10 @@ snapshots:
     dependencies:
       mimic-fn: 4.0.0
 
-  openapi-police@4.0.5:
+  openapi-police@5.0.0-beta.1:
     dependencies:
-      jsonpolice: 12.0.1
-      jsonref: 9.0.0
+      jsonpolice: 13.0.0-beta.2
+      jsonref: 9.0.2
 
   opener@1.5.2: {}
 
