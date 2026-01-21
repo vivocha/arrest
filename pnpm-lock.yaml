@@ -46,7 +46,7 @@ importers:
         version: 9.0.2
       lodash:
         specifier: ^4.17.21
-        version: 4.17.21
+        version: 4.17.23
       luxon:
         specifier: ^3.4.4
         version: 3.7.2
@@ -1956,8 +1956,8 @@ packages:
   lodash.uniqby@4.7.0:
     resolution: {integrity: sha512-e/zcLx6CSbmaEgFHCA7BnoQKyCtKMxnuWrJygbwPs/AIn+IMKl66L8/s+wBUn5LRw2pZx3bUHibiV1b6aTWIww==}
 
-  lodash@4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+  lodash@4.17.23:
+    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
 
   log-driver@1.2.7:
     resolution: {integrity: sha512-U7KCmLdqsGHBLeWqYlFA0V0Sl6P08EE1ZrmA9cxjUE0WVqT9qnyVDPz1kzpFEP0jdJuFnasWIfSd7fsaNXkpbg==}
@@ -5452,7 +5452,7 @@ snapshots:
   jsonpolice@13.0.0:
     dependencies:
       jsonref: 9.0.2
-      lodash: 4.17.21
+      lodash: 4.17.23
 
   jsonref@9.0.2: {}
 
@@ -5507,7 +5507,7 @@ snapshots:
 
   lodash.uniqby@4.7.0: {}
 
-  lodash@4.17.21: {}
+  lodash@4.17.23: {}
 
   log-driver@1.2.7: {}
 
