@@ -27,8 +27,8 @@ importers:
         specifier: ^4.3.5
         version: 4.4.1(supports-color@8.1.1)
       debuggo:
-        specifier: ^2.0.0
-        version: 2.0.0
+        specifier: ^2.0.1
+        version: 2.0.1
       decamelize:
         specifier: ^6.0.0
         version: 6.0.1
@@ -1218,8 +1218,8 @@ packages:
   debuggo@1.4.1:
     resolution: {integrity: sha512-Mb8wt4Lc+LsKjyvOUmpDEolgW7xCLJQReb2IWIpLtskvg9DG3ei9Iw/fwqRYSA37I0Eg3xvpuiXcq2VPmGC2bg==}
 
-  debuggo@2.0.0:
-    resolution: {integrity: sha512-OVseq4OoQcf6d77wnEJ8zg01Y6hQyhNOP77PCH95YqA16Jy03C6UVpbbFUL0wMJLAI/+D1GbJgXMEWiRTUT5vQ==}
+  debuggo@2.0.1:
+    resolution: {integrity: sha512-AORVmaqahG2YHaC2MLiwioo3BHOPwU18jTmKdWAJkRq5p3UPRIZCjC2jg01Maz7TYQ5DkLifweVINATum0yPvg==}
 
   decamelize@4.0.0:
     resolution: {integrity: sha512-9iE1PgSik9HeIIw2JO94IidnE3eBoQrFJ3w7sFuzSX4DpmZ3v5sZpUiV5Swcf6mQEF+Y0ru8Neo+p+nyh2J+hQ==}
@@ -4765,7 +4765,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  debuggo@2.0.0:
+  debuggo@2.0.1:
     dependencies:
       debug: 4.4.1(supports-color@8.1.1)
     transitivePeerDependencies:
