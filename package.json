@@ -118,7 +118,7 @@
     "camelcase": "^8.0.0",
     "cookie-parser": "^1.4.6",
     "debug": "^4.3.5",
-    "debuggo": "^1.4.1",
+    "debuggo": "^2.0.0",
     "decamelize": "^6.0.0",
     "dot-prop": "^9.0.0",
     "eredita": "^1.2.1",
