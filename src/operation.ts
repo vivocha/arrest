@@ -92,8 +92,8 @@ export abstract class Operation {
       }
     };
   }
-  protected createJSONParser(): RequestHandler {
-    return bodyParser.json() as RequestHandler;
+  protected createJSONParser(type?: string | string[]): RequestHandler {
+    return bodyParser.json({ type: type || 'application/json' }) as RequestHandler;
   }
   protected createUrlencodedParser(): RequestHandler {
     return bodyParser.urlencoded({ extended: true }) as RequestHandler;
@@ -106,6 +106,9 @@ export abstract class Operation {
       }
       if (body.content['application/json']) {
         return [this.createJSONParser(), this.createBodyValidator('application/json', body.content['application/json'], body.required)];
+      }
+      if (body.content['application/json-patch+json']) {
+        return [this.createJSONParser('application/json-patch+json'), this.createBodyValidator('application/json-patch+json', body.content['application/json-patch+json'], body.required)];
       }
       if (body.content['application/x-www-form-urlencoded']) {
         return [

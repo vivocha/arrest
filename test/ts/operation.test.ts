@@ -821,7 +821,40 @@ describe('Operation', function () {
         }
       }
 
-      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }, '/c': { post: Op3 }, '/d': { post: Op4 } });
+      class Op5 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op5');
+          this.info.requestBody = {
+            content: {
+              'application/json-patch+json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['op', 'path'],
+                    properties: {
+                      op: {
+                        type: 'string',
+                        enum: ['add', 'remove', 'replace', 'move', 'copy', 'test'],
+                      },
+                      path: {
+                        type: 'string',
+                      },
+                      value: {},
+                    },
+                  },
+                },
+              },
+            },
+            required: true,
+          };
+        }
+        handler(req, res) {
+          spyFunc(req, res);
+        }
+      }
+
+      let r = new Resource({ name: 'Test' }, { '/a': { post: Op1 }, '/b': { post: Op2 }, '/c': { post: Op3 }, '/d': { post: Op4 }, '/e': { patch: Op5 } });
       api.addResource(r);
 
       before(function () {
@@ -967,6 +1000,49 @@ describe('Operation', function () {
           .expect('Content-Type', /json/)
           .then(({ body: data }) => {
             data.should.deep.equal({});
+          });
+      });
+
+      it('should accept and parse application/json-patch+json bodies', function () {
+        spyFunc.resetHistory();
+        return request
+          .patch('/tests/e')
+          .set('Content-Type', 'application/json-patch+json')
+          .send([{ op: 'add', path: '/foo', value: 'bar' }])
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.body.should.be.an('array');
+            data.body[0].op.should.equal('add');
+            data.body[0].path.should.equal('/foo');
+            data.body[0].value.should.equal('bar');
+            spyFunc.calledOnce.should.be.true;
+          });
+      });
+
+      it('should fail if application/json-patch+json body is missing required fields', function () {
+        return request
+          .patch('/tests/e')
+          .set('Content-Type', 'application/json-patch+json')
+          .send([{ op: 'add' }])
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('items');
+          });
+      });
+
+      it('should fail if application/json-patch+json body has invalid op value', function () {
+        return request
+          .patch('/tests/e')
+          .set('Content-Type', 'application/json-patch+json')
+          .send([{ op: 'invalid', path: '/foo' }])
+          .expect(400)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.message.should.equal('ValidationError');
+            data.info.type.should.equal('items');
           });
       });
     });
