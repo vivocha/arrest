@@ -2,7 +2,7 @@
 
 A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive MongoDB support, JSON Schema validation, authentication, and authorization. Build production-ready RESTful APIs in minutes with automatic OpenAPI documentation generation.
 
-> **Latest Release:** [v14.1.1](https://github.com/vivocha/arrest/releases/tag/v14.1.1) - Stable dependencies with improved documentation
+> **Latest Release:** [v14.2.0](https://github.com/vivocha/arrest/releases/tag/v14.2.0) - JSON Patch support with application/json-patch+json content-type
 
 [![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
 [![CI](https://github.com/vivocha/arrest/actions/workflows/ci.yml/badge.svg)](https://github.com/vivocha/arrest/actions/workflows/ci.yml)
@@ -33,6 +33,7 @@ A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive 
 
 ### Advanced Topics
 - [JSON Schema Validation](#json-schema-validation)
+- [JSON Patch Support](#json-patch-support)
 - [Resource Query Language (RQL)](#resource-query-language-rql)
 - [Authentication and Authorization](#authentication-and-authorization)
 - [MongoDB Integration](#mongodb-integration)
@@ -532,6 +533,121 @@ class CreateUserOperation extends Operation {
   }
 }
 ```
+
+### JSON Patch Support
+
+arrest v14.2.0+ supports **JSON Patch** (RFC 6902) with the `application/json-patch+json` content-type, enabling partial updates and complex transformations:
+
+```javascript
+import { Operation } from 'arrest';
+
+class PatchResourceOperation extends Operation {
+  constructor(resource, path, method) {
+    super(resource, path, method, 'patchResource');
+  }
+
+  getDefaultInfo() {
+    return {
+      summary: 'Apply JSON Patch operations to a resource',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json-patch+json': {
+            schema: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['op', 'path'],
+                properties: {
+                  op: {
+                    type: 'string',
+                    enum: ['add', 'remove', 'replace', 'move', 'copy', 'test']
+                  },
+                  path: {
+                    type: 'string',
+                    description: 'JSON Pointer to target location'
+                  },
+                  value: {
+                    description: 'Value for add/replace/test operations'
+                  },
+                  from: {
+                    type: 'string',
+                    description: 'Source path for move/copy operations'
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' }
+        }
+      ]
+    };
+  }
+
+  async runOperation(job) {
+    const { id } = job.req.params;
+    const patches = job.req.body;
+
+    // Fetch the resource
+    const resource = await this.fetchResource(id);
+
+    // Apply JSON Patch operations
+    for (const patch of patches) {
+      switch (patch.op) {
+        case 'add':
+          this.applyAdd(resource, patch.path, patch.value);
+          break;
+        case 'remove':
+          this.applyRemove(resource, patch.path);
+          break;
+        case 'replace':
+          this.applyReplace(resource, patch.path, patch.value);
+          break;
+        // ... other operations
+      }
+    }
+
+    // Save and return updated resource
+    await this.saveResource(resource);
+    return resource;
+  }
+}
+```
+
+**Example JSON Patch request:**
+
+```bash
+curl -X PATCH "http://localhost:3000/users/123" \
+  -H "Content-Type: application/json-patch+json" \
+  -d '[
+    { "op": "replace", "path": "/email", "value": "newemail@example.com" },
+    { "op": "add", "path": "/tags/-", "value": "premium" },
+    { "op": "remove", "path": "/temporaryField" }
+  ]'
+```
+
+**Supported operations:**
+- `add` - Add a new value at the specified path
+- `remove` - Remove the value at the specified path
+- `replace` - Replace the value at the specified path
+- `move` - Move a value from one path to another
+- `copy` - Copy a value from one path to another
+- `test` - Test that a value at the path matches
+
+**Supported Content Types:**
+
+arrest automatically parses request bodies based on the `Content-Type` header:
+
+- `application/json` - Standard JSON requests
+- `application/json-patch+json` - JSON Patch operations (RFC 6902)
+- `application/x-www-form-urlencoded` - Form-encoded data
 
 ### Resource Query Language (RQL)
 
