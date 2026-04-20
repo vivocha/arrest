@@ -393,7 +393,7 @@ export function toCSV(data: any[], options: CSVOptions): string {
       for (let k in fieldMap) {
         const value: any = dot(item, k);
         if (options.decimal && typeof value === 'number') {
-          l.push(value.toString().replace('.', options.decimal));
+          l.push(value.toString().replace(/\./g, options.decimal));
         } else if (value instanceof Date) {
           l.push(
             options.dateFormat
@@ -411,6 +411,6 @@ export function toCSV(data: any[], options: CSVOptions): string {
   });
 
   return out
-    .map((l) => l.map((f) => (options.quotes ? `"${f.replace('"', `${options.escape || '\\'}"`)}"` : f)).join(options.separator || ','))
+    .map((l) => l.map((f) => (options.quotes ? `"${f.replace(/"/g, `${options.escape || '\\'}"`)}"` : f)).join(options.separator || ','))
     .join(options.eol || '\n');
 }

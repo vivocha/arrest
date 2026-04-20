@@ -1,6 +1,6 @@
 import { defineAbility } from '@casl/ability';
 import * as chai from 'chai';
-import { checkAbility, rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from '../../dist/util.js';
+import { checkAbility, rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas, toCSV } from '../../dist/util.js';
 import {
   complexSpec,
   jsonSchema,
@@ -4735,6 +4735,35 @@ describe('util', function () {
         Error,
         'Referenced path "#/components/schemas/A/definitions/AA/definitions/AAA" doesn\'t exist in spec.'
       );
+    });
+  });
+
+  describe('toCSV', function () {
+    it('should escape a single double-quote in a field value', function () {
+      const data = [{ name: 'say "hello"' }];
+      const csv = toCSV(data, { fields: ['name'], header: false, quotes: true });
+      csv.should.equal('"say \\"hello\\""');
+    });
+    it('should escape multiple double-quotes in the same field value', function () {
+      const data = [{ name: 'a"b"c' }];
+      const csv = toCSV(data, { fields: ['name'], header: false, quotes: true });
+      // all three occurrences must be escaped, not just the first
+      csv.should.equal('"a\\"b\\"c"');
+    });
+    it('should escape double-quotes with a custom escape character', function () {
+      const data = [{ v: 'x"y"z' }];
+      const csv = toCSV(data, { fields: ['v'], header: false, quotes: true, escape: '"' });
+      csv.should.equal('"x""y""z"');
+    });
+    it('should produce a valid CSV row with multiple quoted fields each containing quotes', function () {
+      const data = [{ a: 'he said "hi"', b: 'she said "bye"' }];
+      const csv = toCSV(data, { fields: ['a', 'b'], header: false, quotes: true });
+      csv.should.equal('"he said \\"hi\\"","she said \\"bye\\""');
+    });
+    it('should replace all decimal dots when decimal option is set', function () {
+      const data = [{ v: 3.14 }];
+      const csv = toCSV(data, { fields: ['v'], header: false, decimal: ',' });
+      csv.should.equal('3,14');
     });
   });
 

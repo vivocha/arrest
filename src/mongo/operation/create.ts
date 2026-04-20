@@ -83,6 +83,8 @@ export class CreateMongoOperation extends MongoOperation {
   }
   async redactResult(job: MongoJob): Promise<MongoJob> {
     job = await super.redactResult(job);
+    // job.data is always non-null here: runOperation assigns job.data = job.doc
+    // (prepared in prepareDoc) and only reaches this point if insertOne succeeded.
     if (this.resource.info.id !== '_id') {
       delete job.data._id;
     }

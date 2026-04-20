@@ -81,10 +81,12 @@ export class UpdateMongoOperation extends MongoOperation {
   }
   async redactResult(job: MongoJob): Promise<MongoJob> {
     job = await super.redactResult(job);
-    if (this.resource.info.id !== '_id') {
-      delete job.data['_id'];
+    if (job.data) {
+      if (this.resource.info.id !== '_id') {
+        delete job.data['_id'];
+      }
+      delete job.data._metadata;
     }
-    delete job.data._metadata;
     return job;
   }
 }

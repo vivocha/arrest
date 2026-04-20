@@ -2,7 +2,7 @@
 
 A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive MongoDB support, JSON Schema validation, authentication, and authorization. Build production-ready RESTful APIs in minutes with automatic OpenAPI documentation generation.
 
-> **Latest Release:** [v14.2.0](https://github.com/vivocha/arrest/releases/tag/v14.2.0) - JSON Patch support with application/json-patch+json content-type
+> **Latest Release:** [v14.3.0](https://github.com/vivocha/arrest/releases/tag/v14.3.0) - MongoDB 7.x support (bson 7.x alignment, Node.js ≥ 20 required)
 
 [![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
 [![CI](https://github.com/vivocha/arrest/actions/workflows/ci.yml/badge.svg)](https://github.com/vivocha/arrest/actions/workflows/ci.yml)
@@ -67,12 +67,12 @@ A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive 
 - ✅ **JSON-RPC Support**: Dual REST and JSON-RPC endpoint support
 - ✅ **Pipeline Operations**: Complex data processing with pipeline support
 - ✅ **TypeScript Support**: Full TypeScript definitions included
-- ✅ **Modern ES Modules**: Native ESM with Node.js 18+
+- ✅ **Modern ES Modules**: Native ESM with Node.js 20+
 
 ## Requirements
 
-- **Node.js**: >= 18.17.0
-- **MongoDB**: 6.x or higher (if using MongoResource)
+- **Node.js**: >= 20.0.0
+- **MongoDB**: 7.x or higher (if using MongoResource)
 
 ## Installation
 
@@ -755,6 +755,8 @@ GET /products?q=and(eq(available,true),or(lt(price,50),eq(category,sale)))
 # Not deleted items
 GET /items?q=not(eq(deleted,true))
 ```
+
+> **Note:** The `matches` operator accepts regex patterns up to 1000 characters. Patterns exceeding this limit are rejected with an error to prevent resource exhaustion. Sanitization of RQL queries from untrusted input remains the responsibility of the consumer.
 
 **Pattern Matching:**
 ```bash

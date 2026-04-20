@@ -94,6 +94,22 @@ describe('rql', function () {
     query.should.deep.equal({ x: /a/gi });
   });
 
+  it('should accept a regex pattern at exactly the maximum allowed length (1000 chars)', function () {
+    const patternAtLimit = 'a'.repeat(1000);
+    chai.expect(() => rql({}, {}, `matches(x,${patternAtLimit})`)).not.to.throw();
+  });
+
+  it('should reject a regex pattern that exceeds the maximum allowed length', function () {
+    // Without validation, rql() silently creates a RegExp from any-length string.
+    // After the fix, patterns > 1000 chars must throw.
+    const longPattern = 'a'.repeat(1001);
+    chai.expect(() => rql({}, {}, `matches(x,${longPattern})`)).to.throw(/exceeds maximum allowed length/);
+  });
+
+  it('should reject invalid regex flags in "matches"', function () {
+    chai.expect(() => rql({}, {}, 'matches(x,abc,INVALID)')).to.throw();
+  });
+
   it('should parse "text"', function () {
     let query = rql({}, {}, 'text(aaaaa)');
     query.should.deep.equal({ $text: { $search: 'aaaaa' } });

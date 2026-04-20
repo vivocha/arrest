@@ -2,6 +2,8 @@ import { ObjectId } from 'mongodb';
 import { parseQuery } from 'rql/parser.js';
 import { addConstraint } from './util.js';
 
+const RQL_MATCHES_MAX_PATTERN_LENGTH = 1000;
+
 export default function (query: any, opts: any, data: string, objectId?: string) {
   return (function _rqlToMongo(query: any, opts: any, data: any) {
     switch (data.name) {
@@ -69,9 +71,14 @@ export default function (query: any, opts: any, data: string, objectId?: string)
       case 'ne':
         query = addConstraint(query, { [data.args[0]]: { $ne: data.args[1] } });
         break;
-      case 'matches':
-        query = addConstraint(query, { [data.args[0]]: new RegExp(data.args[1], data.args[2]) });
+      case 'matches': {
+        const pattern: string = data.args[1];
+        if (typeof pattern === 'string' && pattern.length > RQL_MATCHES_MAX_PATTERN_LENGTH) {
+          throw new Error(`RQL matches: regex pattern exceeds maximum allowed length of ${RQL_MATCHES_MAX_PATTERN_LENGTH} characters`);
+        }
+        query = addConstraint(query, { [data.args[0]]: new RegExp(pattern, data.args[2]) });
         break;
+      }
       case 'text':
         const constraint: any = {
           $text: {
