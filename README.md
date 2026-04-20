@@ -2,7 +2,7 @@
 
 A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive MongoDB support, JSON Schema validation, authentication, and authorization. Build production-ready RESTful APIs in minutes with automatic OpenAPI documentation generation.
 
-> **Latest Release:** [v14.3.0](https://github.com/vivocha/arrest/releases/tag/v14.3.0) - MongoDB 7.x support (bson 7.x alignment, Node.js ≥ 20 required)
+> **Latest Release:** [v15.0.0](https://github.com/vivocha/arrest/releases/tag/v15.0.0) - MongoDB 7.x support (bson 7.x alignment, Node.js ≥ 20 required)
 
 [![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
 [![CI](https://github.com/vivocha/arrest/actions/workflows/ci.yml/badge.svg)](https://github.com/vivocha/arrest/actions/workflows/ci.yml)
