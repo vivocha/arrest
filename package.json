@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "14.2.0",
+  "version": "14.3.0",
   "description": "OpenAPI v3 compliant REST framework for Node.js, with support for MongoDB and JSON-Schema",
   "type": "module",
   "exports": {
@@ -126,14 +126,14 @@
     "jsonref": "^9.0.2",
     "lodash": "^4.17.21",
     "luxon": "^3.4.4",
-    "mongodb": "^6.8.0",
+    "mongodb": "^7.1.0",
     "needle": "^3.3.1",
     "openapi-police": "^5.0.1",
     "rql": "^0.3.3",
     "semver": "^7.6.2"
   },
   "engines": {
-    "node": ">=18.17.0"
+    "node": ">=20.0.0"
   },
   "c8": {
     "lines": 100,
