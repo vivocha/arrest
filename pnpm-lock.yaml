@@ -57,8 +57,8 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
       openapi-police:
-        specifier: ^5.0.1
-        version: 5.0.1
+        specifier: ^5.1.0
+        version: 5.1.0
       rql:
         specifier: ^0.3.3
         version: 0.3.3
@@ -2301,8 +2301,8 @@ packages:
     resolution: {integrity: sha512-1FlR+gjXK7X+AsAHso35MnyN5KqGwJRi/31ft6x0M194ht7S+rWAvd7PHss9xSKMzE0asv1pyIHaJYq+BbacAQ==}
     engines: {node: '>=12'}
 
-  openapi-police@5.0.1:
-    resolution: {integrity: sha512-bra7H9EBuN41ZxE9KXHy/AE7z97PsmLWTmuXr3jzaR2/Yd5VnblndKA5qeGirQGDBLwhwthj+RoviEV/r5ZW5Q==}
+  openapi-police@5.1.0:
+    resolution: {integrity: sha512-o+gjYIOWKsrcHoKFCkffVT/3WAK8DkAim9m1FeAPQMEMt/uFSm3BdQu8wKZFIQH6ZdtJVVTAANZLD8Dwc45wdQ==}
     engines: {node: '>=18.17.0'}
 
   opener@1.5.2:
@@ -5785,7 +5785,7 @@ snapshots:
     dependencies:
       mimic-fn: 4.0.0
 
-  openapi-police@5.0.1:
+  openapi-police@5.1.0:
     dependencies:
       jsonpolice: 13.0.0
       jsonref: 9.0.2

@@ -655,38 +655,86 @@ describe('Operation', function () {
       });
     });
 
-    describe('path with explicit required:false (invalid per OpenAPI spec)', function () {
-      it('should surface a ParameterError when a path parameter is explicitly declared as required:false', function () {
-        const api = new API();
-        class Op1 extends Operation {
-          constructor(resource, path, method) {
-            super(resource, path, method, 'op1');
-            this.info.parameters = [
-              {
-                name: 'p1',
-                in: 'path',
-                required: false,
-                schema: {
-                  type: 'string',
-                },
+    describe('path with explicit required:false (Express-style optional path segment)', function () {
+      const port = 9876;
+      const host = 'localhost:' + port;
+      const basePath = 'http://' + host;
+      const request = supertest(basePath);
+      const app = express();
+      let server;
+
+      const api = new API();
+      const spyFunc = sinon.spy(function (req, res) {
+        res.send({ params: req.params });
+      });
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+          this.info.parameters = [
+            {
+              name: 'p1',
+              in: 'path',
+              required: true,
+              schema: {
+                type: 'string',
               },
-            ];
-          }
-          handler(req, res) {
-            res.send({ params: req.params });
-          }
+            },
+            {
+              name: 'tail',
+              in: 'path',
+              required: false,
+              schema: {
+                type: 'string',
+              },
+            },
+          ];
         }
-        const r = new Resource({ name: 'Test' }, { '/:p1': { get: Op1 } });
-        api.addResource(r);
-        return api
-          .router()
-          .then(() => {
-            throw new Error('expected router() to reject');
-          })
-          .catch((err) => {
-            err.should.be.an('error');
-            err.message.should.equal('required');
+        handler(req, res) {
+          spyFunc(req, res);
+        }
+      }
+
+      let r = new Resource({ name: 'Test' }, { '/:p1/:tail?': { get: Op1 } });
+      api.addResource(r);
+
+      before(function () {
+        return api.router().then((router) => {
+          app.use(router);
+          server = app.listen(port);
+        });
+      });
+
+      after(function () {
+        server.close();
+      });
+
+      it('should accept a request that omits the optional path segment', function () {
+        return request
+          .get('/tests/abc')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.params.p1.should.equal('abc');
+            should.not.exist(data.params.tail);
           });
+      });
+
+      it('should accept a request that includes the optional path segment', function () {
+        return request
+          .get('/tests/abc/extra')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.params.p1.should.equal('abc');
+            data.params.tail.should.equal('extra');
+          });
+      });
+
+      it('should preserve the explicit required:false flag (not silently overwrite it)', function () {
+        const paths = (api.document as any).paths;
+        const pathKey = Object.keys(paths).find((k) => k.startsWith('/tests/{p1}/{tail}'));
+        const tailParam = paths[pathKey as string].get.parameters.find((p) => p.name === 'tail');
+        tailParam.required.should.equal(false);
       });
     });
 
