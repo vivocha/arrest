@@ -235,7 +235,9 @@ export abstract class Operation {
     }
     if (params.path) {
       _.each(params.path, function (i) {
-        i.required = true;
+        if (typeof i.required === 'undefined') {
+          i.required = true;
+        }
       });
       middlewares.push(this.createParameterValidators('params', params.path));
     }

@@ -582,6 +582,114 @@ describe('Operation', function () {
       });
     });
 
+    describe('path with explicit required flag', function () {
+      const port = 9876;
+      const host = 'localhost:' + port;
+      const basePath = 'http://' + host;
+      const request = supertest(basePath);
+      const app = express();
+      let server;
+
+      const api = new API();
+      const spyFunc = sinon.spy(function (req, res) {
+        res.send({ params: req.params });
+      });
+      class Op1 extends Operation {
+        constructor(resource, path, method) {
+          super(resource, path, method, 'op1');
+          this.info.parameters = [
+            {
+              name: 'p1',
+              in: 'path',
+              required: true,
+              schema: {
+                type: 'boolean',
+              },
+            },
+            {
+              name: 'p2',
+              in: 'path',
+              required: true,
+              schema: {
+                type: 'number',
+              },
+            },
+          ];
+        }
+        handler(req, res) {
+          spyFunc(req, res);
+        }
+      }
+
+      let r = new Resource({ name: 'Test' }, { '/:p1/:p2': { get: Op1 } });
+      api.addResource(r);
+
+      before(function () {
+        return api.router().then((router) => {
+          app.use(router);
+          server = app.listen(port);
+        });
+      });
+
+      after(function () {
+        server.close();
+        // restore the parameter so other tests inspecting api.document are unaffected
+      });
+
+      it('should preserve an explicit required:true on a path parameter and route correctly', function () {
+        return request
+          .get('/tests/true/5')
+          .expect(200)
+          .expect('Content-Type', /json/)
+          .then(({ body: data }) => {
+            data.params.p1.should.equal(true);
+            data.params.p2.should.equal(5);
+            spyFunc.calledOnce.should.be.true;
+          });
+      });
+
+      it('should not overwrite an explicit required:true (parameter object identity preserved)', function () {
+        const op = (api.document as any).paths['/tests/{p1}/{p2}'].get;
+        op.parameters[0].required.should.equal(true);
+        op.parameters[1].required.should.equal(true);
+      });
+    });
+
+    describe('path with explicit required:false (invalid per OpenAPI spec)', function () {
+      it('should surface a ParameterError when a path parameter is explicitly declared as required:false', function () {
+        const api = new API();
+        class Op1 extends Operation {
+          constructor(resource, path, method) {
+            super(resource, path, method, 'op1');
+            this.info.parameters = [
+              {
+                name: 'p1',
+                in: 'path',
+                required: false,
+                schema: {
+                  type: 'string',
+                },
+              },
+            ];
+          }
+          handler(req, res) {
+            res.send({ params: req.params });
+          }
+        }
+        const r = new Resource({ name: 'Test' }, { '/:p1': { get: Op1 } });
+        api.addResource(r);
+        return api
+          .router()
+          .then(() => {
+            throw new Error('expected router() to reject');
+          })
+          .catch((err) => {
+            err.should.be.an('error');
+            err.message.should.equal('required');
+          });
+      });
+    });
+
     describe('query', function () {
       const port = 9876;
       const host = 'localhost:' + port;
