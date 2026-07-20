@@ -5,6 +5,7 @@ export * from './api.js';
 export * from './error.js';
 export * from './mongo/index.js';
 export * from './operation.js';
+export * from './pipeline.js';
 export * from './resource.js';
 export * from './rpc.js';
 export * from './types.js';
