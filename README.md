@@ -315,7 +315,7 @@ new MongoResource(db, options, customRoutes?)
 ```javascript
 {
   name: 'User',                    // Resource name
-  collection: 'users',            // MongoDB collection name
+  collection: 'users',             // MongoDB collection name (default: decamelized namePlural)
   id: '_id',                       // ID field name (default: '_id')
   idIsObjectId: true,              // Whether ID is ObjectId (default: true when id is '_id')
   queryLimit: 100,                 // Maximum query results (default: no limit)
@@ -1184,10 +1184,14 @@ GET /users?format=csv&csv_fields=name,email&csv_names=Full Name,Email Address
 The `csv_options` parameter supports these formatting options:
 
 - `header=true/false` - Include header row (default: true)
-- `delimiter=,` - Field delimiter (default: comma)
-- `quote="` - Quote character for values with special chars
-- `escape=\` - Escape character
-- `linebreak=\n` - Line break character
+- `separator=,` - Field separator character (default: comma)
+- `decimal=.` - Decimal separator character (default: dot)
+- `quotes=true/false` - Quote all values
+- `eol=\n` - End-of-line character sequence
+- `unwind=<field>` - Unwind an array field with the given name
+- `dateFormat=<pattern>` - Format dates using a Luxon token pattern
+- `timezone=<zone>` - Format times in the given timezone (e.g. `Europe/Rome`)
+- `filename=<name>` - Download the response as the given filename
 
 #### Combining CSV with RQL
 
