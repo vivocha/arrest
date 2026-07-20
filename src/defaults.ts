@@ -117,9 +117,9 @@ export const DEFAULT_DOCUMENT: OpenAPIV3.Document = {
       format: {
         name: 'format',
         in: 'query',
-        description: 'Return data in JSON or CSV format (default: "json")',
+        description: 'Return data in JSON, JSONL or CSV format (default: "json")',
         schema: {
-          enum: ['json', 'csv'],
+          enum: ['json', 'jsonl', 'csv'],
         },
       },
       csvFields: {

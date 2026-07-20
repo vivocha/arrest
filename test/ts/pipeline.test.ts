@@ -589,4 +589,77 @@ XXX,28/01/2022 12.38.45`
         });
     });
   });
+  describe('jsonl format', function () {
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    const app = express();
+    let server;
+    let jsonl_data;
+    let jsonl_format;
+
+    const api = new API();
+    let r = new Resource({ name: 'Test' });
+    class Op extends PipelineOperation {
+      async createJob(req: APIRequest, res: APIResponse): Promise<Job> {
+        const job = await super.createJob(req, res);
+        return {
+          ...job,
+          feat: {
+            format: {
+              type: 'jsonl',
+              ...jsonl_format,
+            },
+          },
+        };
+      }
+      async runOperation(job) {
+        job.data = jsonl_data;
+        return Promise.resolve(job);
+      }
+    }
+    r.addOperation(new Op(r, '/', 'get', 'op'));
+
+    api.addResource(r);
+
+    before(function () {
+      return api.router().then((router) => {
+        app.use(router);
+        server = app.listen(port);
+      });
+    });
+    beforeEach(function (done) {
+      jsonl_data = [];
+      jsonl_format = {};
+      done();
+    });
+    after(function () {
+      if (server) {
+        server.close();
+      }
+    });
+
+    it('should return the data as one JSON object per line', function () {
+      jsonl_data = [
+        { a: 'AAA', b: 'BBB', c: 1, d: true },
+        { a: 'XXX', b: 'YYY', c: 1, d: false },
+      ];
+      return request
+        .get('/tests')
+        .expect(200)
+        .expect('Content-Type', /application\/jsonl/)
+        .then(({ text: data }) => {
+          data.should.equal(`{"a":"AAA","b":"BBB","c":1,"d":true}\n{"a":"XXX","b":"YYY","c":1,"d":false}`);
+        });
+    });
+
+    it('should return the data as jsonl attachment', function () {
+      jsonl_format = {
+        filename: 'test.jsonl',
+      };
+      jsonl_data = [{ a: 'AAA', b: 'BBB' }];
+      return request.get('/tests').expect(200).expect('Content-Disposition', `attachment; filename="test.jsonl"`);
+    });
+  });
 });

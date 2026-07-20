@@ -680,6 +680,21 @@ describe('mongo', function () {
           });
       });
 
+      it('should return selected objects in the collection as JSONL', function () {
+        return request
+          .get('/tests?q=gt(y,0)&sort=y&format=jsonl&fields=myid,y,z')
+          .expect(200)
+          .expect('Content-Type', /application\/jsonl/)
+          .expect('Results-Matching', '4')
+          .then(({ text: data }) => {
+            const lines = data.split('\n');
+            lines.length.should.equal(4);
+            lines.forEach((line) => {
+              JSON.parse(line).should.be.an('object');
+            });
+          });
+      });
+
       it('should return all objects in the collection (2)', function () {
         return request
           .get('/fakes/1')

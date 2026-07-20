@@ -53,6 +53,11 @@ export class QueryMongoOperation extends MongoOperation {
                 items: this.responseSchema,
               },
             },
+            'application/jsonl': {
+              schema: {
+                type: 'string',
+              },
+            },
             'text/csv': {
               schema: {
                 type: 'string',

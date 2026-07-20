@@ -19,6 +19,10 @@ export interface Job {
       | {
           type: 'json';
         }
+      | {
+          type: 'jsonl';
+          filename?: string;
+        }
       | ({
           type: 'csv';
           filename?: string;
@@ -55,6 +59,10 @@ export abstract class PipelineOperation extends Operation {
         ...opts,
         type: 'csv',
       };
+    } else if (req.query.format === 'jsonl') {
+      out.feat!.format = {
+        type: 'jsonl',
+      };
     }
     return out;
   }
@@ -79,6 +87,13 @@ export abstract class PipelineOperation extends Operation {
       if (job.feat?.format?.type === 'csv' && Array.isArray(job.data)) {
         job.data = toCSV(job.data, job.feat.format);
         job.res.setHeader('content-type', 'text/csv');
+        if (job.feat.format.filename) {
+          job.res.setHeader('content-disposition', `attachment; filename=\"${job.feat.format.filename}\"`);
+        }
+        job.res.send(job.data);
+      } else if (job.feat?.format?.type === 'jsonl' && Array.isArray(job.data)) {
+        job.data = job.data.map((item) => JSON.stringify(item)).join('\n');
+        job.res.setHeader('content-type', 'application/jsonl');
         if (job.feat.format.filename) {
           job.res.setHeader('content-disposition', `attachment; filename=\"${job.feat.format.filename}\"`);
         }
