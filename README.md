@@ -2,8 +2,6 @@
 
 A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive MongoDB support, JSON Schema validation, authentication, and authorization. Build production-ready RESTful APIs in minutes with automatic OpenAPI documentation generation.
 
-> **Latest Release:** [v15.0.0](https://github.com/vivocha/arrest/releases/tag/v15.0.0) - MongoDB 7.x support (bson 7.x alignment, Node.js ≥ 20 required)
-
 [![npm version](https://img.shields.io/npm/v/arrest.svg)](https://www.npmjs.com/package/arrest)
 [![CI](https://github.com/vivocha/arrest/actions/workflows/ci.yml/badge.svg)](https://github.com/vivocha/arrest/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/vivocha/arrest/badge.svg?branch=master)](https://coveralls.io/github/vivocha/arrest?branch=master)
@@ -309,7 +307,8 @@ Specialized resource for MongoDB collections with built-in CRUD operations.
 
 **Constructor:**
 ```javascript
-new MongoResource(connectionUri, options, customRoutes?)
+// `db` accepts a connection string, a MongoDB `Db` instance, or a Promise<Db>
+new MongoResource(db, options, customRoutes?)
 ```
 
 **Options:**
@@ -318,7 +317,7 @@ new MongoResource(connectionUri, options, customRoutes?)
   name: 'User',                    // Resource name
   collection: 'users',            // MongoDB collection name
   id: '_id',                       // ID field name (default: '_id')
-  idIsObjectId: true,              // Whether ID is ObjectId (default: true)
+  idIsObjectId: true,              // Whether ID is ObjectId (default: true when id is '_id')
   queryLimit: 100,                 // Maximum query results (default: no limit)
   createIndexes: false,            // Auto-create indexes (default: false)
   escapeProperties: false          // Escape MongoDB special characters (default: false)
@@ -337,7 +336,12 @@ new Operation(resource, path, method, operationId)
 **Key Methods to Override:**
 - `getDefaultInfo()` - Return OpenAPI operation info
 - `handler(req, res, next)` - Express request handler
-- `runOperation(job)` - Main operation logic
+
+> **Note:** `runOperation(job)` is **not** defined on the base `Operation` class.
+> It is provided by `PipelineOperation` (abstract) and by the MongoDB operations
+> (`QueryMongoOperation`, `CreateMongoOperation`, etc.). Override it when
+> extending those classes; when extending the base `Operation`, implement your
+> logic inside `handler()`.
 
 ---
 
@@ -1250,16 +1254,18 @@ class CustomReportOperation extends QueryMongoOperation {
 
 arrest supports dual REST and JSON-RPC interfaces:
 
-```javascript
-import { RPCOperation } from 'arrest';
+```typescript
+import { JSONRPC, rpc } from 'arrest';
 
-class UserRPCOperation extends RPCOperation {
+class UserRPCOperation extends JSONRPC {
+  @rpc
   async getUserProfile(params) {
     const { userId } = params;
     // Fetch user profile logic
     return { profile: { id: userId, name: 'John Doe' } };
   }
 
+  @rpc
   async updateUserProfile(params) {
     const { userId, updates } = params;
     // Update logic
@@ -1267,6 +1273,9 @@ class UserRPCOperation extends RPCOperation {
   }
 }
 
+// Only methods decorated with @rpc are callable; others return a
+// JSON-RPC error (-32601 Unknown method).
+//
 // JSON-RPC calls:
 // POST /users/rpc
 // {"jsonrpc": "2.0", "method": "getUserProfile", "params": {"userId": "123"}, "id": 1}
@@ -1811,7 +1820,7 @@ Full TypeScript definitions are included with proper OpenAPI v3.1 types:
 ```typescript
 import { API, MongoResource, Operation } from 'arrest';
 import type { Request, Response } from 'express';
-import type { OpenAPIV3_1 } from 'openapi-police';
+import type { OpenAPIV3 } from 'openapi-police';
 
 interface User {
   id: string;
@@ -1827,7 +1836,7 @@ interface CreateUserRequest {
 }
 
 class TypedUserOperation extends Operation {
-  getDefaultInfo(): OpenAPIV3_1.OperationObject {
+  getDefaultInfo(): OpenAPIV3.OperationObject {
     return {
       operationId: `${this.resource.info.name}.${this.internalId}`,
       summary: 'Create a new user',
