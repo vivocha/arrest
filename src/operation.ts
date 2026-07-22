@@ -159,13 +159,13 @@ export abstract class Operation {
     if (req.ability) {
       try {
         this.checkAbility(req.ability);
+        req.logger.debug('ability ok');
+        next();
       } catch (err) {
         req.logger.warn(`insufficient ability`, err);
         req.logger.debug('insufficient privileges required', this.scopes, 'for user perms', req['perms']);
         next(API.newError(403, 'insufficient privileges'));
       }
-      req.logger.debug('ability ok');
-      next();
     } else if (req.scopes) {
       if (!req.scopes.match(this.scopes)) {
         req.logger.warn('insufficient scope', req.scopes);
