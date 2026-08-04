@@ -3,6 +3,7 @@ export * from '@vivocha/scopes';
 export * from 'openapi-police';
 export * from './api.js';
 export * from './error.js';
+export * from './mcp/index.js';
 export * from './mongo/index.js';
 export * from './operation.js';
 export * from './pipeline.js';

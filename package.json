@@ -6,6 +6,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./dist/*.js": "./dist/*.js",
+    "./dist/mcp/*.js": "./dist/mcp/*.js",
     "./dist/mongo/*.js": "./dist/mongo/*.js",
     "./dist/mongo/operation/*.js": "./dist/mongo/operation/*.js"
   },

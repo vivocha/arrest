@@ -38,6 +38,7 @@ A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive 
 - [Error Handling](#error-handling)
 - [CSV Export](#csv-export)
 - [JSON-RPC Support](#json-rpc-support)
+- [MCP Server](#mcp-server)
 - [Pipeline Operations](#pipeline-operations)
 - [Express.js Integration](#expressjs-integration)
 
@@ -63,6 +64,7 @@ A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive 
 - ✅ **Express.js Integration**: Works seamlessly with existing Express.js applications
 - ✅ **CSV Export**: Built-in CSV export functionality for data endpoints
 - ✅ **JSON-RPC Support**: Dual REST and JSON-RPC endpoint support
+- ✅ **MCP Server**: Expose your operations as Model Context Protocol tools, with the same validation and authorization
 - ✅ **Pipeline Operations**: Complex data processing with pipeline support
 - ✅ **TypeScript Support**: Full TypeScript definitions included
 - ✅ **Modern ES Modules**: Native ESM with Node.js 20+
@@ -1284,6 +1286,207 @@ class UserRPCOperation extends JSONRPC {
 // POST /users/rpc
 // {"jsonrpc": "2.0", "method": "getUserProfile", "params": {"userId": "123"}, "id": 1}
 ```
+
+### MCP Server
+
+arrest can expose the operations of an API as [Model Context Protocol](https://modelcontextprotocol.io) tools, so an
+LLM agent can use the API through the very same validation and authorization stack as any HTTP client. The
+implementation is native — MCP is JSON-RPC 2.0, and arrest already speaks it via [`JSONRPC`](#json-rpc-support) — so no
+additional dependency is involved.
+
+The transport is stateless Streamable HTTP: one self-contained JSON-RPC call per `POST`, re-authenticated by the
+middleware chain, with no server-side session to keep or to hijack.
+
+#### Getting started
+
+Two steps: opt each resource in with `mcp`, then add an `MCPResource`.
+
+```typescript
+import { API, MCPResource, MongoResource } from 'arrest';
+
+const api = new API();
+api.addResource(new MongoResource(db, { name: 'Order', mcp: true }));
+api.addResource(new MCPResource());
+```
+
+That serves `POST /mcp`, speaking `initialize`, `ping`, `notifications/initialized`, `tools/list` and `tools/call`, plus
+`GET /mcp` returning the catalogue of the bundles the caller can reach. Every operation of the `Order` resource becomes a
+tool, with its name, description and input schema derived from the operation's OpenAPI definition:
+
+| Tool property | Derived from |
+|---|---|
+| `name` | resource name + `Operation.internalId`, decamelized (`order_query`) |
+| `description` | `info.summary`, else `info.description`, else `Execute <operationId>` |
+| `inputSchema` | `info.parameters` (one property per parameter) plus a `body` property from `info.requestBody`; path parameters are always required |
+| `outputSchema` | the 2xx JSON response schema, when it describes an object |
+| `annotations` | the HTTP method: `get`/`head`/`options` are `readOnlyHint`, `delete` is `destructiveHint`, those three plus `put`/`delete` are `idempotentHint` |
+
+Referenced `#/components/schemas/X` are bundled into `$defs` with the references rewritten to `#/$defs/X`, transitively,
+so the recursive schemas arrest APIs commonly declare survive the translation intact.
+
+#### Bundles
+
+A real API can have dozens of resources, which would make a single tool list unusable for a model. Tools are therefore
+grouped into **bundles**, each of which is its own endpoint, its own arrest `Operation` and therefore its own OAuth2
+scope:
+
+```typescript
+api.addResource(
+  new MCPResource({
+    bundles: {
+      default: { title: 'Acme API', instructions: 'General purpose tools.' },
+      sales: { title: 'Sales tools', description: 'Read and update orders and customers.' },
+    },
+  })
+);
+```
+
+```
+POST /mcp            the "default" bundle, scope MCP.default
+POST /mcp/sales      the "sales" bundle, scope MCP.sales
+GET  /mcp            the bundles reachable by the caller
+```
+
+A token can be granted one bundle and not another, and each bundle appears as its own path in `openapi.json`.
+
+#### Choosing what to expose
+
+Resources declare which bundles they appear in, which operations are exposed, and how each tool looks:
+
+```typescript
+api.addResource(
+  new MongoResource(db, {
+    name: 'Customer',
+    mcp: {
+      bundles: ['default', 'sales'],
+      operations: ['query', 'read'], // whitelist, by Operation.internalId
+      tools: {
+        query: {
+          name: 'search_customers',
+          description: 'Search customers using RQL, e.g. eq(status,active)&sort(-created_at)',
+          omitParameters: ['format', 'csv_fields', 'csv_names', 'csv_options'],
+        },
+        read: { bundles: ['sales'] }, // narrow a single tool to one bundle
+        remove: false, // never expose this one
+      },
+    },
+  })
+);
+```
+
+`MCPToolInfo` also accepts `inputSchema`, `outputSchema` and `annotations` for a full override. An operation can carry
+its own customization instead, which takes precedence over the resource-level entry — useful when the operation class,
+rather than the resource definition, is where the knowledge lives:
+
+```typescript
+class ExportOperation extends PipelineOperation {
+  get mcpTool() {
+    return { description: 'Export the catalogue as CSV. Ask for at most 500 rows at a time.' };
+  }
+}
+
+class InternalOperation extends PipelineOperation {
+  get mcpTool() {
+    return false as const; // hidden even though the resource opted in
+  }
+}
+```
+
+The `description` is the single most important field for tool-selection accuracy — an explicit, example-rich one is
+worth more than any amount of schema detail.
+
+#### Security
+
+An MCP tool call is never more permissive than the equivalent REST call, and that is a structural property rather than a
+promise: `tools/call` does not invoke the operation's handler. It builds a sub-request that inherits from the incoming
+one through the prototype chain — carrying over `logger`, `scopes`, `ability`, `user` and anything else your middleware
+attached, including application-specific properties such as a tenant — and runs it through the API's own router. The
+security validator, the parameter and body validators, the handler, the error handler and CASL field redaction all apply
+exactly as they would to a real HTTP request, because there is no second code path to keep in sync.
+
+Consequences worth knowing:
+
+- **The endpoint is protected by default.** Each bundle operation gets its own scope and the standard
+  `securityValidator`. An authentication failure is reported as a plain `401`/`403`, not wrapped in a JSON-RPC error, so
+  a client can see it has to authenticate.
+- **Unauthorized tools are hidden.** `tools/list` filters by the caller's `req.ability` or `req.scopes`, using the very
+  same logic as `Operation.securityValidator`, so no information about the shape of the API leaks to a caller that
+  cannot use it and the model never burns a turn on a call bound to fail. `tools/call` re-resolves through the same
+  filter, so an unauthorized tool is reported as unknown.
+- **Arguments are passed through uncoerced.** The operation's own `ParameterObject` validators remain the single source
+  of truth for coercion and validation; a tool call cannot anticipate or bypass them.
+- **Failures are reported to the model, not to the protocol.** A non-2xx response becomes a tool result with
+  `isError: true` carrying the API's own error body, so the model reads `403 insufficient privileges` or the detail of a
+  `ValidationError` and can correct course. Protocol-level problems — an unknown method, a malformed envelope — remain
+  JSON-RPC errors.
+- **Output is truncated** at `maxOutputChars` (100000 by default, settable per bundle), with a note telling the model to
+  narrow the request. Hosted MCP clients offload anything larger to a file, which costs the model the ability to reason
+  about the result inline.
+
+#### Extending
+
+`MCPOperation` speaks protocol and nothing else; the features it serves come from `MCPProvider` instances. The derived
+one is `ResourceToolProvider`, and you can register your own alongside it for anything that does not map to an existing
+operation:
+
+```typescript
+const mcp = new MCPResource();
+mcp.addProvider('default', {
+  async listTools(req) {
+    return [{ name: 'whoami', description: 'Report the scopes of the caller', inputSchema: { type: 'object', properties: {} } }];
+  },
+  async callTool(name, args, req) {
+    return { content: [{ type: 'text', text: `Your scopes are ${req.scopes}` }] };
+  },
+});
+api.addResource(mcp);
+```
+
+v1 implements the tool half of the protocol, but `MCPProvider` declares the resource and prompt methods too, and
+`MCPOperation.getCapabilities()` derives what it advertises from the methods the registered providers actually
+implement. Each remaining part of the surface therefore lands as a subclass plus a provider method, with no change to
+the protocol core:
+
+```typescript
+class FullMCPOperation extends MCPOperation {
+  @rpc
+  async 'resources/list'(params, req) {
+    const resources = [];
+    for (const provider of this.getProviders()) {
+      if (provider.listResources) {
+        resources.push(...(await provider.listResources(req)));
+      }
+    }
+    return { resources };
+  }
+}
+class FullMCPResource extends MCPResource {
+  protected createOperation(bundleId: string, path: string) {
+    return new FullMCPOperation(this, path, 'post', bundleId);
+  }
+}
+```
+
+`ResourceToolProvider` and `MCPResource` are subclassable along the same lines: override `getToolInfo` to change how
+tools are derived, `createProvider` to substitute your provider, `createOperation` to substitute your endpoint. Not yet
+implemented: `completion/*`, SSE streaming, stateful sessions, elicitation, sampling and `tools/list` cursors.
+
+`MCPResource` also takes `path` (default `mcp`), `serverInfo` (default the API title and version) and
+`catalogue: false` to drop `GET /mcp`.
+
+#### Talking to it
+
+```bash
+curl -s -X POST localhost:3000/mcp \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <token>' \
+  -d '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}'
+```
+
+then `{"jsonrpc":"2.0","id":1,"method":"tools/list"}` and
+`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"order_query","arguments":{"limit":10}}}`. The MCP
+Inspector (`npx @modelcontextprotocol/inspector`) works against the endpoint too: pick Streamable HTTP and supply a
+bearer token holding the bundle scope plus the resource scopes.
 
 ### Pipeline Operations
 

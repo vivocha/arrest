@@ -8,6 +8,7 @@ import { NextFunction, RequestHandler, Router } from 'express';
 import _ from 'lodash';
 import { OpenAPIV3, ParameterObject, Schema, SchemaObject, StaticSchemaObject, ValidationError } from 'openapi-police';
 import { API } from './api.js';
+import { MCPToolInfo } from './mcp/types.js';
 import { Resource } from './resource.js';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types.js';
 import { checkAbility } from './util.js';
@@ -46,6 +47,14 @@ export abstract class Operation {
     return {
       [this.info.operationId as string]: this.info.summary || `Execute ${this.info.operationId} on a ${this.resource.info.name}`,
     };
+  }
+  /**
+   * Per-operation MCP customization, taking precedence over the resource-level `mcp.tools` entry.
+   * Return `false` to hide this operation from the MCP server even if its resource opted in.
+   * Only meaningful when the resource itself is opted in via ResourceDefinition.mcp.
+   */
+  get mcpTool(): MCPToolInfo | false | undefined {
+    return undefined;
   }
 
   protected getInfo(opts?: any): OpenAPIV3.OperationObject {
@@ -154,6 +163,27 @@ export abstract class Operation {
   protected useSecurityValidator(): boolean {
     return !!this.scopes;
   }
+  /**
+   * Whether the caller of `req` is allowed to perform this operation, decided with the very same logic as
+   * securityValidator. Lets a caller find out what it can reach without dispatching anything, which is
+   * what the MCP server uses to avoid advertising tools whose invocation is bound to fail.
+   */
+  isAuthorized(req: APIRequest): boolean {
+    if (!this.scopes) {
+      return true;
+    } else if (req.ability) {
+      try {
+        this.checkAbility(req.ability);
+        return true;
+      } catch (err) {
+        return false;
+      }
+    } else if (req.scopes) {
+      return req.scopes.match(this.scopes);
+    } else {
+      return false;
+    }
+  }
   protected securityValidator(req: APIRequest, res: APIResponse, next: NextFunction) {
     req.logger.debug(`checking ability/scope, required: ${this.scopes}`);
     if (req.ability) {
@@ -180,6 +210,7 @@ export abstract class Operation {
       next(API.newError(401, 'no scope'));
     }
   }
+
   protected errorHandler(err: any, req: APIRequest, res: APIResponse, next: NextFunction) {
     next(err);
   }

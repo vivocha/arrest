@@ -31,6 +31,12 @@ export class API {
   } = {};
   protected internalRouter: Promise<Router>;
   protected parseOptions: ParseOptions;
+  /**
+   * Snapshot of the OpenAPI document as it was before being resolved by jsonref. This is the form to
+   * use whenever the document needs to be inspected or serialized (e.g. to derive MCP tool schemas):
+   * after parsing, $refs are replaced by live proxies and recursive schemas become circular.
+   */
+  protected originalDocument: OpenAPIV3.Document;
 
   constructor(info?: OpenAPIV3.InfoObject) {
     this.document = Eredita.deepExtend(_.cloneDeep(DEFAULT_DOCUMENT), { info: info || {} });
@@ -63,6 +69,15 @@ export class API {
     this.resources.push(resource);
     resource.attach(this);
     return this;
+  }
+  getResources(): Resource[] {
+    return this.resources.slice();
+  }
+  /**
+   * The OpenAPI document as it was before being resolved by jsonref, available once router() has run.
+   */
+  getOriginalDocument(): OpenAPIV3.Document | undefined {
+    return this.originalDocument;
   }
 
   registerSchema(name: string, schema: OpenAPIV3.SchemaObject) {
@@ -178,7 +193,7 @@ export class API {
         // Remove unused schemas and parameters from openapi spec
         this.document = removeUnusedSchemas(this.document);
 
-        const originalDocument = _.cloneDeep(this.document);
+        const originalDocument = (this.originalDocument = _.cloneDeep(this.document));
 
         router.get('/openapi.json', (req: APIRequest, res: APIResponse, next: NextFunction) => {
           if (!req.headers['host']) {

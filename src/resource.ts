@@ -3,6 +3,7 @@ import decamelize from 'decamelize';
 import { NextFunction, Router, RouterOptions } from 'express';
 import { OpenAPIV3 } from 'openapi-police';
 import { API } from './api.js';
+import { MCPResourceOptions } from './mcp/types.js';
 import { Operation, SimpleOperation } from './operation.js';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types.js';
 
@@ -25,6 +26,11 @@ export interface ResourceDefinition {
   title?: string;
   summaryFields?: string[];
   routes?: Routes;
+  /**
+   * Opt this resource into the MCP server, if one is installed via MCPResource. `true` exposes every
+   * operation in the default bundle; use an MCPResourceOptions object for finer control.
+   */
+  mcp?: boolean | MCPResourceOptions;
   [ext: string]: any;
 }
 
@@ -86,6 +92,10 @@ export class Resource {
     }
     this.operations.push(op);
     return this;
+  }
+
+  getOperations(): Operation[] {
+    return this.operations.slice();
   }
 
   attach(api: API) {
