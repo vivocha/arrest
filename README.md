@@ -1409,10 +1409,13 @@ Consequences worth knowing:
 - **The endpoint is protected by default.** Each bundle operation gets its own scope and the standard
   `securityValidator`. An authentication failure is reported as a plain `401`/`403`, not wrapped in a JSON-RPC error, so
   a client can see it has to authenticate.
-- **Unauthorized tools are hidden.** `tools/list` filters by the caller's `req.ability` or `req.scopes`, using the very
-  same logic as `Operation.securityValidator`, so no information about the shape of the API leaks to a caller that
-  cannot use it and the model never burns a turn on a call bound to fail. `tools/call` re-resolves through the same
-  filter, so an unauthorized tool is reported as unknown.
+- **Unauthorized tools are hidden.** `tools/list` filters by the caller's `req.ability` or `req.scopes`, so no
+  information about the shape of the API leaks to a caller that cannot use it and the model never burns a turn on a call
+  bound to fail. `tools/call` re-resolves through the same filter, so an unauthorized tool is reported as unknown. The
+  filter is not a copy of the security check: `Operation.getAuthorizationError` is where the decision is made, and both
+  `Operation.securityValidator`, which enforces it, and `Operation.isAuthorized`, which reports it without dispatching
+  anything, derive from it. An operation that authorizes on something of its own — a bearer token it verifies itself,
+  for instance — overrides that one method and is then filtered and enforced consistently.
 - **Arguments are passed through uncoerced.** The operation's own `ParameterObject` validators remain the single source
   of truth for coercion and validation; a tool call cannot anticipate or bypass them.
 - **Failures are reported to the model, not to the protocol.** A non-2xx response becomes a tool result with
@@ -1444,6 +1447,27 @@ api.addResource(mcp);
 
 A provider may also implement `hasTool(name, req)`. `tools/call` prefers it over searching `listTools`, so a provider
 whose tool list is expensive to build can answer one call without materializing everything it could offer.
+
+##### Operations that authorize on something of their own
+
+An operation that requires more than an ability or a scope should override `getAuthorizationError`, not
+`securityValidator`. Both the enforcement path and the discovery path derive from it, so the extra requirement is applied
+to a real request _and_ taken into account when tools are listed:
+
+```typescript
+class SignedOperation extends Operation {
+  protected getAuthorizationError(req) {
+    if (!verifyToken(req.headers['x-my-token'])) {
+      return API.newError(401, 'invalid token'); // 401: the caller has to authenticate
+    }
+    return super.getAuthorizationError(req); // then the standard ability/scope check
+  }
+}
+```
+
+Return a `401` when a credential is missing, so a client knows to authenticate, and a `403` when one is present but
+insufficient. Overriding `securityValidator` still works — it is what enforces the decision — but a check added there is
+invisible to `tools/list`, which would then advertise a tool the operation refuses to serve.
 
 ##### Resources that only exist per request
 

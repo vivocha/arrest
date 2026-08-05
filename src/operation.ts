@@ -8,6 +8,7 @@ import { NextFunction, RequestHandler, Router } from 'express';
 import _ from 'lodash';
 import { OpenAPIV3, ParameterObject, Schema, SchemaObject, StaticSchemaObject, ValidationError } from 'openapi-police';
 import { API } from './api.js';
+import { RESTError } from './error.js';
 import { MCPToolInfo } from './mcp/types.js';
 import { Resource } from './resource.js';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types.js';
@@ -164,50 +165,56 @@ export abstract class Operation {
     return !!this.scopes;
   }
   /**
-   * Whether the caller of `req` is allowed to perform this operation, decided with the very same logic as
-   * securityValidator. Lets a caller find out what it can reach without dispatching anything, which is
-   * what the MCP server uses to avoid advertising tools whose invocation is bound to fail.
+   * The reason the caller of `req` may not perform this operation, or undefined if it may. The single place
+   * the decision is made: securityValidator enforces it on a real request and isAuthorized reports it
+   * without dispatching anything, so an operation that authorizes on something of its own - a bearer token
+   * it verifies itself, say - overrides this one method and can never advertise more than it will serve.
+   *
+   * A missing credential is a 401, so that a client knows it has to authenticate, while a credential that
+   * is merely insufficient is a 403.
    */
-  isAuthorized(req: APIRequest): boolean {
+  protected getAuthorizationError(req: APIRequest): RESTError | undefined {
     if (!this.scopes) {
-      return true;
+      return undefined;
     } else if (req.ability) {
       try {
         this.checkAbility(req.ability);
-        return true;
+        return undefined;
       } catch (err) {
-        return false;
+        return API.newError(403, 'insufficient privileges', undefined, err);
       }
     } else if (req.scopes) {
-      return req.scopes.match(this.scopes);
+      return req.scopes.match(this.scopes) ? undefined : API.newError(403, 'insufficient privileges');
     } else {
-      return false;
+      return API.newError(401, 'no scope');
     }
+  }
+  /**
+   * Whether the caller of `req` is allowed to perform this operation. Lets a caller find out what it can
+   * reach without dispatching anything, which is what the MCP server uses to avoid advertising tools whose
+   * invocation is bound to fail. Override getAuthorizationError, not this method.
+   */
+  isAuthorized(req: APIRequest): boolean {
+    return !this.getAuthorizationError(req);
   }
   protected securityValidator(req: APIRequest, res: APIResponse, next: NextFunction) {
     req.logger.debug(`checking ability/scope, required: ${this.scopes}`);
-    if (req.ability) {
-      try {
-        this.checkAbility(req.ability);
-        req.logger.debug('ability ok');
-        next();
-      } catch (err) {
-        req.logger.warn(`insufficient ability`, err);
+    const err = this.getAuthorizationError(req);
+    if (!err) {
+      req.logger.debug(req.ability ? 'ability ok' : 'scope ok');
+      next();
+    } else if (err.code === 401) {
+      req.logger.warn('no scope');
+      next(err);
+    } else {
+      if (req.ability) {
+        req.logger.warn('insufficient ability', err.originalError);
         req.logger.debug('insufficient privileges required', this.scopes, 'for user perms', req['perms']);
-        next(API.newError(403, 'insufficient privileges'));
-      }
-    } else if (req.scopes) {
-      if (!req.scopes.match(this.scopes)) {
+      } else {
         req.logger.warn('insufficient scope', req.scopes);
         req.logger.debug('insufficient privileges required', this.scopes, 'for user perms', req.scopes);
-        next(API.newError(403, 'insufficient privileges'));
-      } else {
-        req.logger.debug('scope ok');
-        next();
       }
-    } else {
-      req.logger.warn('no scope');
-      next(API.newError(401, 'no scope'));
+      next(err);
     }
   }
 

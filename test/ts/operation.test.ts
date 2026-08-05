@@ -5,6 +5,7 @@ import express from 'express';
 import * as sinon from 'sinon';
 import supertest from 'supertest';
 import { API } from '../../dist/api.js';
+import { MCPResource } from '../../dist/mcp/resource.js';
 import { Operation, SimpleOperation } from '../../dist/operation.js';
 import { Resource } from '../../dist/resource.js';
 import { APIRequest, APIResponse } from '../../dist/types.js';
@@ -1627,6 +1628,80 @@ describe('Operation', function () {
         }) as any,
         { a: 1, b: 2, c: 3 }
       ).should.deep.equal({ a: 1, b: 2 });
+    });
+  });
+
+  describe('an operation authorizing on something of its own', function () {
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    const app = express();
+    let server;
+
+    class API1 extends API {
+      initSecurity(req: APIRequest, res: APIResponse, next: express.NextFunction) {
+        req.scopes = new Scopes('*');
+        next();
+      }
+    }
+    // the shape of an operation that verifies a token of its own before deferring to the standard
+    // ability/scope check: overriding the single decision covers both enforcement and discovery
+    class TokenOp extends Operation {
+      constructor(resource, path, method) {
+        super(resource, path, method, 'token');
+      }
+      getAuthorizationError(req: APIRequest) {
+        if (req.headers['x-token'] !== 'good') {
+          return API.newError(401, 'no token');
+        }
+        return super.getAuthorizationError(req);
+      }
+      handler(req: APIRequest, res: APIResponse) {
+        res.json({});
+      }
+    }
+    const api = new API1();
+    api.addResource(new Resource({ name: 'Test', mcp: true }, { '/': { get: TokenOp as any } }));
+    api.addResource(new MCPResource());
+    const op = api.getResources()[0].getOperations()[0] as any;
+
+    before(async function () {
+      app.use(await api.router());
+      server = app.listen(port);
+    });
+    after(function () {
+      server.close();
+    });
+
+    it('should reject a request failing its own check', function () {
+      return request.get('/tests').expect(401).expect('Content-Type', /json/);
+    });
+    it('should serve a request passing its own check', function () {
+      return request.get('/tests').set('x-token', 'good').expect(200).expect('Content-Type', /json/);
+    });
+    it('should report the same decision through isAuthorized', function () {
+      op.isAuthorized({ headers: {}, scopes: new Scopes('*') }).should.equal(false);
+      op.isAuthorized({ headers: { 'x-token': 'good' }, scopes: new Scopes('*') }).should.equal(true);
+    });
+    it('should not advertise its tool to a caller failing its own check', function () {
+      return request
+        .post('/mcp')
+        .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.result.tools.should.deep.equal([]);
+        });
+    });
+    it('should advertise its tool to a caller passing its own check', function () {
+      return request
+        .post('/mcp')
+        .set('x-token', 'good')
+        .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.result.tools.map((t) => t.name).should.deep.equal(['test_token']);
+        });
     });
   });
 });
