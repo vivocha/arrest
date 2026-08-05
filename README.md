@@ -1442,6 +1442,44 @@ mcp.addProvider('default', {
 api.addResource(mcp);
 ```
 
+A provider may also implement `hasTool(name, req)`. `tools/call` prefers it over searching `listTools`, so a provider
+whose tool list is expensive to build can answer one call without materializing everything it could offer.
+
+##### Resources that only exist per request
+
+Resources built on the fly — one per tenant, per data model, per plugin — are not in `api.getResources()`, so
+`MCPResource` cannot discover them. Serve them with a `DynamicToolProvider`: implement `getProviders(req)`, typically
+returning a `ResourceToolProvider` per resource you built for this request, and give each one a `toolNamePrefix` so
+their tool names stay distinct within the bundle:
+
+```typescript
+class TenantToolProvider extends DynamicToolProvider {
+  protected async getProviders(req) {
+    const models = await loadModelsVisibleTo(req);
+    return Promise.all(
+      models.map(async (model) => {
+        const { api, resource } = await buildResourceFor(req, model); // must await api.router()
+        return new ResourceToolProvider(resource, 'custom', {}, {
+          bundles: ['custom'],
+          operations: ['query', 'read'],
+          toolNamePrefix: `custom_${model.id}`, // custom_<id>_query, custom_<id>_read, …
+        });
+      })
+    );
+  }
+  // optional, and worth it: resolve one provider from a tool name instead of building them all
+  protected async findProvider(name, req) {
+    const match = /^custom_([a-z0-9]+)_/.exec(name);
+    return match ? (await this.getProviderFor(req, match[1])) : undefined;
+  }
+}
+mcp.addProvider('custom', new TenantToolProvider());
+```
+
+The fourth `ResourceToolProvider` argument is what makes this work: it replaces the resource's own `mcp` definition,
+which a resource that is not in the API document cannot have. `findProvider` is called at most once per tool name per
+request, so an override is free to do real work rather than filter an available list.
+
 v1 implements the tool half of the protocol, but `MCPProvider` declares the resource and prompt methods too, and
 `MCPOperation.getCapabilities()` derives what it advertises from the methods the registered providers actually
 implement. Each remaining part of the surface therefore lands as a subclass plus a provider method, with no change to

@@ -195,6 +195,13 @@ export interface MCPPromptResult {
  */
 export interface MCPProvider {
   listTools?(req: APIRequest): Promise<MCPTool[]>;
+  /**
+   * Whether this provider serves the named tool. Optional: when absent, ownership of a tool is decided by
+   * looking for its name in `listTools`. Implement it whenever building the tool list is more expensive
+   * than checking a single name - a provider serving dynamically created resources, for instance - so
+   * that answering one call doesn't force the whole list to be materialized.
+   */
+  hasTool?(name: string, req: APIRequest): Promise<boolean>;
   callTool?(name: string, args: any, req: APIRequest): Promise<MCPToolResult>;
   listResources?(req: APIRequest): Promise<MCPResourceDescriptor[]>;
   readResource?(uri: string, req: APIRequest): Promise<MCPResourceContents>;

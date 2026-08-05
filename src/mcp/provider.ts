@@ -5,11 +5,27 @@ import { Resource } from '../resource.js';
 import { APIRequest } from '../types.js';
 import { dispatchInternal, InternalResponse } from './dispatch.js';
 import { annotationsFor, MCP_BODY_ARGUMENT, operationParameters, operationToInputSchema, operationToOutputSchema, toolNameFor } from './schema.js';
-import { MCPBundleDefinition, MCPProvider, MCPTool, MCPToolInfo, MCPToolResult } from './types.js';
+import { MCPBundleDefinition, MCPProvider, MCPResourceOptions, MCPTool, MCPToolInfo, MCPToolResult } from './types.js';
 
 const logger = getLogger('arrest');
 
 const pathParamRegExp = /\/:([^#?/]+)/g;
+
+/**
+ * Whether a provider serves the named tool, using its own `hasTool` when it implements one and falling
+ * back to a lookup in its tool list. This is how ownership of a tool must be decided: a provider whose
+ * tool list is expensive to build - because it is derived from data, or from resources created per
+ * request - can then answer a single call without materializing everything it could offer.
+ */
+export async function providerHasTool(provider: MCPProvider, name: string, req: APIRequest): Promise<boolean> {
+  if (provider.hasTool) {
+    return provider.hasTool(name, req);
+  } else if (provider.listTools) {
+    return (await provider.listTools(req)).some((t) => t.name === name);
+  } else {
+    return false;
+  }
+}
 
 export interface MCPToolBinding {
   tool: MCPTool;
@@ -21,6 +37,15 @@ export interface MCPToolBinding {
   parameters: { [name: string]: OpenAPIV3.ParameterObject };
 }
 
+export interface ResourceToolProviderOptions extends MCPResourceOptions {
+  /**
+   * Replaces the resource name in the generated tool names, which become `<toolNamePrefix>_<internalId>`.
+   * Useful when several providers expose resources that share a name - one per tenant, or one per
+   * dynamically created data model - and their tools have to stay distinct within a bundle.
+   */
+  toolNamePrefix?: string;
+}
+
 /**
  * Exposes the operations of a Resource as MCP tools.
  *
@@ -30,9 +55,22 @@ export interface MCPToolBinding {
  * MCP call is subject to exactly the same validation and authorization as the equivalent REST call.
  */
 export class ResourceToolProvider implements MCPProvider {
-  constructor(public resource: Resource, public bundleId: string, public bundle: MCPBundleDefinition = {}) {}
+  /**
+   * @param options overrides the resource's own `mcp` definition. Meant for resources that aren't part of
+   * the API document - built per request, for instance - whose MCP configuration therefore cannot come
+   * from a static ResourceDefinition.
+   */
+  constructor(
+    public resource: Resource,
+    public bundleId: string,
+    public bundle: MCPBundleDefinition = {},
+    protected providerOptions?: ResourceToolProviderOptions
+  ) {}
 
-  protected get options(): { bundles?: string[]; operations?: string[]; tools?: { [id: string]: MCPToolInfo | false } } {
+  protected get options(): ResourceToolProviderOptions {
+    if (this.providerOptions) {
+      return this.providerOptions;
+    }
     const mcp = this.resource.info.mcp;
     // `mcp: true` is the shorthand for "every operation, default bundle", i.e. no options at all
     return typeof mcp === 'object' ? mcp : {};
@@ -68,6 +106,14 @@ export class ResourceToolProvider implements MCPProvider {
     };
   }
 
+  /**
+   * The name of the tool exposing an operation. Kept separate from createBinding so that ownership of a
+   * tool can be settled without generating its schema.
+   */
+  protected toolNameOf(op: Operation, info: MCPToolInfo): string {
+    return info.name || toolNameFor(this.options.toolNamePrefix || `${this.resource.info.name}`, op.internalId);
+  }
+
   protected createBinding(op: Operation, info: MCPToolInfo): MCPToolBinding {
     const doc = this.resource.api?.getOriginalDocument();
     // the operation info stored in the unresolved document is the one safe to serialize
@@ -79,7 +125,7 @@ export class ResourceToolProvider implements MCPProvider {
     }, {} as { [name: string]: OpenAPIV3.ParameterObject });
 
     const tool: MCPTool = {
-      name: info.name || toolNameFor('' + this.resource.info.name, op.internalId),
+      name: this.toolNameOf(op, info),
       description: info.description || opInfo.summary || opInfo.description || `Execute ${opInfo.operationId}`,
       inputSchema: info.inputSchema || operationToInputSchema(opInfo, doc, info.omitParameters),
       annotations: { ...annotationsFor(op.method), ...info.annotations },
@@ -122,6 +168,19 @@ export class ResourceToolProvider implements MCPProvider {
 
   async listTools(req: APIRequest): Promise<MCPTool[]> {
     return this.getBindings(req).map((b) => b.tool);
+  }
+
+  /**
+   * Whether the caller of `req` can reach the named tool on this resource. Decided with the same
+   * selection and authorization filter as listTools, but without building any schema.
+   */
+  async hasTool(name: string, req: APIRequest): Promise<boolean> {
+    for (const op of this.resource.getOperations()) {
+      if (this.isSelected(op) && op.isAuthorized(req) && this.toolNameOf(op, this.getToolInfo(op)) === name) {
+        return true;
+      }
+    }
+    return false;
   }
 
   async callTool(name: string, args: any, req: APIRequest): Promise<MCPToolResult> {
@@ -232,5 +291,82 @@ export class ResourceToolProvider implements MCPProvider {
       parts.push('more items are available: repeat the call increasing skip');
     }
     return parts.join(', ');
+  }
+}
+
+/**
+ * Serves the tools of providers that only exist per request.
+ *
+ * Resources created dynamically - one per tenant, per data model, per plugin - are not part of the API's
+ * resource list, so MCPResource cannot discover them: only the request says which of them exist and which
+ * of them the caller can see. A subclass implements `getProviders`, typically returning a
+ * ResourceToolProvider per resource it built for this request, and this class takes care of aggregating
+ * them and routing calls.
+ *
+ * `findProvider` is the seam that keeps a call cheap: the default implementation asks every provider
+ * whether it owns the tool, but a subclass that can tell from the tool name alone - by giving each
+ * provider a `toolNamePrefix` - should override it and build that one provider only.
+ */
+export abstract class DynamicToolProvider implements MCPProvider {
+  /**
+   * Providers already resolved for a request, so that the hasTool/callTool pair a single tool call
+   * performs resolves - and therefore builds - each provider once. Keyed by the request object, which the
+   * garbage collector disposes of at the end of the request, so nothing is kept between requests: a
+   * dynamic provider's whole point is that its providers are only valid for one caller.
+   */
+  private resolved: WeakMap<APIRequest, Map<string, MCPProvider | undefined>> = new WeakMap();
+
+  /**
+   * The providers reachable by the caller of `req`. Called once per `tools/list`, so an implementation
+   * that builds resources should cache whatever is expensive.
+   */
+  protected abstract getProviders(req: APIRequest): Promise<MCPProvider[]>;
+
+  /**
+   * The provider serving the named tool, or undefined if none does. Called at most once per tool name per
+   * request, so an override is free to do real work - building the one resource that serves the tool, for
+   * instance - rather than filtering an already available list.
+   */
+  protected async findProvider(name: string, req: APIRequest): Promise<MCPProvider | undefined> {
+    for (const provider of await this.getProviders(req)) {
+      if (provider.callTool && (await providerHasTool(provider, name, req))) {
+        return provider;
+      }
+    }
+    return undefined;
+  }
+
+  private async resolveProvider(name: string, req: APIRequest): Promise<MCPProvider | undefined> {
+    let byName = this.resolved.get(req);
+    if (!byName) {
+      byName = new Map();
+      this.resolved.set(req, byName);
+    }
+    if (!byName.has(name)) {
+      byName.set(name, await this.findProvider(name, req));
+    }
+    return byName.get(name);
+  }
+
+  async listTools(req: APIRequest): Promise<MCPTool[]> {
+    const out: MCPTool[] = [];
+    for (const provider of await this.getProviders(req)) {
+      if (provider.listTools) {
+        out.push(...(await provider.listTools(req)));
+      }
+    }
+    return out;
+  }
+
+  async hasTool(name: string, req: APIRequest): Promise<boolean> {
+    return !!(await this.resolveProvider(name, req));
+  }
+
+  async callTool(name: string, args: any, req: APIRequest): Promise<MCPToolResult> {
+    const provider = await this.resolveProvider(name, req);
+    if (!provider?.callTool) {
+      throw new Error(`Unknown tool ${name}`);
+    }
+    return provider.callTool(name, args, req);
   }
 }

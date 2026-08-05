@@ -7,7 +7,7 @@ import supertest from 'supertest';
 import { API } from '../../dist/api.js';
 import { dispatchInternal } from '../../dist/mcp/dispatch.js';
 import { MCPOperation } from '../../dist/mcp/operation.js';
-import { ResourceToolProvider } from '../../dist/mcp/provider.js';
+import { DynamicToolProvider, providerHasTool, ResourceToolProvider } from '../../dist/mcp/provider.js';
 import { MCPResource } from '../../dist/mcp/resource.js';
 import { Operation } from '../../dist/operation.js';
 import { Job, PipelineOperation } from '../../dist/pipeline.js';
@@ -1410,6 +1410,244 @@ describe('MCP', function () {
       const req: any = { logger: console, scopes: new Scopes('*') };
       (await provider.listTools(req)).map((t) => t.name).should.deep.equal(['thing_read']);
       return provider.callTool('thing_nope', {}, req).should.be.rejectedWith(/Unknown tool thing_nope/);
+    });
+  });
+
+  describe('tool ownership', function () {
+    const req: any = { logger: console, scopes: new Scopes('*') };
+
+    it('should ask a provider that implements hasTool, without listing its tools', async function () {
+      let listed = 0;
+      const provider = {
+        async listTools() {
+          listed++;
+          return [{ name: 'a', inputSchema: {} }];
+        },
+        async hasTool(name: string) {
+          return name === 'a';
+        },
+      };
+      (await providerHasTool(provider, 'a', req)).should.be.true;
+      (await providerHasTool(provider, 'b', req)).should.be.false;
+      listed.should.equal(0);
+    });
+    it('should fall back to the tool list of a provider that does not', async function () {
+      const provider = {
+        async listTools() {
+          return [{ name: 'a', inputSchema: {} }];
+        },
+      };
+      (await providerHasTool(provider, 'a', req)).should.be.true;
+      (await providerHasTool(provider, 'b', req)).should.be.false;
+    });
+    it('should report no tool for a provider that serves none', async function () {
+      (await providerHasTool({}, 'a', req)).should.be.false;
+    });
+
+    it('should decide ownership on a resource without building any schema', async function () {
+      const api = new API();
+      api.registerSchema('thing', { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] } as any);
+      api.addResource(new Resource({ name: 'Thing', mcp: true }, { '/:id': { get: ReadOp as any } }));
+      const mcp = new MCPResource();
+      api.addResource(mcp);
+      await api.router();
+      const provider: any = mcp.getProviders('default')[0];
+      (await provider.hasTool('thing_read', req)).should.be.true;
+      (await provider.hasTool('thing_nope', req)).should.be.false;
+    });
+    it('should not own a tool of an operation the caller is not authorized to perform', async function () {
+      class ScopedAPI extends API {
+        initSecurity(r: APIRequest, _res: APIResponse, next) {
+          r.scopes = new Scopes(['Thing.query']);
+          next();
+        }
+      }
+      const api = new ScopedAPI();
+      api.document.components!.securitySchemes = { oauth2: { type: 'oauth2', flows: { password: { tokenUrl: 'token', scopes: {} } } } };
+      api.registerSchema('thing', { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] } as any);
+      api.addResource(new Resource({ name: 'Thing', mcp: true }, { '/': { get: QueryOp as any }, '/:id': { get: ReadOp as any } }));
+      const mcp = new MCPResource();
+      api.addResource(mcp);
+      await api.router();
+      const provider: any = mcp.getProviders('default')[0];
+      const scoped: any = { logger: console, scopes: new Scopes(['Thing.query']) };
+      (await provider.hasTool('thing_query', scoped)).should.be.true;
+      (await provider.hasTool('thing_read', scoped)).should.be.false;
+    });
+  });
+
+  describe('a provider configured explicitly rather than by its resource', function () {
+    const req: any = { logger: console, scopes: new Scopes('*') };
+
+    /**
+     * A resource built per request is not part of the API document, so its MCP configuration cannot come
+     * from a static ResourceDefinition: it is passed to the provider instead.
+     */
+    async function provide(info: any, options?: any): Promise<any> {
+      const api = new API();
+      api.registerSchema('thing', { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] } as any);
+      const resource = new Resource(info, { '/': { get: QueryOp as any }, '/:id': { get: ReadOp as any, delete: RemoveOp as any } });
+      api.addResource(resource);
+      api.addResource(new MCPResource());
+      await api.router();
+      return new ResourceToolProvider(resource, 'default', {}, options);
+    }
+
+    it('should take its options from the resource when none are passed', async function () {
+      const provider = await provide({ name: 'Thing', mcp: { operations: ['query'] } });
+      (await provider.listTools(req)).map((t) => t.name).should.deep.equal(['thing_query']);
+    });
+    it('should take no options from a resource opted in with the true shorthand', async function () {
+      const provider = await provide({ name: 'Thing', mcp: true });
+      (await provider.listTools(req)).map((t) => t.name).should.deep.equal(['thing_query', 'thing_read', 'thing_remove']);
+    });
+    it('should ignore the resource options when its own are passed', async function () {
+      const provider = await provide({ name: 'Thing', mcp: { operations: ['query'] } }, { operations: ['read'] });
+      (await provider.listTools(req)).map((t) => t.name).should.deep.equal(['thing_read']);
+    });
+    it('should serve a resource that never opted in at all', async function () {
+      const provider = await provide({ name: 'Thing' }, { operations: ['read'] });
+      (await provider.listTools(req)).map((t) => t.name).should.deep.equal(['thing_read']);
+    });
+    it('should replace the resource name in the generated tool names', async function () {
+      const provider = await provide({ name: 'Thing' }, { toolNamePrefix: 'custom_pkg_model', operations: ['query', 'read'] });
+      (await provider.listTools(req)).map((t) => t.name).should.deep.equal(['custom_pkg_model_query', 'custom_pkg_model_read']);
+      (await provider.hasTool('custom_pkg_model_read', req)).should.be.true;
+      (await provider.hasTool('thing_read', req)).should.be.false;
+    });
+    it('should leave an explicitly named tool alone', async function () {
+      const provider = await provide({ name: 'Thing' }, { toolNamePrefix: 'custom_pkg_model', tools: { read: { name: 'read_it' } }, operations: ['read'] });
+      (await provider.listTools(req)).map((t) => t.name).should.deep.equal(['read_it']);
+    });
+  });
+
+  describe('a dynamic provider', function () {
+    const request = supertest(basePath);
+    const app = express();
+    let server;
+
+    /**
+     * Two resources built on their own API, as a per-request provider does for resources that are created
+     * from data - one per tenant, per data model, per plugin - and are therefore unknown to MCPResource.
+     */
+    async function build(name: string, prefix: string, bundleId: string): Promise<ResourceToolProvider> {
+      const api = new API();
+      api.registerSchema('thing', { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] } as any);
+      const resource = new Resource({ name }, { '/': { get: QueryOp as any }, '/:id': { get: ReadOp as any } });
+      api.addResource(resource);
+      await api.router();
+      return new ResourceToolProvider(resource, bundleId, {}, { bundles: [bundleId], toolNamePrefix: prefix });
+    }
+
+    let built: string[] = [];
+    class Dynamic extends DynamicToolProvider {
+      constructor(protected bundleId: string = 'default') {
+        super();
+      }
+      protected async getProviders(): Promise<any[]> {
+        built.push('all');
+        return [
+          await build('One', 'one', this.bundleId),
+          await build('Two', 'two', this.bundleId),
+          { async listTools() { return [{ name: 'extra', inputSchema: {} }]; } },
+          {},
+        ];
+      }
+    }
+    /**
+     * The shape a real implementation takes: the tool name says which resource serves it, so a call builds
+     * that one only.
+     */
+    class Targeted extends Dynamic {
+      protected async findProvider(name: string): Promise<any> {
+        const match = /^(one|two)_/.exec(name);
+        if (!match) {
+          return undefined;
+        }
+        built.push(match[1]);
+        return build(match[1] === 'one' ? 'One' : 'Two', match[1], this.bundleId);
+      }
+    }
+
+    const api = new API();
+    const mcp = new MCPResource({ bundles: { default: {}, targeted: {} } });
+    mcp.addProvider('default', new Dynamic());
+    mcp.addProvider('targeted', new Targeted('targeted'));
+    api.addResource(mcp);
+
+    before(async function () {
+      app.use(await api.router());
+      server = app.listen(port);
+    });
+    after(function () {
+      server.close();
+    });
+    beforeEach(function () {
+      built = [];
+    });
+
+    it('should list the tools of every provider it serves', function () {
+      return jsonrpc(request, '/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/list' })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.result.tools.map((t) => t.name).should.deep.equal(['one_query', 'one_read', 'two_query', 'two_read', 'extra']);
+        });
+    });
+    it('should advertise the tools capability', function () {
+      return jsonrpc(request, '/mcp', { jsonrpc: '2.0', id: 1, method: 'initialize' })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.result.capabilities.should.deep.equal({ tools: { listChanged: false } });
+        });
+    });
+    it('should route a call to the provider serving the tool', function () {
+      return jsonrpc(request, '/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'two_read', arguments: { id: 'abc' } } })
+        .expect(200)
+        .then(({ body: data }) => {
+          should.not.exist(data.error);
+          data.result.structuredContent.should.deep.equal({ id: 'abc', a: 'x' });
+        });
+    });
+    it('should refuse a call to a tool none of its providers serves', function () {
+      return jsonrpc(request, '/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'three_read' } })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.error.code.should.equal(-32602);
+          data.error.message.should.match(/Unknown tool three_read/);
+        });
+    });
+    it('should resolve the provider of a tool once per request', function () {
+      return jsonrpc(request, '/mcp/targeted', { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'one_read', arguments: { id: 'abc' } } })
+        .expect(200)
+        .then(({ body: data }) => {
+          should.not.exist(data.error);
+          data.result.structuredContent.should.deep.equal({ id: 'abc', a: 'x' });
+          // hasTool, then callTool: one resolution, and no enumeration of the providers of the other models
+          built.should.deep.equal(['one']);
+        });
+    });
+    it('should not enumerate its providers to refuse an unknown tool', function () {
+      return jsonrpc(request, '/mcp/targeted', { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'three_read' } })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.error.code.should.equal(-32602);
+          built.should.deep.equal([]);
+        });
+    });
+    it('should still list the tools of every provider when calls are targeted', function () {
+      return jsonrpc(request, '/mcp/targeted', { jsonrpc: '2.0', id: 1, method: 'tools/list' })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.result.tools.map((t) => t.name).should.deep.equal(['one_query', 'one_read', 'two_query', 'two_read', 'extra']);
+          built.should.deep.equal(['all']);
+        });
+    });
+    it('should refuse a call reaching it directly for a tool it does not serve', async function () {
+      const provider: any = new Dynamic();
+      const req: any = { logger: console, scopes: new Scopes('*') };
+      (await provider.hasTool('one_read', req)).should.be.true;
+      (await provider.hasTool('nope', req)).should.be.false;
+      await provider.callTool('nope', {}, req).should.be.rejectedWith(/Unknown tool nope/);
     });
   });
 });

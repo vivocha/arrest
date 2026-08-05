@@ -3,6 +3,7 @@ import { OpenAPIV3, ValidationError } from 'openapi-police';
 import { RESTError } from '../error.js';
 import { JSONRPC, JSONRPCError, rpc } from '../rpc.js';
 import { APIRequest, APIResponse, Method } from '../types.js';
+import { providerHasTool } from './provider.js';
 import { MCPResource } from './resource.js';
 import {
   MCP_DEFAULT_MAX_OUTPUT_CHARS,
@@ -208,11 +209,12 @@ export class MCPOperation extends JSONRPC {
       throw new JSONRPCError(MCPErrorCode.invalidParams, 'Missing tool name');
     }
     for (const provider of this.getProviders()) {
-      if (!provider.listTools || !provider.callTool) {
+      if (!provider.callTool) {
         continue;
       }
-      const tools = await provider.listTools(req);
-      if (tools.some((t) => t.name === name)) {
+      // providerHasTool prefers the provider's own hasTool, so a provider whose tool list is expensive to
+      // build - one serving dynamically created resources, say - isn't forced to materialize it here
+      if (await providerHasTool(provider, name, req)) {
         return this.truncate(await provider.callTool(name, params.arguments, req));
       }
     }
