@@ -13,7 +13,7 @@ import { DEFAULT_DOCUMENT } from './defaults.js';
 import { RESTError } from './error.js';
 import { Resource } from './resource.js';
 import { SchemaResource } from './schema.js';
-import { APIRequest, APIResponse } from './types.js';
+import { APIRequest, APIResponse, METHODS } from './types.js';
 import { rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas } from './util.js';
 
 let reqId: number = 0;
@@ -125,6 +125,61 @@ export class API {
       }
     });
   }
+  /**
+   * Apply a named filter to a document of this API, or return undefined if the filter isn't one this API
+   * supports - which the openapi.json endpoint reports as a 400. Override to add filters of your own.
+   */
+  protected filterDocument(doc: OpenAPIV3.Document, filter: string, req: APIRequest): OpenAPIV3.Document | undefined {
+    return filter === 'authorized' ? this.filterAuthorizedDocument(doc, req) : undefined;
+  }
+  /**
+   * Remove from `doc` every operation the caller of `req` may not perform, together with whatever is then
+   * left describing nothing: paths with no operation, tags whose last operation is gone, and components no
+   * surviving $ref points at. Modifies and returns the document passed in, like removeUnusedSchemas.
+   *
+   * The decision belongs to each operation - Operation.isAuthorized, i.e. getAuthorizationError - so the
+   * document can never advertise an endpoint its security validator would refuse, in the same way
+   * tools/list can never advertise such a tool. Path entries not backed by an operation of this API are
+   * left alone: arrest serves nothing for them and cannot say whether the caller can reach them.
+   */
+  filterAuthorizedDocument(doc: OpenAPIV3.Document, req: APIRequest): OpenAPIV3.Document {
+    const tagsBefore = this.documentTags(doc);
+    const emptied: Set<string> = new Set();
+    for (const resource of this.resources) {
+      for (const op of resource.getOperations()) {
+        const item = doc.paths[op.documentPath];
+        if (item && item[op.method] && !op.isAuthorized(req)) {
+          delete item[op.method];
+          emptied.add(op.documentPath);
+        }
+      }
+    }
+    for (const path of emptied) {
+      if (!METHODS.some((m) => doc.paths[path][m])) {
+        delete doc.paths[path];
+      }
+    }
+    const tagsAfter = this.documentTags(doc);
+    if (doc.tags) {
+      // a tag goes only when the filter removed its last operation, so a tag no operation referenced in
+      // the first place - one added to the document by hand - is not collateral damage
+      doc.tags = doc.tags.filter((t) => tagsAfter.has('' + t.name) || !tagsBefore.has('' + t.name));
+    }
+    return removeUnusedSchemas(doc);
+  }
+  /**
+   * The tags referenced by the operations of a document.
+   */
+  protected documentTags(doc: OpenAPIV3.Document): Set<string> {
+    const out: Set<string> = new Set();
+    for (const path of Object.keys(doc.paths)) {
+      for (const method of METHODS) {
+        ((doc.paths[path][method] as OpenAPIV3.OperationObject)?.tags || []).forEach((t) => out.add(t));
+      }
+    }
+    return out;
+  }
+
   getOauth2Schemes(): OpenAPIV3.OAuth2SecurityScheme[] {
     const out: OpenAPIV3.OAuth2SecurityScheme[] = [];
     if (this.document.components && this.document.components.securitySchemes) {
@@ -201,7 +256,19 @@ export class API {
           } else {
             res.set('Access-Control-Allow-Origin', '*');
             res.set('Access-Control-Allow-Methods', 'GET');
-            const out: OpenAPIV3.Document = _.cloneDeep(originalDocument);
+            let out: OpenAPIV3.Document = _.cloneDeep(originalDocument);
+
+            const filter = req.query.filter;
+            if (typeof filter !== 'undefined') {
+              const filtered = typeof filter === 'string' ? this.filterDocument(out, filter, req) : undefined;
+              if (!filtered) {
+                return next(API.newError(400, 'Bad Request', 'Unsupported filter, the only supported value is "authorized"'));
+              }
+              out = filtered;
+              // the response now depends on the caller, so no shared cache may reuse it
+              res.set('Cache-Control', 'no-store');
+            }
+
             const baseUrl = `${req.headers['x-forwarded-proto'] || req.protocol}://${req.headers['host']}${req.baseUrl}`;
             out.servers = [
               {

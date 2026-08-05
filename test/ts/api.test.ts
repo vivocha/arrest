@@ -2,7 +2,7 @@ import { Scopes } from '@vivocha/scopes';
 import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import express from 'express';
-import { OpenAPIV3, ParserError, RetrieverError, SchemaObject, ValidationError } from 'openapi-police';
+import { OpenAPIV3, parse, ParserError, RetrieverError, SchemaObject, ValidationError } from 'openapi-police';
 import pem from 'pem';
 import * as sinon from 'sinon';
 import supertest from 'supertest';
@@ -11,6 +11,7 @@ import { DEFAULT_DOCUMENT } from '../../dist/defaults.js';
 import { RESTError } from '../../dist/error.js';
 import { Operation } from '../../dist/operation.js';
 import { Resource } from '../../dist/resource.js';
+import { APIRequest, APIResponse } from '../../dist/types.js';
 import { simpleAPI, simpleAPI2, simpleAPI3, simpleAPI4, simpleAPI5, simpleAPI6, simpleAPI7 } from './dummy-api.js';
 
 const should = chai.should();
@@ -44,6 +45,21 @@ describe('API', function () {
       api.document.openapi.should.equal('3.1.0');
       api.document.info.version.should.equal('1.0.0');
       api.document.info.title.should.equal('REST API');
+    });
+  });
+
+  describe('registerOperation', function () {
+    it('should strip a trailing slash from the registered path', function () {
+      // Operation.documentPath already normalizes, but this is public and may be called with anything
+      const api = new API();
+      const info = { operationId: 'a.b', responses: {} };
+      api.registerOperation('/as/', 'get', info)().should.equal(info);
+      Object.keys(api.document.paths).should.deep.equal(['/as']);
+    });
+    it('should keep a path that is just a slash', function () {
+      const api = new API();
+      api.registerOperation('/', 'get', { operationId: 'a.b', responses: {} });
+      Object.keys(api.document.paths).should.deep.equal(['/']);
     });
   });
 
@@ -2143,6 +2159,204 @@ describe('API', function () {
         .then(({ body: data }) => {
           data.should.deep.equal(expectedSpec);
         });
+    });
+  });
+
+  describe('openapi spec filtered by authorization', function () {
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    const app = express();
+    let server;
+
+    class ScopedAPI extends API {
+      initSecurity(req: APIRequest, res: APIResponse, next: express.NextFunction) {
+        req.scopes = new Scopes(JSON.parse('' + (req.headers['x-scopes'] || '["*"]')));
+        next();
+      }
+    }
+    class TestOp extends Operation {
+      constructor(resource, path, method, id) {
+        super(resource, path, method, id);
+      }
+      handler(req: APIRequest, res: APIResponse) {
+        res.json({});
+      }
+    }
+    class QueryOp extends TestOp {
+      constructor(resource, path, method) {
+        super(resource, path, method, 'query');
+      }
+    }
+    class CreateOp extends TestOp {
+      constructor(resource, path, method) {
+        super(resource, path, method, 'create');
+      }
+    }
+    class ReadOp extends TestOp {
+      constructor(resource, path, method) {
+        super(resource, path, method, 'read');
+      }
+    }
+    // an operation referring to a registered schema and to a shared parameter, so that removing it leaves
+    // both unreferenced and the component pruning becomes observable
+    class SecretOp extends TestOp {
+      constructor(resource, path, method) {
+        super(resource, path, method, 'peek');
+      }
+      protected getCustomInfo(): OpenAPIV3.OperationObject {
+        return {
+          parameters: [{ $ref: '#/components/parameters/limit' }],
+          responses: {
+            '200': {
+              description: 'a secret',
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/secret' } } },
+            },
+          },
+        };
+      }
+    }
+    const api = new ScopedAPI();
+    api.document.components!.securitySchemes = {
+      oauth2: { type: 'oauth2', flows: { password: { tokenUrl: 'token', scopes: {} } } },
+    };
+    api.registerSchema('secret', { type: 'object', properties: { s: { type: 'string' } } } as any);
+    api.addResource(new Resource({ name: 'Thing' }, { '/': { get: QueryOp, post: CreateOp }, '/:id': { get: ReadOp } }));
+    api.addResource(new Resource({ name: 'Secret' }, { '/': { get: SecretOp } }));
+    // a tag no operation ever references: it can only have been added by hand, so the filter must keep it
+    api.registerTag({ name: 'Handwritten' });
+
+    before(async function () {
+      app.use(await api.router());
+      server = app.listen(port);
+    });
+    after(function () {
+      server.close();
+    });
+
+    it('should return the full spec when no filter is requested', function () {
+      return request
+        .get('/openapi.json')
+        .set('x-scopes', '["Thing.query"]')
+        .expect(200)
+        .expect('Content-Type', /json/)
+        .then(({ body: data, headers }) => {
+          Object.keys(data.paths).should.have.members(['/things', '/things/{id}', '/secrets', '/schemas/{id}']);
+          Object.keys(data.paths['/things']).should.have.members(['get', 'post']);
+          should.not.exist(headers['cache-control']);
+        });
+    });
+
+    it('should return the full spec to a caller authorized for everything', function () {
+      return Promise.all([request.get('/openapi.json').expect(200), request.get('/openapi.json?filter=authorized').expect(200)]).then(([plain, filtered]) => {
+        filtered.body.should.deep.equal(plain.body);
+      });
+    });
+
+    it('should remove the operations the caller is not authorized to perform', function () {
+      return request
+        .get('/openapi.json?filter=authorized')
+        .set('x-scopes', '["Thing.query"]')
+        .expect(200)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          // /things keeps get and loses post, /things/{id} and /secrets go entirely
+          Object.keys(data.paths).should.have.members(['/things', '/schemas/{id}']);
+          Object.keys(data.paths['/things']).should.deep.equal(['get']);
+          data.paths['/things'].get.operationId.should.equal('Thing.query');
+        });
+    });
+
+    it('should keep an operation that requires no scope at all', function () {
+      return request
+        .get('/openapi.json?filter=authorized')
+        .set('x-scopes', '[]')
+        .expect(200)
+        .then(({ body: data }) => {
+          // Schema.read declares no scopes, so it is reachable by anyone
+          Object.keys(data.paths).should.deep.equal(['/schemas/{id}']);
+        });
+    });
+
+    it('should remove the tags left without any operation, and keep the others', function () {
+      return request
+        .get('/openapi.json?filter=authorized')
+        .set('x-scopes', '["Thing.query"]')
+        .expect(200)
+        .then(({ body: data }) => {
+          // Schema is registered when router() adds the SchemaResource, i.e. after the hand-written tag
+          data.tags.map((t) => t.name).should.deep.equal(['Thing', 'Handwritten', 'Schema']);
+        });
+    });
+
+    it('should remove the components left unreferenced', function () {
+      return Promise.all([
+        request.get('/openapi.json?filter=authorized').expect(200),
+        request.get('/openapi.json?filter=authorized').set('x-scopes', '["Thing.query"]').expect(200),
+      ]).then(([all, some]) => {
+        Object.keys(all.body.components.schemas).should.include('secret');
+        Object.keys(all.body.components.parameters).should.include('limit');
+        // Secret.peek was the only reference to both
+        Object.keys(some.body.components.schemas).should.not.include('secret');
+        Object.keys(some.body.components.parameters).should.not.include('limit');
+        // the id parameter is still referenced by Schema.read
+        Object.keys(some.body.components.parameters).should.include('id');
+      });
+    });
+
+    it('should leave the security schemes untouched', function () {
+      return request
+        .get('/openapi.json?filter=authorized')
+        .set('x-scopes', '["Thing.query"]')
+        .expect(200)
+        .then(({ body: data }) => {
+          Object.keys(data.components.securitySchemes.oauth2.flows.password.scopes).should.include.members(['Thing', 'Thing.query', 'Secret.peek']);
+          data.components.securitySchemes.oauth2.flows.password.tokenUrl.should.equal(basePath + '/token');
+          data.servers[0].url.should.equal(basePath);
+        });
+    });
+
+    it('should tell caches not to store a filtered spec', function () {
+      return request.get('/openapi.json?filter=authorized').expect(200).expect('Cache-Control', 'no-store');
+    });
+
+    it('should still be a resolvable OpenAPI document', function () {
+      return request
+        .get('/openapi.json?filter=authorized')
+        .set('x-scopes', '["Thing.query"]')
+        .expect(200)
+        .then(({ body: data }) => {
+          return parse(data, { scope: 'http://vivocha.com/api/v3' }).should.be.fulfilled;
+        });
+    });
+
+    it('should fail with an unsupported filter', function () {
+      return request
+        .get('/openapi.json?filter=nope')
+        .expect(400)
+        .expect('Content-Type', /json/)
+        .then(({ body: data }) => {
+          data.info.should.match(/Unsupported filter/);
+        });
+    });
+
+    it('should fail with a filter that is not a single string', function () {
+      return Promise.all([
+        request
+          .get('/openapi.json?filter[x]=y')
+          .expect(400)
+          .then(({ body: data }) => data.info.should.match(/Unsupported filter/)),
+        request
+          .get('/openapi.json?filter=authorized&filter=authorized')
+          .expect(400)
+          .then(({ body: data }) => data.info.should.match(/Unsupported filter/)),
+      ]);
+    });
+
+    it('should ignore an operation missing from the document it is given', function () {
+      const doc = { paths: {} } as any;
+      api.filterAuthorizedDocument(doc, { scopes: new Scopes('*') } as any).should.equal(doc);
     });
   });
 });

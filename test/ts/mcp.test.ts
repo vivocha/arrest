@@ -595,6 +595,14 @@ describe('MCP', function () {
           .expect(200);
         mcp.result.structuredContent.should.deep.equal(rest);
       });
+      it('should hide an unreachable bundle from an authorization filtered openapi spec', async function () {
+        // the same property the catalogue and tools/list have, seen from the OpenAPI document
+        const { body: all } = await request.get('/openapi.json?filter=authorized').expect(200);
+        Object.keys(all.paths).should.include.members(['/mcp', '/mcp/sales']);
+        const { body: some } = await request.get('/openapi.json?filter=authorized').set('x-scopes', '["MCP.default", "Thing"]').expect(200);
+        Object.keys(some.paths['/mcp']).should.deep.equal(['post']);
+        Object.keys(some.paths).should.not.include('/mcp/sales');
+      });
     });
 
     describe('ability', function () {

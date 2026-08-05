@@ -16,3 +16,8 @@ export interface APIRequestHandler extends RequestHandler {
 }
 
 export type Method = 'get' | 'put' | 'post' | 'delete' | 'options' | 'head' | 'patch';
+/**
+ * Every Method, as values. Needed to tell the operations of an OpenAPI path item apart from its other
+ * properties - summary, parameters, $ref - when walking a document.
+ */
+export const METHODS: Method[] = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch'];

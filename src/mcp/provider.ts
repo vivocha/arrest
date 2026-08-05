@@ -141,11 +141,7 @@ export class ResourceToolProvider implements MCPProvider {
   }
 
   protected swaggerPathOf(op: Operation): string {
-    let path = this.resource.basePath + op.swaggerPath;
-    if (path.length > 1 && path[path.length - 1] === '/') {
-      path = path.substring(0, path.length - 1);
-    }
-    return path;
+    return op.documentPath;
   }
 
   /**

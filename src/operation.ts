@@ -44,6 +44,14 @@ export abstract class Operation {
   get swaggerPath(): string {
     return this.path.replace(swaggerPathRegExp, '/{$1}');
   }
+  /**
+   * The key this operation occupies in the paths object of the OpenAPI document: its swaggerPath under the
+   * resource base path, with the trailing slash registerOperation strips.
+   */
+  get documentPath(): string {
+    const path = this.resource.basePath + this.swaggerPath;
+    return path.length > 1 && path[path.length - 1] === '/' ? path.substring(0, path.length - 1) : path;
+  }
   get swaggerScopes(): OpenAPIV3.OAuth2SecurityScopes {
     return {
       [this.info.operationId as string]: this.info.summary || `Execute ${this.info.operationId} on a ${this.resource.info.name}`,
@@ -225,7 +233,7 @@ export abstract class Operation {
   attach(api: API) {
     this.api = api;
 
-    const infoGetter = api.registerOperation(this.resource.basePath + this.swaggerPath, this.method, this.info);
+    const infoGetter = api.registerOperation(this.documentPath, this.method, this.info);
     Object.defineProperty(this, 'info', {
       get: infoGetter,
     });

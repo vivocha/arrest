@@ -34,6 +34,7 @@ A powerful OpenAPI v3.1 compliant REST framework for Node.js with comprehensive 
 - [JSON Patch Support](#json-patch-support)
 - [Resource Query Language (RQL)](#resource-query-language-rql)
 - [Authentication and Authorization](#authentication-and-authorization)
+  - [Filtering openapi.json by authorization](#filtering-openapijson-by-authorization)
 - [MongoDB Integration](#mongodb-integration)
 - [Error Handling](#error-handling)
 - [CSV Export](#csv-export)
@@ -284,6 +285,9 @@ api.document.security = [
 - `listen(httpPort, httpsPort?, httpsOptions?)` - Start HTTP and/or HTTPS server
 - `router(options?)` - Get Express router for integration
 - `attach(base, options?)` - Attach to existing Express app with automatic versioning
+- `getOriginalDocument()` - The OpenAPI document as it was before jsonref resolved it, available once `router()` has run
+- `filterAuthorizedDocument(doc, req)` - Remove from a document everything the caller of `req` cannot reach, see
+  [Filtering openapi.json by authorization](#filtering-openapijson-by-authorization)
 
 ### Resource Class
 
@@ -1003,6 +1007,54 @@ class AuthorizedAPI extends API {
 }
 ```
 
+#### Filtering openapi.json by authorization
+
+`GET /openapi.json` describes the whole API to everyone, including the operations a given caller would be refused. Add
+`?filter=authorized` and the document instead describes only what that caller can actually reach:
+
+| Request | Response |
+|---|---|
+| `GET /openapi.json` | the whole API, unchanged |
+| `GET /openapi.json?filter=authorized` | only what the caller can reach, plus `Cache-Control: no-store` |
+| `GET /openapi.json?filter=<anything else>` | `400 Unsupported filter` |
+
+The filter is opt-in per request precisely so the default response stays what every existing consumer expects, and an
+unrecognized value fails loudly rather than silently handing back the full document.
+
+Removed: every `paths[<path>][<method>]` whose operation answers `false` to `Operation.isAuthorized(req)`, then paths
+left with no operation, tags whose last operation is gone, and the `components.schemas` and `components.parameters`
+nothing refers to any more. Public operations — those whose `swaggerScopes` is empty — are reachable by everyone and
+therefore always survive.
+
+Kept deliberately:
+
+- **`components.securitySchemes`**, including the OAuth2 `flows[*].scopes` map. Knowing which scopes exist is what lets
+  a client ask for a better token.
+- **Paths and tags arrest does not serve.** A path entry with no operation behind it, or a tag no operation references,
+  can only have been added to `api.document` by hand: arrest has no basis on which to decide whether the caller can
+  reach it, so it stays. Only what the filter itself emptied is removed.
+
+The decision is not a separate implementation: it is `Operation.getAuthorizationError`, the same method
+`Operation.securityValidator` enforces on a real request, so the filtered document cannot advertise an endpoint the API
+would then refuse. An operation that authorizes on something of its own overrides that one method and is filtered
+correctly here too.
+
+`Cache-Control: no-store` is set on the filtered response only, since it depends on the caller. To add a filter of your
+own, override `API.filterDocument(doc, filter, req)` and return `undefined` for anything you don't recognize:
+
+```typescript
+class MyAPI extends API {
+  protected filterDocument(doc: OpenAPIV3.Document, filter: string, req: APIRequest): OpenAPIV3.Document | undefined {
+    if (filter === 'public') {
+      // what an anonymous caller would see: no credential at all, so only the public operations survive
+      const anonymous: APIRequest = Object.assign(Object.create(req), { scopes: undefined, ability: undefined });
+      return this.filterAuthorizedDocument(doc, anonymous);
+    }
+    return super.filterDocument(doc, filter, req);
+  }
+}
+```
+
 ### MongoDB Integration
 
 #### Index Management
@@ -1415,7 +1467,9 @@ Consequences worth knowing:
   filter is not a copy of the security check: `Operation.getAuthorizationError` is where the decision is made, and both
   `Operation.securityValidator`, which enforces it, and `Operation.isAuthorized`, which reports it without dispatching
   anything, derive from it. An operation that authorizes on something of its own — a bearer token it verifies itself,
-  for instance — overrides that one method and is then filtered and enforced consistently.
+  for instance — overrides that one method and is then filtered and enforced consistently. The same decision also drives
+  [`openapi.json?filter=authorized`](#filtering-openapijson-by-authorization), so REST enforcement, `tools/list` and the
+  OpenAPI document cannot disagree about what a caller can reach.
 - **Arguments are passed through uncoerced.** The operation's own `ParameterObject` validators remain the single source
   of truth for coercion and validation; a tool call cannot anticipate or bypass them.
 - **Failures are reported to the model, not to the protocol.** A non-2xx response becomes a tool result with
