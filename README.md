@@ -97,12 +97,12 @@ api.addResource(
 
 The manual lives in [docs/](https://github.com/vivocha/arrest/blob/master/docs/README.md) and is in three parts:
 
-- **[Guide](https://github.com/vivocha/arrest/blob/master/docs/guide/)** — how arrest works. Architecture, the
+- **[Guide](https://github.com/vivocha/arrest/tree/master/docs/guide/)** — how arrest works. Architecture, the
   OpenAPI document, schemas, the security model, Express integration, errors.
-- **[Tutorial](https://github.com/vivocha/arrest/blob/master/docs/tutorial/)** — a fifteen-chapter course
+- **[Tutorial](https://github.com/vivocha/arrest/tree/master/docs/tutorial/)** — a fifteen-chapter course
   building one application, from `new API()` to an MCP server and a production shape. The code is in
-  [examples/tutorial/](https://github.com/vivocha/arrest/blob/master/examples/tutorial/) and type-checked in CI.
-- **[Reference](https://github.com/vivocha/arrest/blob/master/docs/reference/)** — the complete surface, one
+  [examples/tutorial/](https://github.com/vivocha/arrest/tree/master/examples/tutorial/) and type-checked in CI.
+- **[Reference](https://github.com/vivocha/arrest/tree/master/docs/reference/)** — the complete surface, one
   page per module.
 
 Start with the [introduction](https://github.com/vivocha/arrest/blob/master/docs/guide/01-introduction.md) if
