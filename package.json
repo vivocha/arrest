@@ -1,6 +1,6 @@
 {
   "name": "arrest",
-  "version": "15.2.0-beta.2",
+  "version": "15.2.0-beta.3",
   "description": "OpenAPI v3 compliant REST framework for Node.js, with support for MongoDB and JSON-Schema",
   "type": "module",
   "exports": {
@@ -29,6 +29,7 @@
     "cover": "c8 --reporter=lcov --reporter=text pnpm t",
     "report-coverage": "cat ./coverage/lcov.info | coveralls",
     "check-coverage": "c8 check-coverage --statements 100 --branches 100 --functions 100 --lines 100",
+    "check:examples": "tsc -p examples/tutorial --noEmit",
     "watch:test": "pnpm t -- -w",
     "test": "pnpm run build && tsc -p test && mocha --exit --no-timeouts --recursive --reporter mochawesome --reporter-options reportDir=test-results test/**/*.test.js",
     "test:debug": "find ./test/ts -type f -name '*.js' -delete && pnpm run build && pnpm run build:tests && mocha --exit --no-timeouts --inspect-brk --recursive test/**/*.test.js",
