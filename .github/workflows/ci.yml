@@ -34,7 +34,10 @@ jobs:
       
       - name: Run tests
         run: pnpm test
-      
+
+      - name: Type-check the tutorial example
+        run: pnpm run check:examples
+
       - name: Run coverage
         run: pnpm run cover
         if: matrix.node-version == '20.x'
