@@ -278,61 +278,73 @@ export function checkAbility(ability: AnyMongoAbility, resource: string, action:
     ForbiddenError.from(ability).throwUnlessCan(action, resource);
     return undefined;
   } else {
-    const fieldsCache = new Map<string, boolean>();
-    function innerCheckAbility(data: any, path?: string[]): any {
-      let foundOne = false;
-      if (typeof data === 'object' && data !== null && !ObjectId.isValid(data) && !(data instanceof Date)) {
-        if (Array.isArray(data)) {
-          data = data.filter((i) => {
-            try {
-              innerCheckAbility(i, path);
-              return true;
-            } catch (err) {
-              if (filterFields) {
-                return false;
-              } else {
-                API.fireError(403, 'insufficient privileges', undefined, err);
+    // Conditions are matched against a shallow copy: subject() tags the object it is given (and refuses to
+    // re-tag it with a different type), and the copy is unaffected by the fields deleted while filtering
+    const asSubject = (doc: any) => subject(resource, { ...doc });
+    function checkFields(root: any): any {
+      const rootSubject = asSubject(root);
+      const fieldsCache = new Map<string, boolean>();
+      function innerCheckAbility(data: any, path?: string[]): any {
+        let foundOne = false;
+        if (typeof data === 'object' && data !== null && !ObjectId.isValid(data) && !(data instanceof Date)) {
+          if (Array.isArray(data)) {
+            data = data.filter((i) => {
+              try {
+                innerCheckAbility(i, path);
+                return true;
+              } catch (err) {
+                if (filterFields) {
+                  return false;
+                } else {
+                  API.fireError(403, 'insufficient privileges', undefined, err);
+                }
               }
-            }
-          });
-          foundOne = !!data.length;
-        } else {
-          Object.entries(data).forEach(([key, value]) => {
-            try {
-              data[key] = innerCheckAbility(value, (path || []).concat(key));
-              foundOne = true;
-            } catch (err) {
-              if (filterFields) {
-                delete data[key];
-              } else {
-                API.fireError(403, 'insufficient privileges', undefined, err);
+            });
+            foundOne = !!data.length;
+          } else {
+            Object.entries(data).forEach(([key, value]) => {
+              try {
+                data[key] = innerCheckAbility(value, (path || []).concat(key));
+                foundOne = true;
+              } catch (err) {
+                if (filterFields) {
+                  delete data[key];
+                } else {
+                  API.fireError(403, 'insufficient privileges', undefined, err);
+                }
               }
-            }
-          });
+            });
+          }
         }
-      }
 
-      if (path && !foundOne) {
-        const pathAsString = path.join('.');
-        let isPermitted = fieldsCache.get(pathAsString);
-        if (typeof isPermitted === 'undefined') {
-          isPermitted = ability.can(action, resource, pathAsString);
+        if (path && !foundOne) {
+          const pathAsString = path.join('.');
+          const isPermitted = fieldsCache.get(pathAsString) ?? ability.can(action, rootSubject, pathAsString);
           fieldsCache.set(pathAsString, isPermitted);
+          if (!isPermitted) {
+            throw ForbiddenError.from(ability);
+          }
         }
-        if (!isPermitted) {
-          throw ForbiddenError.from(ability);
-        }
+        return data;
       }
-      return data;
+      return innerCheckAbility(root);
     }
     if (filterData) {
       if (Array.isArray(data)) {
-        data = data.filter((i) => ability.can(action, subject(resource, i)));
-      } else if (!ability.can(action, subject(resource, data))) {
+        data = data.filter((i) => ability.can(action, asSubject(i)));
+      } else if (!ability.can(action, asSubject(data))) {
         return undefined;
       }
+    } else {
+      for (const doc of Array.isArray(data) ? data : [data]) {
+        const err = ForbiddenError.from(ability).unlessCan(action, asSubject(doc));
+        if (err) {
+          API.fireError(403, 'insufficient privileges', undefined, err);
+        }
+      }
     }
-    return innerCheckAbility(data);
+    // In a list, each item is the root document its own fields are checked against
+    return Array.isArray(data) ? data.map(checkFields) : checkFields(data);
   }
 }
 

@@ -1,5 +1,7 @@
 import { defineAbility } from '@casl/ability';
 import * as chai from 'chai';
+import { ObjectId } from 'mongodb';
+import { RESTError } from '../../dist/error.js';
 import { checkAbility, rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas, toCSV } from '../../dist/util.js';
 import {
   complexSpec,
@@ -4783,6 +4785,141 @@ describe('util', function () {
       });
       const out = checkAbility(ability, 'Resource', 'doSomething', [{ x: 1 }, { x: 4 }, { x: 3 }, { x: 2 }], false, true);
       out.should.deep.equal([{ x: 4 }, { x: 3 }]);
+    });
+    it('should evaluate the conditions of field rules against the document', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['_id', 'name']);
+        can('read', 'Contact', ['notes'], { campaign: 'A' });
+      });
+      const a = checkAbility(ability, 'Contact', 'read', { _id: 1, name: 'a', campaign: 'A', notes: 'note of A' }, true, true);
+      const b = checkAbility(ability, 'Contact', 'read', { _id: 2, name: 'b', campaign: 'B', notes: 'note of B' }, true, true);
+      a.should.deep.equal({ _id: 1, name: 'a', notes: 'note of A' });
+      b.should.deep.equal({ _id: 2, name: 'b' });
+    });
+    it('should evaluate the conditions of field rules against each item of a list', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['_id', 'name']);
+        can('read', 'Contact', ['notes'], { campaign: 'A' });
+      });
+      const out = checkAbility(
+        ability,
+        'Contact',
+        'read',
+        [
+          { _id: 1, campaign: 'A', notes: 'note of A' },
+          { _id: 2, campaign: 'B', notes: 'note of B' },
+          { _id: 3, campaign: 'A', notes: 'another note of A' },
+        ],
+        true,
+        true
+      );
+      out.should.deep.equal([{ _id: 1, notes: 'note of A' }, { _id: 2 }, { _id: 3, notes: 'another note of A' }]);
+    });
+    it('should apply forbidding field rules with conditions', function () {
+      const ability = defineAbility((can, cannot) => {
+        can('read', 'Contact');
+        cannot('read', 'Contact', ['notes'], { campaign: 'B' });
+      });
+      const out = checkAbility(
+        ability,
+        'Contact',
+        'read',
+        [
+          { campaign: 'A', notes: 'note of A' },
+          { campaign: 'B', notes: 'note of B' },
+        ],
+        true,
+        true
+      );
+      out.should.deep.equal([{ campaign: 'A', notes: 'note of A' }, { campaign: 'B' }]);
+    });
+    it('should throw if a field is not permitted for the document', function () {
+      const ability = defineAbility((can) => {
+        can('update', 'Contact', ['campaign']);
+        can('update', 'Contact', ['notes'], { campaign: 'A' });
+      });
+      checkAbility(ability, 'Contact', 'update', { campaign: 'A', notes: 'x' }).should.deep.equal({ campaign: 'A', notes: 'x' });
+      (() => checkAbility(ability, 'Contact', 'update', { campaign: 'B', notes: 'x' })).should.throw(RESTError).with.property('code', 403);
+    });
+    it('should throw if the document does not fulfill the conditions', function () {
+      const ability = defineAbility((can) => {
+        can('create', 'Contact', { campaign: 'A' });
+      });
+      checkAbility(ability, 'Contact', 'create', { campaign: 'A' }).should.deep.equal({ campaign: 'A' });
+      (() => checkAbility(ability, 'Contact', 'create', { campaign: 'B' })).should.throw(RESTError).with.property('code', 403);
+    });
+    it('should throw if any document of a list does not fulfill the conditions', function () {
+      const ability = defineAbility((can) => {
+        can('create', 'Contact', { campaign: 'A' });
+      });
+      checkAbility(ability, 'Contact', 'create', [{ campaign: 'A' }, { campaign: 'A' }]).should.deep.equal([{ campaign: 'A' }, { campaign: 'A' }]);
+      (() => checkAbility(ability, 'Contact', 'create', [{ campaign: 'A' }, { campaign: 'B' }])).should.throw(RESTError).with.property('code', 403);
+    });
+    it('should throw if a document of a list has a field that is not permitted', function () {
+      const ability = defineAbility((can) => {
+        can('create', 'Contact', ['campaign']);
+      });
+      (() => checkAbility(ability, 'Contact', 'create', [{ campaign: 'A' }, { campaign: 'A', notes: 'x' }])).should.throw(RESTError).with.property('code', 403);
+    });
+    it('should not tag the document with the subject type', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', { campaign: 'A' });
+        can('read', 'Campaign');
+      });
+      const doc = { campaign: 'A' };
+      checkAbility(ability, 'Contact', 'read', doc, true, true);
+      checkAbility(ability, 'Campaign', 'read', doc, true, true).should.equal(doc);
+    });
+    it('should throw if a field is not permitted when filtering data but not fields', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['name']);
+      });
+      (() => checkAbility(ability, 'Contact', 'read', { name: 'a', notes: 'x' }, false, true)).should.throw(RESTError).with.property('code', 403);
+    });
+    it('should evaluate the conditions against the document before its fields are filtered', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['name']);
+        can('read', 'Contact', ['notes'], { campaign: 'A' });
+      });
+      const out = checkAbility(ability, 'Contact', 'read', { name: 'a', campaign: 'A', notes: 'note of A' }, true, true);
+      out.should.deep.equal({ name: 'a', notes: 'note of A' });
+    });
+    it('should evaluate the conditions of nested field rules against the root document', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['name', 'campaign']);
+        can('read', 'Contact', ['address.city'], { campaign: 'A' });
+      });
+      const out = checkAbility(
+        ability,
+        'Contact',
+        'read',
+        [
+          { name: 'a', campaign: 'A', address: { city: 'Rome', zip: '00100' } },
+          { name: 'b', campaign: 'B', address: { city: 'Milan', zip: '20100' } },
+        ],
+        true,
+        true
+      );
+      out.should.deep.equal([{ name: 'a', campaign: 'A', address: { city: 'Rome' } }, { name: 'b', campaign: 'B' }]);
+    });
+    it('should check ObjectId and Date values as a whole', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['_id', 'createdAt']);
+      });
+      const _id = new ObjectId();
+      const createdAt = new Date();
+      const out = checkAbility(ability, 'Contact', 'read', { _id, createdAt, notes: 'x' }, true, true);
+      out.should.deep.equal({ _id, createdAt });
+      out._id.should.equal(_id);
+      out.createdAt.should.equal(createdAt);
+    });
+    it('should check empty objects and arrays as a whole', function () {
+      const ability = defineAbility((can) => {
+        can('create', 'Contact', ['tags']);
+      });
+      checkAbility(ability, 'Contact', 'create', { tags: [] }).should.deep.equal({ tags: [] });
+      checkAbility(ability, 'Contact', 'create', { tags: [], meta: {} }, true).should.deep.equal({ tags: [] });
+      (() => checkAbility(ability, 'Contact', 'create', { meta: {} })).should.throw(RESTError).with.property('code', 403);
     });
   });
 });
