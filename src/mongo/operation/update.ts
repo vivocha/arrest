@@ -2,7 +2,7 @@ import _ from 'lodash';
 import { FindOneAndUpdateOptions, ObjectId } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api.js';
-import { Method } from '../../types.js';
+import { APIRequest, APIResponse, Method } from '../../types.js';
 import { MongoResource } from '../resource.js';
 import { addConstraint, escapeMongoObject } from '../util.js';
 import { MongoJob, MongoOperation } from './base.js';
@@ -10,6 +10,13 @@ import { MongoJob, MongoOperation } from './base.js';
 export class UpdateMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'update') {
     super(resource, path, method, id);
+  }
+  async createJob(req: APIRequest, res: APIResponse): Promise<MongoJob> {
+    const job = await super.createJob(req, res);
+    // The conditions apply to the stored document before the update (see prepareQuery), which can differ from the
+    // updated one: as for the body, only the type is checked
+    job.feat!.filter!.conditions = false;
+    return job;
   }
   protected getCustomInfo(): OpenAPIV3.OperationObject {
     return {
@@ -55,7 +62,8 @@ export class UpdateMongoOperation extends MongoOperation {
     }
     delete out._metadata;
     if (job.req.ability) {
-      out = this.checkAbility(job.req.ability, out);
+      // The conditions apply to the stored document, which the query already constrains: only the fields of the body are checked
+      out = this.checkAbility(job.req.ability, out, false, false, false);
     }
     out['' + this.resource.info.id] = this.resource.info.idIsObjectId ? new ObjectId(job.req.params.id) : job.req.params.id;
     if (this.resource.info.escapeProperties) {

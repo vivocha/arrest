@@ -14,6 +14,8 @@ export interface Job {
     filter?: {
       fields: boolean;
       data: boolean;
+      // Whether the conditions of the ability are matched against the data (the default), or only its type is checked
+      conditions?: boolean;
     };
     format?:
       | {
@@ -78,7 +80,7 @@ export abstract class PipelineOperation extends Operation {
   abstract runOperation(job: Job): Promise<Job>;
   async redactResult(job: Job): Promise<Job> {
     if (job.req.ability && job.data && typeof job.data === 'object' && (job.feat?.filter?.fields || job.feat?.filter?.data)) {
-      job.data = this.checkAbility(job.req.ability, job.data, job.feat.filter.fields, job.feat.filter.data);
+      job.data = this.checkAbility(job.req.ability, job.data, job.feat.filter.fields, job.feat.filter.data, job.feat.filter.conditions);
     }
     return job;
   }

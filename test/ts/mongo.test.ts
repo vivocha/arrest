@@ -1146,4 +1146,330 @@ describe('mongo', function () {
         });
     });
   });
+
+  describe('MongoOperation with conditional Ability', async function () {
+    const port = 9876;
+    const host = 'localhost:' + port;
+    const basePath = 'http://' + host;
+    const request = supertest(basePath);
+    const app = express();
+    const collectionName = 'arrest_test_conditions';
+    const contacts = [
+      { id: 'c1', name: 'Mario', owner: 'u1', campaign: 'A', notes: 'note 1', score: 5, meta: { secret: 'x', notes: 'meta 1' }, _metadata: { team: 't1' } },
+      { id: 'c2', name: 'Luigi', owner: 'u1', campaign: 'B', notes: 'note 2', score: 0, meta: { secret: 'y', notes: 'meta 2' }, _metadata: { team: 't2' } },
+      { id: 'c3', name: 'Anna', owner: 'u2', campaign: 'A', notes: 'note 3', score: 5, meta: { secret: 'x', notes: 'meta 3' }, _metadata: { team: 't1' } },
+    ];
+    const ownActions = ['read', 'query', 'create', 'createAssigned', 'update', 'patch'];
+    const scenarios: Record<string, Parameters<typeof defineAbility>[0]> = {
+      owner: (can) => {
+        can(ownActions, 'Contact', { owner: 'u1' });
+      },
+      ownerLocked: (can, cannot) => {
+        can(ownActions, 'Contact', { owner: 'u1' });
+        cannot(['update', 'patch'], 'Contact', ['owner']);
+      },
+      updateFields: (can) => {
+        can(['read', 'query'], 'Contact');
+        can('update', 'Contact', ['name'], { owner: 'u1' });
+      },
+      notes: (can) => {
+        can(['read', 'query'], 'Contact', ['id', 'name', 'campaign']);
+        can(['read', 'query'], 'Contact', ['notes'], { campaign: 'A' });
+      },
+      nested: (can) => {
+        can(['read', 'query'], 'Contact', ['id']);
+        can(['read', 'query'], 'Contact', ['meta.notes'], { 'meta.secret': 'x' });
+      },
+      metaExists: (can) => {
+        can(['read', 'query'], 'Contact', ['id', 'meta.notes'], { meta: { $exists: true } });
+      },
+      exprEq: (can) => {
+        can(['read', 'query'], 'Contact', { $expr: { $eq: ['$owner', 'u1'] } });
+      },
+      exprGt: (can) => {
+        can(['read', 'query'], 'Contact', { $expr: { $gt: ['$score', 1] } });
+      },
+      metadata: (can) => {
+        can(['read', 'query'], 'Contact', ['id', 'name']);
+        can(['read', 'query'], 'Contact', ['notes'], { '_metadata.team': 't1' });
+      },
+      metadataAndId: (can) => {
+        can(['read', 'query'], 'Contact', ['id', 'name']);
+        can(['read', 'query'], 'Contact', ['notes'], { '_metadata.team': 't1', _id: { $exists: true } });
+      },
+      unmatchable: (can) => {
+        can(['read', 'query'], 'Contact', ['id']);
+        can(['read', 'query'], 'Contact', ['notes'], { score: { $mod: [5, 0] } });
+        can(['read', 'query'], 'Contact', ['name'], { $or: [{ owner: 'u1' }] });
+      },
+    };
+
+    class TestAPI extends API {
+      initSecurity(req: APIRequest, res: APIResponse, next: express.NextFunction) {
+        req.ability = defineAbility(scenarios[req.headers['x-scenario'] as string]) as Ability;
+        next();
+      }
+    }
+    const api = new TestAPI();
+
+    // The server, not the client, decides who owns a new contact
+    class AssignOwnerOp extends CreateMongoOperation {
+      constructor(resource: MongoResource, path: string, method: Method) {
+        super(resource, path, method, 'createAssigned');
+      }
+      async prepareDoc(job: MongoJob): Promise<MongoJob> {
+        job = await super.prepareDoc(job);
+        job.doc.owner = 'u1';
+        return job;
+      }
+    }
+
+    let db, coll, server;
+
+    before(async function () {
+      db = await MongoClient.connect('mongodb://localhost:27017/local').then((c) => c.db());
+      coll = db.collection(collectionName);
+      const r1 = new MongoResource(
+        db,
+        { name: 'Contact', collection: collectionName, id: 'id', idIsObjectId: false },
+        Object.assign({ '/assigned': { post: AssignOwnerOp } }, MongoResource.defaultRoutes())
+      );
+      api.addResource(r1);
+
+      let router = await api.router();
+      app.use(router);
+      server = app.listen(port);
+    });
+
+    beforeEach(async function () {
+      await coll.deleteMany({});
+      await coll.insertMany(_.cloneDeep(contacts));
+    });
+
+    after(async function () {
+      server.close();
+      try {
+        await db.dropCollection(collectionName);
+      } catch (e) {}
+    });
+
+    it('should query records projected by fields without the condition fields', async function () {
+      await request
+        .get('/contacts?fields=id,name')
+        .set('x-scenario', 'owner')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([
+            { id: 'c1', name: 'Mario' },
+            { id: 'c2', name: 'Luigi' },
+          ]);
+        });
+    });
+    it('should read a record projected by fields without the condition fields', async function () {
+      await request
+        .get('/contacts/c1?fields=name')
+        .set('x-scenario', 'owner')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ name: 'Mario' });
+        });
+    });
+    it('should query records projected by an RQL select without the condition fields', async function () {
+      await request
+        .get('/contacts')
+        .query({ q: 'select(id,name)' })
+        .set('x-scenario', 'owner')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([
+            { id: 'c1', name: 'Mario' },
+            { id: 'c2', name: 'Luigi' },
+          ]);
+        });
+    });
+    it('should update a record with a body without the condition fields', async function () {
+      await request
+        .put('/contacts/c1')
+        .set('x-scenario', 'owner')
+        .send({ name: 'Mario Rossi' })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.name.should.equal('Mario Rossi');
+        });
+      (await coll.findOne({ id: 'c1' })).name.should.equal('Mario Rossi');
+    });
+    it('should create a record whose condition fields are set by the server', async function () {
+      await request.post('/contacts/assigned').set('x-scenario', 'owner').send({ id: 'c4', name: 'Paolo' }).expect(201);
+      (await coll.findOne({ id: 'c4' })).owner.should.equal('u1');
+    });
+    it('should patch the condition fields of a record and return it consistently with the database', async function () {
+      await request
+        .patch('/contacts/c1')
+        .set('x-scenario', 'owner')
+        .send([{ op: 'replace', path: '/owner', value: 'u2' }])
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal(_.omit({ ...contacts[0], owner: 'u2' }, '_metadata'));
+        });
+      (await coll.findOne({ id: 'c1' })).owner.should.equal('u2');
+    });
+    it('should update the condition fields of a record and return it', async function () {
+      await request
+        .put('/contacts/c1')
+        .set('x-scenario', 'owner')
+        .send({ name: 'Mario', owner: 'u2' })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ ..._.omit(contacts[0], '_metadata'), owner: 'u2' });
+        });
+    });
+    it('should create a record that does not fulfill the conditions and return it', async function () {
+      await request
+        .post('/contacts')
+        .set('x-scenario', 'owner')
+        .send({ id: 'c4', name: 'Paolo', owner: 'u2' })
+        .expect(201)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ id: 'c4', name: 'Paolo', owner: 'u2' });
+        });
+    });
+    it('should apply conditions on _metadata without returning it', async function () {
+      const expected = [{ id: 'c1', name: 'Mario', notes: 'note 1' }, { id: 'c2', name: 'Luigi' }, { id: 'c3', name: 'Anna', notes: 'note 3' }];
+      await request
+        .get('/contacts')
+        .set('x-scenario', 'metadata')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal(expected);
+        });
+      await request
+        .get('/contacts?fields=id,name,notes,_metadata')
+        .set('x-scenario', 'metadata')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal(expected);
+        });
+      await request
+        .get('/contacts/c1')
+        .set('x-scenario', 'metadata')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal(expected[0]);
+        });
+    });
+    it('should apply conditions on _metadata and _id without returning them', async function () {
+      await request
+        .get('/contacts')
+        .set('x-scenario', 'metadataAndId')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([{ id: 'c1', name: 'Mario', notes: 'note 1' }, { id: 'c2', name: 'Luigi' }, { id: 'c3', name: 'Anna', notes: 'note 3' }]);
+        });
+      await request
+        .get('/contacts?fields=name,notes')
+        .set('x-scenario', 'metadataAndId')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([{ name: 'Mario', notes: 'note 1' }, { name: 'Luigi' }, { name: 'Anna', notes: 'note 3' }]);
+        });
+    });
+    it('should not return the fields of field rules with conditions CASL does not support', async function () {
+      await request
+        .get('/contacts?fields=id,name,notes')
+        .set('x-scenario', 'unmatchable')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }]);
+        });
+    });
+    it('should not patch a forbidden condition field nor save the change', async function () {
+      await request
+        .patch('/contacts/c1')
+        .set('x-scenario', 'ownerLocked')
+        .send([{ op: 'replace', path: '/owner', value: 'u2' }])
+        .expect(403);
+      (await coll.findOne({ id: 'c1' })).owner.should.equal('u1');
+    });
+    it('should not update a forbidden condition field nor save the change', async function () {
+      await request.put('/contacts/c1').set('x-scenario', 'ownerLocked').send({ owner: 'u2' }).expect(403);
+      (await coll.findOne({ id: 'c1' })).owner.should.equal('u1');
+    });
+    it('should update a record with a field rule with conditions', async function () {
+      await request
+        .put('/contacts/c1')
+        .set('x-scenario', 'updateFields')
+        .send({ name: 'Mario Rossi' })
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ name: 'Mario Rossi' });
+        });
+    });
+    it('should apply the conditions of field rules when the condition fields are not projected', async function () {
+      await request
+        .get('/contacts?fields=id,notes')
+        .set('x-scenario', 'notes')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([{ id: 'c1', notes: 'note 1' }, { id: 'c2' }, { id: 'c3', notes: 'note 3' }]);
+        });
+    });
+    it('should apply nested conditions of field rules when the condition fields are not readable', async function () {
+      await request
+        .get('/contacts')
+        .set('x-scenario', 'nested')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([{ id: 'c1', meta: { notes: 'meta 1' } }, { id: 'c2' }, { id: 'c3', meta: { notes: 'meta 3' } }]);
+        });
+    });
+    it('should project a field containing the condition fields', async function () {
+      await request
+        .get('/contacts?fields=id,meta')
+        .set('x-scenario', 'nested')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([{ id: 'c1', meta: { notes: 'meta 1' } }, { id: 'c2' }, { id: 'c3', meta: { notes: 'meta 3' } }]);
+        });
+    });
+    it('should project a sub-field of a condition field', async function () {
+      await request
+        .get('/contacts?fields=id,meta.notes')
+        .set('x-scenario', 'metaExists')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([
+            { id: 'c1', meta: { notes: 'meta 1' } },
+            { id: 'c2', meta: { notes: 'meta 2' } },
+            { id: 'c3', meta: { notes: 'meta 3' } },
+          ]);
+        });
+    });
+    it('should not return the fields of records allowed by conditions CASL does not support', async function () {
+      // The database applies the $expr, but CASL never matches it: every field is removed
+      await request
+        .get('/contacts')
+        .set('x-scenario', 'exprEq')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([]);
+        });
+      await request
+        .get('/contacts/c1')
+        .set('x-scenario', 'exprEq')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal({});
+        });
+      await request.get('/contacts/c3').set('x-scenario', 'exprEq').expect(404);
+    });
+    it('should not fail on conditions CASL throws on', async function () {
+      await request
+        .get('/contacts')
+        .set('x-scenario', 'exprGt')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([]);
+        });
+    });
+  });
 });

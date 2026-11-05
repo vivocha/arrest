@@ -1629,6 +1629,35 @@ describe('Operation', function () {
         { a: 1, b: 2, c: 3 }
       ).should.deep.equal({ a: 1, b: 2 });
     });
+    it('should match the conditions of every scope against the original data', async function () {
+      class Op extends Operation {
+        handler(req, res) {}
+        get swaggerScopes() {
+          return {
+            'Test.a': 'a',
+            'Test.b': 'b',
+          };
+        }
+      }
+      const r = new Resource({ name: 'Test' });
+      const op = new Op(r, '/', 'get', 'op');
+      r.addOperation(op);
+      const api = new API();
+      api.addResource(r);
+      await api.router();
+      // The check for a removes the owner, which the conditions of b depend on
+      const ability = defineAbility((can) => {
+        can('a', 'Test', ['name', 'notes']);
+        can('b', 'Test', ['name']);
+        can('b', 'Test', ['notes'], { owner: 'u1' });
+      }) as any;
+      should.not.exist(op.checkAbility(ability));
+      op.filterFields(ability, { name: 'x', owner: 'u1', notes: 'y' }).should.deep.equal({ name: 'x', notes: 'y' });
+      op.filterFields(ability, [
+        { name: 'x', owner: 'u1', notes: 'y' },
+        { name: 'z', owner: 'u2', notes: 'w' },
+      ]).should.deep.equal([{ name: 'x', notes: 'y' }, { name: 'z' }]);
+    });
   });
 
   describe('an operation authorizing on something of its own', function () {

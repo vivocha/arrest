@@ -1,6 +1,6 @@
 import { Ability, defineAbility } from '@casl/ability';
 import * as chai from 'chai';
-import { addConstraint, escapeMongoKey, escapeMongoObject, patchToMongo, toMongoQuery, unescapeMongoKey, unescapeMongoObject } from '../../dist/mongo/util.js';
+import { addConstraint, escapeMongoKey, escapeMongoObject, applyProjection, patchToMongo, toMongoQuery, unescapeMongoKey, unescapeMongoObject } from '../../dist/mongo/util.js';
 
 const should = chai.should();
 
@@ -212,6 +212,36 @@ describe('util', function () {
           patchToMongo([{ op: 'test', path: '/-', value: 1 }]);
         }, "cannot use '-' index in path of test");
       });
+    });
+  });
+
+  describe('applyProjection', function () {
+    it('should keep only the included fields', function () {
+      applyProjection({ a: 1, b: 2, c: 3, _id: 4 }, { _id: 0, a: 1, c: 1, x: 1 }).should.deep.equal({ a: 1, c: 3 });
+    });
+    it('should keep the fields in the order of the document', function () {
+      Object.keys(applyProjection({ a: 1, b: 2, c: 3 }, { c: 1, a: 1 })).should.deep.equal(['a', 'c']);
+    });
+    it('should keep the sub-fields of documents', function () {
+      applyProjection({ a: { b: 1, c: 2 }, d: { e: 3 } }, { 'a.b': 1, d: 1 }).should.deep.equal({ a: { b: 1 }, d: { e: 3 } });
+    });
+    it('should keep the sub-fields of every document of an array, dropping the other values', function () {
+      applyProjection({ a: [{ b: 1, c: 2 }, { c: 3 }, 4, [{ b: 5 }]] }, { 'a.b': 1 }).should.deep.equal({ a: [{ b: 1 }, {}, [{ b: 5 }]] });
+    });
+    it('should drop the sub-fields of values that are not documents', function () {
+      applyProjection({ a: 1, b: 'x' }, { 'a.b': 1, b: 1 }).should.deep.equal({ b: 'x' });
+    });
+    it('should not take inherited properties as fields', function () {
+      applyProjection({ constructor: 1, a: 2 }, { a: 1 }).should.deep.equal({ a: 2 });
+    });
+    it('should include fields in a list of documents', function () {
+      applyProjection([{ a: 1, b: 2 }, { b: 3 }], { a: 1 }).should.deep.equal([{ a: 1 }, {}]);
+    });
+    it('should remove the excluded fields', function () {
+      applyProjection({ a: 1, _id: 2, _metadata: { b: 3 } }, { _id: 0, _metadata: 0 }).should.deep.equal({ a: 1 });
+    });
+    it('should exclude fields in a list of documents', function () {
+      applyProjection([{ a: 1, _metadata: 2 }, { b: 3 }], { _metadata: 0 }).should.deep.equal([{ a: 1 }, { b: 3 }]);
     });
   });
 

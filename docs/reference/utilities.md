@@ -124,14 +124,34 @@ export function checkAbility(
   action: string,
   data?: any,
   filterFields?: boolean,
-  filterData?: boolean
+  filterData?: boolean,
+  matchConditions: boolean = true,
+  originals?: WeakMap<object, any>
 ): any
 ```
 
 The engine behind [`Operation.checkAbility`](operation.md#checkability), `filterFields` and
 [field redaction](authorization.md#field-level-redaction). Documented in full in
-[authorization.md](authorization.md#checkability) — the flag matrix, the walk's properties and the
-memoization.
+[authorization.md](authorization.md#checkability) — the flag matrix, the walk's properties, the
+memoization and how [conditions are matched in memory](authorization.md#conditions-in-memory).
+
+### `getConditionFields`
+
+```ts
+export function getConditionFields(ability: AnyMongoAbility, resource: string, action: string): string[]
+```
+
+The (dotted) fields the conditions of the rules for `action` on `resource` refer to, including those inside
+`$and`, `$or` and `$nor`. The Mongo operations add them to the projection, so the conditions can be matched
+against the records.
+
+### `snapshotData`
+
+```ts
+export function snapshotData(data: any): WeakMap<object, any>
+```
+
+Maps a document (or each document of a list) to a deep copy of it, for the `originals` of `checkAbility`.
 
 Prefer the `Operation` methods, which supply `resource` and `action` from the operation's scopes. Call this
 directly only outside an operation: a background job applying the same rules, for instance.

@@ -109,7 +109,7 @@ export class QueryMongoOperation extends MongoOperation {
     }
     // Use fields from RQL select() if present, otherwise use fields query parameter
     const fieldsToUse = job.opts.fields || job.req.query.fields;
-    job.opts.projection = this.parseFields(fieldsToUse as string[]);
+    job.opts.projection = this.getProjection(job, fieldsToUse as string[]);
     if (job.req.query.sort) {
       job.opts.sort = job.req.query.sort;
     }

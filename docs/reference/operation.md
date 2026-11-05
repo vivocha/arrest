@@ -218,17 +218,18 @@ protected useSecurityValidator(): boolean
 ### `checkAbility`
 
 ```ts
-checkAbility(ability: Ability, data?: any, filterFields?: boolean, filterData?: boolean): any
+checkAbility(ability: AnyMongoAbility, data?: any, filterFields?: boolean, filterData?: boolean, matchConditions?: boolean): any
 ```
 
 Runs the CASL check for every `(subject, action)` pair in `this.scopes`, over `data` when given. Delegates to
-[`checkAbility`](authorization.md#checkability) in `src/util.ts`; see there for what `filterFields` and
-`filterData` do. Without `data` it throws unless the ability permits the action outright.
+[`checkAbility`](authorization.md#checkability) in `src/util.ts`; see there for what `filterFields`,
+`filterData` and `matchConditions` do. With more than one pair, the conditions of every check are matched
+against a copy of `data` taken before the first. Without `data` it throws unless the ability permits the action outright.
 
 ### `checkAbilityForPath`
 
 ```ts
-checkAbilityForPath(ability: Ability, path: string): boolean
+checkAbilityForPath(ability: AnyMongoAbility, path: string): boolean
 ```
 
 Whether the ability permits the action on a specific dotted field path. Returns `true` when `scopes` is
@@ -238,7 +239,7 @@ target before touching the database.
 ### `filterFields`
 
 ```ts
-filterFields(ability: Ability, data: any): any
+filterFields(ability: AnyMongoAbility, data: any): any
 ```
 
 `checkAbility(ability, data, true)` — returns `data` with the fields the ability forbids removed, instead of

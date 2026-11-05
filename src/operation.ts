@@ -1,4 +1,4 @@
-import { Ability, AnyMongoAbility } from '@casl/ability';
+import { AnyMongoAbility } from '@casl/ability';
 import { permittedFieldsOf } from '@casl/ability/extra';
 import { Scopes } from '@vivocha/scopes';
 import bodyParser from 'body-parser';
@@ -12,7 +12,7 @@ import { RESTError } from './error.js';
 import { MCPToolInfo } from './mcp/types.js';
 import { Resource } from './resource.js';
 import { APIRequest, APIRequestHandler, APIResponse, Method } from './types.js';
-import { checkAbility } from './util.js';
+import { checkAbility, snapshotData } from './util.js';
 
 const swaggerPathRegExp = /\/:([^#\?\/]*)/g;
 
@@ -301,17 +301,19 @@ export abstract class Operation {
 
   abstract handler(req: APIRequest, res: APIResponse, next?: NextFunction);
 
-  checkAbility(ability: Ability, data?: any, filterFields?: boolean, filterData?: boolean): any {
+  checkAbility(ability: AnyMongoAbility, data?: any, filterFields?: boolean, filterData?: boolean, matchConditions?: boolean): any {
     if (this.scopes) {
+      // Each check removes what is not permitted: the conditions of the following ones are matched against the original data
+      const originals = data && _.sumBy(Object.values(this.scopes), (actions) => Object.keys(actions).length) > 1 ? snapshotData(data) : undefined;
       for (let resource in this.scopes) {
         for (let action in this.scopes[resource]) {
-          data = checkAbility(ability, resource, action, data, filterFields, filterData);
+          data = checkAbility(ability, resource, action, data, filterFields, filterData, matchConditions, originals);
         }
       }
     }
     return data;
   }
-  checkAbilityForPath(ability: Ability, path: string): boolean {
+  checkAbilityForPath(ability: AnyMongoAbility, path: string): boolean {
     if (this.scopes) {
       for (let resource in this.scopes) {
         for (let action in this.scopes[resource]) {
@@ -325,7 +327,7 @@ export abstract class Operation {
       return true;
     }
   }
-  filterFields(ability: Ability, data: any): any {
+  filterFields(ability: AnyMongoAbility, data: any): any {
     return this.checkAbility(ability, data, true);
   }
   permittedFields(ability: AnyMongoAbility): Set<string> {

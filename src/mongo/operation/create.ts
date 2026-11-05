@@ -2,7 +2,7 @@ import _ from 'lodash';
 import { InsertOneOptions, ObjectId } from 'mongodb';
 import { OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api.js';
-import { Method } from '../../types.js';
+import { APIRequest, APIResponse, Method } from '../../types.js';
 import { MongoResource } from '../resource.js';
 import { escapeMongoObject } from '../util.js';
 import { MongoJob, MongoOperation } from './base.js';
@@ -10,6 +10,12 @@ import { MongoJob, MongoOperation } from './base.js';
 export class CreateMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'create') {
     super(resource, path, method, id);
+  }
+  async createJob(req: APIRequest, res: APIResponse): Promise<MongoJob> {
+    const job = await super.createJob(req, res);
+    // As for the body (see prepareDoc), only the type of the created document is checked
+    job.feat!.filter!.conditions = false;
+    return job;
   }
   protected getCustomInfo(): OpenAPIV3.OperationObject {
     let resourceId = '' + this.resource.info.id;
@@ -56,7 +62,8 @@ export class CreateMongoOperation extends MongoOperation {
     }
     delete job.doc._metadata;
     if (job.req.ability) {
-      this.checkAbility(job.req.ability, job.doc);
+      // The body is not the final document (e.g. the server can still fill in some fields): only its fields are checked
+      this.checkAbility(job.req.ability, job.doc, false, false, false);
     }
     return job;
   }

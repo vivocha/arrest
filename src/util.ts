@@ -273,78 +273,163 @@ function deleteUnreferencedParameters(occurrences: any, spec: OpenAPIV3.Document
   return spec;
 }
 
-export function checkAbility(ability: AnyMongoAbility, resource: string, action: string, data?: any, filterFields?: boolean, filterData?: boolean): any {
+/**
+ * The fields the conditions of the rules for `action` on `resource` depend on. The fields inside `$and`, `$or` and
+ * `$nor` are included, for abilities with a conditions matcher that supports them (CASL's default one does not).
+ */
+export function getConditionFields(ability: AnyMongoAbility, resource: string, action: string): string[] {
+  const out = new Set<string>();
+  function collect(conditions: object) {
+    for (const [key, value] of Object.entries(conditions)) {
+      if (key === '$and' || key === '$or' || key === '$nor') {
+        (value as object[]).forEach(collect);
+      } else if (!key.startsWith('$')) {
+        out.add(key);
+      }
+    }
+  }
+  for (const { conditions } of ability.possibleRulesFor(action, resource)) {
+    collect(conditions || {});
+  }
+  return [...out];
+}
+
+const snapshot = (value: any): any => (Array.isArray(value) ? value.map(snapshot) : _.isPlainObject(value) ? _.mapValues(value, snapshot) : value);
+/**
+ * A deep copy of a document (or of each document of a list), for checkAbility to match the conditions against.
+ */
+export function snapshotData(data: any): WeakMap<object, any> {
+  const out = new WeakMap<object, any>();
+  for (const doc of Array.isArray(data) ? data : [data]) {
+    if (_.isPlainObject(doc)) {
+      out.set(doc, _.mapValues(doc, snapshot));
+    }
+  }
+  return out;
+}
+
+/**
+ * Checks `data` (a document or a list of documents) against the rules of `ability` for `action` on `resource`.
+ *
+ * Without data, the caller must be allowed to perform `action` on `resource` at all, or a ForbiddenError is thrown.
+ * Otherwise every field of every document is checked, and a field that is not permitted is removed if `filterFields`
+ * is set, or makes the call fail with a 403 if not. With `filterData`, documents the caller cannot access are removed
+ * (or undefined is returned, for a single document) instead.
+ *
+ * The conditions of the rules are matched in memory against each document, which must therefore include the fields
+ * they depend on (see getConditionFields). CASL's default matcher only supports some MongoDB operators, and a condition
+ * using any other one (e.g. `$or` or `$expr`) never matches: see docs/reference/authorization.md. If `matchConditions`
+ * is false, only the type is checked: use it for documents that are not complete, like the body of a write.
+ *
+ * When the same data goes through more checks, a previous one might have removed the fields the conditions depend on:
+ * pass the `originals` taken with snapshotData before the first check to match the conditions against them instead.
+ */
+export function checkAbility(
+  ability: AnyMongoAbility,
+  resource: string,
+  action: string,
+  data?: any,
+  filterFields?: boolean,
+  filterData?: boolean,
+  matchConditions: boolean = true,
+  originals?: WeakMap<object, any>
+): any {
   if (!data) {
     ForbiddenError.from(ability).throwUnlessCan(action, resource);
     return undefined;
   } else {
-    // Conditions are matched against a shallow copy: subject() tags the object it is given (and refuses to
-    // re-tag it with a different type), and the copy is unaffected by the fields deleted while filtering
-    const asSubject = (doc: any) => subject(resource, { ...doc });
-    function checkFields(root: any): any {
-      const rootSubject = asSubject(root);
-      const fieldsCache = new Map<string, boolean>();
-      function innerCheckAbility(data: any, path?: string[]): any {
-        let foundOne = false;
-        if (typeof data === 'object' && data !== null && !ObjectId.isValid(data) && !(data instanceof Date)) {
-          if (Array.isArray(data)) {
-            data = data.filter((i) => {
-              try {
-                innerCheckAbility(i, path);
-                return true;
-              } catch (err) {
-                if (filterFields) {
-                  return false;
-                } else {
-                  API.fireError(403, 'insufficient privileges', undefined, err);
-                }
+    // What is permitted only depends on which conditions a document matches: the permissions of the fields are cached
+    // by the conditional rules matched. Without conditions, it does not depend on the document, and the type is checked
+    const conditionalRules = matchConditions ? ability.possibleRulesFor(action, resource).filter((r) => r.conditions) : [];
+    const matchDocs = conditionalRules.length > 0;
+    const roots = matchDocs ? _.uniq(getConditionFields(ability, resource, action).map((f) => f.split('.')[0])) : [];
+    // Conditions are matched against a deep copy of the fields they depend on: subject() tags the object it is given
+    // (and refuses to re-tag it with a different type), and the copy is unaffected by the fields deleted while filtering
+    const asSubject = (doc: any) => {
+      if (!matchDocs) {
+        return resource;
+      }
+      const source = originals?.get(doc) ?? doc;
+      return subject(resource, Object.fromEntries(roots.filter((r) => _.has(source, [r])).map((r) => [r, snapshot(source[r])])));
+    };
+    // CASL's matcher throws on some conditions it does not support (e.g. `$expr: { $gt: [...] }`): like the others,
+    // they do not match
+    const matches = (rule: (typeof conditionalRules)[number], doc: any) => {
+      try {
+        return rule.matchesConditions(doc);
+      } catch (err) {
+        return false;
+      }
+    };
+    // The conditional rules matched by the root document being checked, and the permissions of its fields
+    let matched: Set<(typeof conditionalRules)[number]>;
+    let fieldsCache: Map<string, boolean>;
+    const fieldsCaches = new Map<string, Map<string, boolean>>();
+    // The same as ability.can on the root document: the first relevant rule (by priority) whose conditions it matches decides
+    const can = (field?: string): boolean => {
+      if (!matchDocs) {
+        return ability.can(action, resource, field);
+      }
+      const rule = ability.rulesFor(action, resource, field).find((r) => !r.conditions || matched.has(r));
+      return !!rule && !rule.inverted;
+    };
+    function innerCheckAbility(data: any, path?: string[]): any {
+      let foundOne = false;
+      if (typeof data === 'object' && data !== null && !ObjectId.isValid(data) && !(data instanceof Date)) {
+        if (Array.isArray(data)) {
+          data = data.filter((i) => {
+            try {
+              innerCheckAbility(i, path);
+              return true;
+            } catch (err) {
+              if (filterFields) {
+                return false;
+              } else {
+                API.fireError(403, 'insufficient privileges', undefined, err);
               }
-            });
-            foundOne = !!data.length;
-          } else {
-            Object.entries(data).forEach(([key, value]) => {
-              try {
-                data[key] = innerCheckAbility(value, (path || []).concat(key));
-                foundOne = true;
-              } catch (err) {
-                if (filterFields) {
-                  delete data[key];
-                } else {
-                  API.fireError(403, 'insufficient privileges', undefined, err);
-                }
+            }
+          });
+          foundOne = !!data.length;
+        } else {
+          Object.entries(data).forEach(([key, value]) => {
+            try {
+              data[key] = innerCheckAbility(value, (path || []).concat(key));
+              foundOne = true;
+            } catch (err) {
+              if (filterFields) {
+                delete data[key];
+              } else {
+                API.fireError(403, 'insufficient privileges', undefined, err);
               }
-            });
-          }
+            }
+          });
         }
+      }
 
-        if (path && !foundOne) {
-          const pathAsString = path.join('.');
-          const isPermitted = fieldsCache.get(pathAsString) ?? ability.can(action, rootSubject, pathAsString);
-          fieldsCache.set(pathAsString, isPermitted);
-          if (!isPermitted) {
-            throw ForbiddenError.from(ability);
-          }
+      if (path && !foundOne) {
+        const pathAsString = path.join('.');
+        let isPermitted = fieldsCache.get(pathAsString);
+        if (typeof isPermitted === 'undefined') {
+          fieldsCache.set(pathAsString, (isPermitted = can(pathAsString)));
         }
-        return data;
-      }
-      return innerCheckAbility(root);
-    }
-    if (filterData) {
-      if (Array.isArray(data)) {
-        data = data.filter((i) => ability.can(action, asSubject(i)));
-      } else if (!ability.can(action, asSubject(data))) {
-        return undefined;
-      }
-    } else {
-      for (const doc of Array.isArray(data) ? data : [data]) {
-        const err = ForbiddenError.from(ability).unlessCan(action, asSubject(doc));
-        if (err) {
-          API.fireError(403, 'insufficient privileges', undefined, err);
+        if (!isPermitted) {
+          throw ForbiddenError.from(ability);
         }
       }
+      return data;
     }
     // In a list, each item is the root document its own fields are checked against
-    return Array.isArray(data) ? data.map(checkFields) : checkFields(data);
+    const out: any[] = [];
+    for (const doc of Array.isArray(data) ? data : [data]) {
+      const rootSubject = asSubject(doc);
+      matched = new Set(conditionalRules.filter((r) => matches(r, rootSubject)));
+      if (!filterData || can()) {
+        const key = conditionalRules.map((r) => (matched.has(r) ? 1 : 0)).join('');
+        fieldsCache = fieldsCaches.get(key) ?? fieldsCaches.set(key, new Map()).get(key)!;
+        out.push(innerCheckAbility(doc));
+      }
+    }
+    return Array.isArray(data) ? out : out[0];
   }
 }
 

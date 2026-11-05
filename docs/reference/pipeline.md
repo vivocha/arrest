@@ -57,7 +57,7 @@ interface Job {
   opts?: any;
   data?: any;
   feat?: {
-    filter?: { fields: boolean; data: boolean };
+    filter?: { fields: boolean; data: boolean; conditions?: boolean };
     format?:
       | { type: 'json' }
       | { type: 'jsonl'; filename?: string }
@@ -73,7 +73,7 @@ interface Job {
 | `doc` | The data to write. The validated request body in create/update |
 | `opts` | How to do it. Driver options (`projection`, `sort`, `limit`, `skip`) in the Mongo operations |
 | `data` | The result. Set by `runOperation`, sent by `processResult` |
-| `feat.filter` | Whether [`redactResult`](#redactresult) filters fields, records, or both |
+| `feat.filter` | Whether [`redactResult`](#redactresult) filters fields, records, or both — and, with `conditions: false`, checks the subject type only instead of [matching the conditions](authorization.md#conditions-in-memory) |
 | `feat.format` | The response format; set by `createJob` from the `format` query parameter |
 
 `Job` has no index signature, so a subclass adding its own fields should extend the interface — that's what

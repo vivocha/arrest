@@ -2,7 +2,16 @@ import { defineAbility } from '@casl/ability';
 import * as chai from 'chai';
 import { ObjectId } from 'mongodb';
 import { RESTError } from '../../dist/error.js';
-import { checkAbility, rebaseOASDefinitions, refsRebaser, removeSchemaDeclaration, removeUnusedSchemas, toCSV } from '../../dist/util.js';
+import {
+  checkAbility,
+  getConditionFields,
+  rebaseOASDefinitions,
+  refsRebaser,
+  removeSchemaDeclaration,
+  removeUnusedSchemas,
+  snapshotData,
+  toCSV,
+} from '../../dist/util.js';
 import {
   complexSpec,
   jsonSchema,
@@ -4920,6 +4929,131 @@ describe('util', function () {
       checkAbility(ability, 'Contact', 'create', { tags: [] }).should.deep.equal({ tags: [] });
       checkAbility(ability, 'Contact', 'create', { tags: [], meta: {} }, true).should.deep.equal({ tags: [] });
       (() => checkAbility(ability, 'Contact', 'create', { meta: {} })).should.throw(RESTError).with.property('code', 403);
+    });
+    it('should evaluate nested conditions against the document before its fields are filtered', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['id']);
+        can('read', 'Contact', ['meta.notes'], { 'meta.secret': 'x' });
+      });
+      const out = checkAbility(
+        ability,
+        'Contact',
+        'read',
+        [
+          { id: 1, meta: { secret: 'x', notes: 'a' } },
+          { id: 2, meta: { secret: 'y', notes: 'b' } },
+        ],
+        true,
+        true
+      );
+      out.should.deep.equal([{ id: 1, meta: { notes: 'a' } }, { id: 2 }]);
+    });
+    it('should only check the fields if conditions are not to be matched', function () {
+      const ability = defineAbility((can) => {
+        can('update', 'Contact', ['name'], { owner: 'u1' });
+      });
+      checkAbility(ability, 'Contact', 'update', { name: 'x' }, false, false, false).should.deep.equal({ name: 'x' });
+      (() => checkAbility(ability, 'Contact', 'update', { name: 'x' })).should.throw(RESTError).with.property('code', 403);
+      (() => checkAbility(ability, 'Contact', 'update', { owner: 'u2' }, false, false, false)).should.throw(RESTError).with.property('code', 403);
+    });
+    it('should not match the conditions using operators CASL does not support', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['id', 'score'], { $expr: { $gt: ['$score', 1] } });
+      });
+      checkAbility(ability, 'Contact', 'read', [{ id: 1, score: 5, secret: 'x' }], true, true).should.deep.equal([]);
+    });
+    it('should not match the conditions of field rules using operators CASL does not support', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['id']);
+        can('read', 'Contact', ['notes'], { score: { $mod: [2, 0] } });
+        can('read', 'Contact', ['tags'], { $or: [{ score: 4 }] });
+      });
+      const out = checkAbility(ability, 'Contact', 'read', [{ id: 1, score: 4, notes: 'x', tags: ['a'] }], true, true);
+      out.should.deep.equal([{ id: 1 }]);
+    });
+    it('should not match the conditions against a document without the fields they depend on', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['id']);
+        can('read', 'Contact', ['notes'], { campaign: 'A' });
+      });
+      checkAbility(ability, 'Contact', 'read', { id: 1, notes: 'x' }, true).should.deep.equal({ id: 1 });
+    });
+    it('should match the conditions against the originals of the documents', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['id']);
+        can('read', 'Contact', ['notes'], { campaign: 'A' });
+      });
+      const docs = [
+        { id: 1, notes: 'x' },
+        { id: 2, notes: 'y' },
+      ];
+      const originals = new WeakMap<object, any>();
+      originals.set(docs[0], { campaign: 'A' });
+      originals.set(docs[1], { campaign: 'B' });
+      checkAbility(ability, 'Contact', 'read', docs, true, false, true, originals).should.deep.equal([{ id: 1, notes: 'x' }, { id: 2 }]);
+    });
+    it('should check the fields of documents matching different conditions independently', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['id']);
+        can('read', 'Contact', ['notes'], { campaign: 'A' });
+        can('read', 'Contact', ['score'], { owner: 'u1' });
+      });
+      const docs = [
+        { id: 1, campaign: 'A', owner: 'u1', notes: 'x', score: 1 },
+        { id: 2, campaign: 'A', owner: 'u2', notes: 'x', score: 1 },
+        { id: 3, campaign: 'B', owner: 'u1', notes: 'x', score: 1 },
+        { id: 4, campaign: 'A', owner: 'u1', notes: 'x', score: 1 },
+      ];
+      checkAbility(ability, 'Contact', 'read', docs, true).should.deep.equal([
+        { id: 1, notes: 'x', score: 1 },
+        { id: 2, notes: 'x' },
+        { id: 3, score: 1 },
+        { id: 4, notes: 'x', score: 1 },
+      ]);
+    });
+  });
+
+  describe('snapshotData', function () {
+    it('should map each document to a deep copy of it', function () {
+      const doc = { a: { b: [{ c: 1 }] } };
+      const out = snapshotData([doc, 'x', null]);
+      out.get(doc).should.deep.equal(doc);
+      out.get(doc).a.should.not.equal(doc.a);
+      out.get(doc).a.b[0].should.not.equal(doc.a.b[0]);
+    });
+    it('should map a single document', function () {
+      const doc = { a: 1 };
+      snapshotData(doc).get(doc).should.deep.equal({ a: 1 });
+    });
+  });
+
+  describe('getConditionFields', function () {
+    it('should return no fields if there are no conditions', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', ['name']);
+      });
+      getConditionFields(ability, 'Contact', 'read').should.deep.equal([]);
+    });
+    it('should return the fields of the conditions of all rules', function () {
+      const ability = defineAbility((can, cannot) => {
+        can('read', 'Contact', { owner: 'u1', 'meta.secret': { $in: ['x', 'y'] } });
+        can('read', 'Contact', ['notes'], { campaign: 'A', score: { $gt: 1, $lte: 10 } });
+        cannot('read', 'Contact', { deleted: true });
+        can('update', 'Contact', { other: 1 });
+      });
+      getConditionFields(ability, 'Contact', 'read').sort().should.deep.equal(['campaign', 'deleted', 'meta.secret', 'owner', 'score']);
+    });
+    it('should return the fields inside logical operators', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', { $and: [{ campaign: 'A' }, { $or: [{ score: { $gt: 1 } }, { $nor: [{ owner: 'u2' }] }] }] });
+      });
+      getConditionFields(ability, 'Contact', 'read').sort().should.deep.equal(['campaign', 'owner', 'score']);
+    });
+    it('should ignore the other top level operators', function () {
+      const ability = defineAbility((can) => {
+        can('read', 'Contact', { owner: 'u1', $expr: { $gt: ['$score', 1] } });
+      });
+      getConditionFields(ability, 'Contact', 'read').should.deep.equal(['owner']);
     });
   });
 });

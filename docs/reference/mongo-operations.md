@@ -30,10 +30,12 @@ Abstract. Adds the collection, id handling, projection rules and ability constra
 ```ts
 interface MongoJob extends Job {
   coll: Collection;
+  projection?: Record<string, number>;
 }
 ```
 
-[`Job`](pipeline.md#job) plus the collection, resolved in `createJob` so every later step has it. In these
+[`Job`](pipeline.md#job) plus the collection, resolved in `createJob` so every later step has it, and the
+projection the caller asked for, when [`getProjection`](#getprojection) had to extend it. In these
 operations `job.query` is a MongoDB filter — **or an aggregation pipeline array**, when RQL produced one — and
 `job.opts` holds driver options.
 
@@ -75,10 +77,23 @@ Turns a field list into a MongoDB projection:
 - silently ignores `_metadata`, and ignores `_id` unless it is the resource id — you cannot project either
   back in.
 
+### `getProjection`
+
+```ts
+protected getProjection(job: MongoJob, fields?: string[]): any
+```
+
+`parseFields(fields)`, plus the fields the ability's conditions refer to
+([`getConditionFields`](utilities.md#getconditionfields)) when the projection would not return them — even
+`_metadata` and `_id`. The conditions are [matched against the records](authorization.md#conditions-in-memory),
+so they need those fields; when any is added, the requested projection is kept in `job.projection` and
+`redactResult` applies it after the redaction. Returns `undefined` rather than an empty projection, which a
+`$project` stage rejects.
+
 ### `getAbilityConstraints`
 
 ```ts
-getAbilityConstraints(ability: Ability): any
+getAbilityConstraints(ability: AnyMongoAbility): any
 ```
 
 Translates the CASL rules relevant to this operation's scopes into a MongoDB filter, merging each
@@ -98,7 +113,8 @@ async redactResult(job): Promise<MongoJob>
 - `prepareQuery` merges `getAbilityConstraints(req.ability)` into `job.query` when the request carries an
   ability. **Always call `super.prepareQuery` first in an override**, or those constraints are lost.
 - `redactResult` unescapes document keys when [`escapeProperties`](mongo-resource.md#mongoresourcedefinition)
-  is set, then defers to [`PipelineOperation.redactResult`](pipeline.md#redactresult).
+  is set, defers to [`PipelineOperation.redactResult`](pipeline.md#redactresult), then applies
+  `job.projection` when set.
 
 ## `QueryMongoOperation`
 
@@ -129,8 +145,8 @@ In order:
    and `limit` isn't strictly below it — so `queryLimit` also becomes the *default* page size, since an absent
    `limit` fails the comparison;
 2. `opts.skip` from `skip`;
-3. `opts.projection` from `parseFields(opts.fields || req.query.fields)` — an RQL `select()` wins over the
-   `fields` parameter;
+3. `opts.projection` from [`getProjection`](#getprojection)`(job, opts.fields || req.query.fields)` — an RQL
+   `select()` wins over the `fields` parameter;
 4. `opts.sort` from the `sort` parameter if given, otherwise whatever RQL set, then converted to a MongoDB
    sort document: a leading `-` means descending, `+` or nothing means ascending.
 
@@ -174,8 +190,10 @@ Deep-clones the body, then:
 - with a custom `id` that is an ObjectId and no value supplied, generates one;
 - deletes `_metadata`;
 - calls [`checkAbility`](operation.md#checkability) on the document when the request has an ability, so a
-  create that would produce a record the caller isn't permitted to own is rejected with `403` before touching
-  the database.
+  create carrying a field the caller may not write is rejected with `403` before touching the database. Only
+  the subject type is checked, not the conditions: the body is not the final record (an override of
+  `prepareDoc` can still fill in fields), so a rule like `can('create', 'Contact', { owner: userId })` does not
+  stop a body with someone else's `owner`.
 
 A custom non-ObjectId `id` is **not** generated: the client must supply it, and a missing value is only caught
 if `requestSchema` requires it.
@@ -191,7 +209,8 @@ validation failure.
 
 ### `redactResult`
 
-Removes `_id` (when the resource id isn't `_id`) and `_metadata` from the echoed document. Note the response
+Removes `_id` (when the resource id isn't `_id`) and `_metadata` from the echoed document. Like the body, the
+response is redacted by subject type only (`createJob` sets `feat.filter.conditions = false`). Note the response
 is the document as *inserted*, not as read back, so server-side defaults applied by MongoDB are not reflected.
 
 ## `ReadMongoOperation`
@@ -203,7 +222,7 @@ Source: [src/mongo/operation/read.ts](../../src/mongo/operation/read.ts)
 
 `prepareQuery` merges `getItemQuery(req.params.id)` into the ability-constrained query — so a record the
 caller may not see answers `404`, not `403`. `prepareOpts` sets the projection from
-`opts.fields || req.query.fields`. `runOperation` does a `findOne` and raises `404 not_found` on a miss.
+`opts.fields || req.query.fields` with [`getProjection`](#getprojection). `runOperation` does a `findOne` and raises `404 not_found` on a miss.
 
 ## `UpdateMongoOperation`
 
@@ -223,7 +242,8 @@ survive. To delete a field, PATCH it with a `remove` op.
 
 `prepareOpts` sets `{ returnDocument: 'after' }`, so the response is the updated document. `runOperation` uses
 `findOneAndUpdate` and raises `404 not_found` when nothing matched. `redactResult` strips `_id`/`_metadata` as
-in create.
+in create, and the response is redacted by subject type only: the conditions apply to the record before the
+update, which the query enforces, and the updated one may no longer match them (say, after changing `owner`).
 
 ## `PatchMongoOperation`
 

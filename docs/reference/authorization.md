@@ -128,7 +128,7 @@ That grants three things at once, and arrest uses each in a different place:
 |---|---|
 | action + subject | whether the operation may run at all — [`checkAbility`](#checkability) with no data |
 | **fields** (`['name', …]`) | which properties survive in responses and are accepted in bodies — [field redaction](#field-level-redaction) |
-| **conditions** (`{ owner: … }`) | which records the query can reach — [record constraints](#record-level-constraints) |
+| **conditions** (`{ owner: … }`) | which records the query can reach — [record constraints](#record-level-constraints) — and which fields of each record are permitted — [conditions in memory](#conditions-in-memory) |
 
 When both `req.ability` and `req.scopes` are set, **the ability wins**: `getAuthorizationError` checks the
 ability and never looks at the scopes.
@@ -145,12 +145,17 @@ export function checkAbility(
   action: string,
   data?: any,
   filterFields?: boolean,
-  filterData?: boolean
+  filterData?: boolean,
+  matchConditions: boolean = true,
+  originals?: WeakMap<object, any>
 ): any
 ```
 
 The engine behind [`Operation.checkAbility`](operation.md#checkability), which calls it once per
-`(subject, action)` pair in the operation's scopes, threading `data` through.
+`(subject, action)` pair in the operation's scopes, threading `data` through. Each check removes what it
+forbids, so a later one could miss the fields its conditions depend on: with more than one pair,
+`Operation.checkAbility` takes a copy of the data first (`snapshotData`) and passes it as `originals`, which the
+conditions are matched against instead.
 
 **With no `data`**: a plain `throwUnlessCan(action, resource)` — throws CASL's `ForbiddenError`, returns
 `undefined`.
@@ -164,14 +169,19 @@ path as the CASL field. Two flags decide what happens to a violation:
 | `true` | `false` | delete forbidden fields (and forbidden array elements) and return the rest |
 | any | `true` | additionally drop whole records the ability's *conditions* reject, before walking fields |
 
+Each record (each item, for a list) is checked as the CASL subject, so the rules' conditions are matched
+against it — see [conditions in memory](#conditions-in-memory). With `matchConditions: false` only the subject
+*type* is checked, as if every condition of a `can` held and every condition of a `cannot` did not: that is for
+data that is not a stored record, like the body of a write.
+
 The walk has a few properties worth knowing:
 
 - `ObjectId`s and `Date`s are treated as scalars, not objects to descend into;
 - for arrays, each element is checked with the **same path** — the index is not part of the field path, which
   is what lets `can('read', 'Person', ['tags'])` permit a whole array;
 - in an array, a forbidden element is dropped (`filterFields`) rather than emptying the array;
-- results are memoized per path for the duration of one call, so a wide array of uniform objects costs one
-  check per distinct path;
+- results are memoized per path for the duration of one call — and, with conditions, per combination of
+  conditional rules a record matches — so a wide array of uniform objects costs one check per distinct path;
 - an object all of whose children were removed is checked as a leaf at its own path — so permitting
   `c.**` permits the container.
 
@@ -209,6 +219,11 @@ Field redaction happens in [`PipelineOperation.redactResult`](pipeline.md#redact
 | update body | [`UpdateMongoOperation.prepareDoc`](mongo-operations.md#updatemongooperation) | **throws** — same, measured |
 | patch paths | [`PatchMongoOperation.prepareQuery`](mongo-operations.md#patchmongooperation) | **throws** `403` with the offending op as `info` |
 
+Bodies, patch paths and the responses of create, update and patch are checked by subject type only
+(`feat.filter.conditions` is `false` in those operations): a body is not a complete record, the conditions of an
+update apply to the record *before* it — the query enforces them — and the record after it may no longer
+match.
+
 Note the asymmetry between the two directions: a response is *filtered* silently, while a request body carrying
 a field the ability forbids is *rejected*. Both write paths pass `filterFields: false`, so neither drops a field
 quietly — a client that sends what it may not write gets told. Only `redactResult` filters, and only because a
@@ -216,6 +231,76 @@ response has no one to complain to.
 
 Redaction only runs when `req.ability` is set. With scope-based authorization there is nothing to redact:
 either the operation was permitted or it wasn't.
+
+## Conditions in memory
+
+The query only guarantees that a record matches *some* rule. Which fields of it are permitted depends on which
+rules it matches, so on the way out every record is checked in memory, by CASL, against the conditions:
+
+```ts
+can('read', 'Contact', ['id', 'name']);
+can('read', 'Contact', ['notes'], { campaign: 'A' });
+```
+
+```
+GET /contacts?fields=id,notes
+→ [{ "id": "c1", "notes": "…" },   // campaign A
+   { "id": "c2" }]                  // campaign B: notes removed
+```
+
+The fields the conditions depend on are projected even when the client did not ask for them — `campaign`
+above, and even `_metadata` or `_id`, which [`parseFields`](mongo-operations.md#parsefields) otherwise never
+returns — and removed again before the response.
+
+### Supported operators
+
+CASL's default conditions matcher only implements
+[a subset of the MongoDB operators](https://casl.js.org/v6/en/guide/conditions-in-depth#supported-operators):
+
+`$eq` `$ne` `$lt` `$lte` `$gt` `$gte` `$in` `$nin` `$all` `$size` `$regex` `$exists` `$elemMatch`
+
+Notably, **no logical operators**: CASL leaves out `$and`, `$or`, `$nor` and `$not` on purpose, because rules
+already express them — the fields of one conditions object are ANDed, more `can` rules for the same action and
+subject are ORed, and `cannot` rules negate.
+
+A condition using anything else (`$or`, `$expr`, `$mod`, `$type`, `$geoWithin`, …) **never matches in
+memory**. CASL returns `false` without an error, and where its parser throws instead (e.g. on
+`$expr: { $gt: […] }`), arrest treats that as `false` too. MongoDB has no such limit, so the query still selects
+the records, but every field those rules would permit is removed:
+
+```ts
+can(['read', 'query'], 'Contact', { $expr: { $eq: ['$owner', userId] } });
+```
+
+| Request | Response |
+|---|---|
+| `GET /contacts` | `200 []` — the owner's records are found, then emptied and dropped |
+| `GET /contacts/<own id>` | `200 {}` |
+| `GET /contacts/<someone else's id>` | `404` — the query still applies the condition |
+
+arrest deliberately does not fall back to checking the type alone when a condition is unsupported: that would
+grant every field the condition was meant to restrict (and ignore the conditions of `cannot` rules), and
+whether a record's fields are visible would depend on arrest second-guessing CASL. The verdict is exactly
+CASL's `ability.can` on the record, so what a rule does in a CASL unit test is what arrest enforces, and a
+mistake shows up as missing data rather than as a leak.
+
+Write the conditions with the supported operators instead:
+
+```ts
+// not: can('read', 'Contact', { $or: [{ owner: userId }, { public: true }] });
+can('read', 'Contact', { owner: userId });
+can('read', 'Contact', { public: true });
+
+// not: can('read', 'Contact', { $or: [{ team: 't1' }, { team: 't2' }] });
+can('read', 'Contact', { team: { $in: ['t1', 't2'] } });
+
+// not: can('read', 'Contact', { $and: [{ owner: userId }, { status: 'open' }] });
+can('read', 'Contact', { owner: userId, status: 'open' });
+```
+
+An ability built with a custom conditions matcher (see
+[Customize ability](https://casl.js.org/v6/en/advanced/customize-ability) in the CASL docs) is used as it is:
+whatever it supports works in memory too, and the fields inside `$and`, `$or` and `$nor` are projected for it.
 
 ## Record-level constraints
 

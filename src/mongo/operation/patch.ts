@@ -1,7 +1,7 @@
 import { FindOneAndUpdateOptions } from 'mongodb';
 import { JSONPatch, OpenAPIV3 } from 'openapi-police';
 import { API } from '../../api.js';
-import { Method } from '../../types.js';
+import { APIRequest, APIResponse, Method } from '../../types.js';
 import { MongoResource } from '../resource.js';
 import { addConstraint, patchToMongo } from '../util.js';
 import { MongoJob, MongoOperation } from './base.js';
@@ -9,6 +9,13 @@ import { MongoJob, MongoOperation } from './base.js';
 export class PatchMongoOperation extends MongoOperation {
   constructor(resource: MongoResource, path: string, method: Method, id: string = 'patch') {
     super(resource, path, method, id);
+  }
+  async createJob(req: APIRequest, res: APIResponse): Promise<MongoJob> {
+    const job = await super.createJob(req, res);
+    // The conditions apply to the stored document before the patch (see prepareQuery), which can differ from the
+    // patched one: only the type is checked
+    job.feat!.filter!.conditions = false;
+    return job;
   }
   protected getCustomInfo(): OpenAPIV3.OperationObject {
     return {
