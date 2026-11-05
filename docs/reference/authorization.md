@@ -281,8 +281,20 @@ can(['read', 'query'], 'Contact', { $expr: { $eq: ['$owner', userId] } });
 arrest deliberately does not fall back to checking the type alone when a condition is unsupported: that would
 grant every field the condition was meant to restrict (and ignore the conditions of `cannot` rules), and
 whether a record's fields are visible would depend on arrest second-guessing CASL. The verdict is exactly
-CASL's `ability.can` on the record, so what a rule does in a CASL unit test is what arrest enforces, and a
-mistake shows up as missing data rather than as a leak.
+CASL's `ability.can` on the record, so what a rule does in a CASL unit test is what arrest enforces.
+
+What a condition that never matches does depends on the rule:
+
+- in a `can` rule, it shows up as **missing data**: the fields the rule permits are removed;
+- in a `cannot` rule restricted to some fields, it is a **leak**: those fields are not part of the query (only
+  `cannot` rules without fields become a `$nor` there), so nothing else forbids them, and they are returned on
+  every record.
+
+```ts
+can('read', 'Contact');
+cannot('read', 'Contact', ['salary'], { $expr: { $eq: ['$type', 'employee'] } });
+// → salary is returned for every contact, employees included
+```
 
 Write the conditions with the supported operators instead:
 
@@ -298,9 +310,37 @@ can('read', 'Contact', { team: { $in: ['t1', 't2'] } });
 can('read', 'Contact', { owner: userId, status: 'open' });
 ```
 
-An ability built with a custom conditions matcher (see
-[Customize ability](https://casl.js.org/v6/en/advanced/customize-ability) in the CASL docs) is used as it is:
-whatever it supports works in memory too, and the fields inside `$and`, `$or` and `$nor` are projected for it.
+### Custom conditions matcher
+
+If rewriting the rules is not practical, build the ability with a conditions matcher that supports the logical
+operators (see [Customize ability](https://casl.js.org/v6/en/advanced/customize-ability) in the CASL docs). Their
+parsing instructions and interpreters come from `@ucast/mongo2js`, which the application has to install:
+
+```ts
+import { buildMongoQueryMatcher, createMongoAbility } from '@casl/ability';
+import { $and, $nor, $or, and, nor, or } from '@ucast/mongo2js';
+
+const conditionsMatcher = buildMongoQueryMatcher({ $and, $or, $nor }, { and, or, nor });
+req.ability = createMongoAbility(rules, { conditionsMatcher });
+```
+
+arrest uses the ability as it is: whatever the matcher supports works in memory too, and the fields inside
+`$and`, `$or` and `$nor` are projected for it. The [differences from MongoDB](#differences-from-mongodb) remain.
+
+### Differences from MongoDB
+
+Even with the supported operators, CASL's matcher does not always agree with MongoDB. The query selects the
+records the way MongoDB does, then the in-memory check decides differently:
+
+| Condition | MongoDB | In memory | Write instead |
+|---|---|---|---|
+| `{ deletedAt: null }` | matches `null` **and** a missing field | matches `null` only | store the field (as `null`), or use `{ deletedAt: { $exists: false } }` for the missing case |
+| `{ name: /^A/ }` | a regular expression | an equality with the `RegExp` object: never matches | `{ name: { $regex: /^A/ } }` |
+| `{ name: { $in: [/^A/] } }` | a regular expression | an equality: never matches | `{ name: { $regex: /^A/ } }`, or more rules |
+
+Where such a condition does not match, the [consequences above](#supported-operators) apply: missing data
+for a `can` rule, a leak for a `cannot` restricted to some fields — `cannot('read', 'Contact', ['salary'],
+{ approvedAt: null })` does not forbid `salary` on records that have no `approvedAt` field.
 
 ## Record-level constraints
 
