@@ -1,6 +1,6 @@
 import { Ability, defineAbility } from '@casl/ability';
 import * as chai from 'chai';
-import { addConstraint, escapeMongoKey, escapeMongoObject, applyProjection, patchToMongo, toMongoQuery, unescapeMongoKey, unescapeMongoObject } from '../../dist/mongo/util.js';
+import { addConstraint, escapeMongoKey, escapeMongoObject, patchToMongo, removeFields, toMongoQuery, unescapeMongoKey, unescapeMongoObject } from '../../dist/mongo/util.js';
 
 const should = chai.should();
 
@@ -215,33 +215,50 @@ describe('util', function () {
     });
   });
 
-  describe('applyProjection', function () {
-    it('should keep only the included fields', function () {
-      applyProjection({ a: 1, b: 2, c: 3, _id: 4 }, { _id: 0, a: 1, c: 1, x: 1 }).should.deep.equal({ a: 1, c: 3 });
+  describe('removeFields', function () {
+    it('should remove the fields', function () {
+      removeFields({ a: 1, _id: 2, _metadata: { b: 3 } }, { _id: [], _metadata: [] }).should.deep.equal({ a: 1 });
     });
-    it('should keep the fields in the order of the document', function () {
-      Object.keys(applyProjection({ a: 1, b: 2, c: 3 }, { c: 1, a: 1 })).should.deep.equal(['a', 'c']);
+    it('should remove the fields from a list of documents', function () {
+      removeFields([{ a: 1, _metadata: 2 }, { b: 3 }], { _metadata: [] }).should.deep.equal([{ a: 1 }, { b: 3 }]);
     });
-    it('should keep the sub-fields of documents', function () {
-      applyProjection({ a: { b: 1, c: 2 }, d: { e: 3 } }, { 'a.b': 1, d: 1 }).should.deep.equal({ a: { b: 1 }, d: { e: 3 } });
+    it('should keep the other fields in the order of the document', function () {
+      Object.keys(removeFields({ a: 1, b: 2, c: 3 }, { b: [] })).should.deep.equal(['a', 'c']);
     });
-    it('should keep the sub-fields of every document of an array, dropping the other values', function () {
-      applyProjection({ a: [{ b: 1, c: 2 }, { c: 3 }, 4, [{ b: 5 }]] }, { 'a.b': 1 }).should.deep.equal({ a: [{ b: 1 }, {}, [{ b: 5 }]] });
+    it('should not change the document', function () {
+      const doc = { a: 1, b: { c: 2, d: 3 } };
+      removeFields(doc, { a: [], 'b.c': [] }).should.deep.equal({ b: { d: 3 } });
+      doc.should.deep.equal({ a: 1, b: { c: 2, d: 3 } });
     });
-    it('should drop the sub-fields of values that are not documents', function () {
-      applyProjection({ a: 1, b: 'x' }, { 'a.b': 1, b: 1 }).should.deep.equal({ b: 'x' });
+    it('should remove sub-fields', function () {
+      removeFields({ a: { b: 1, c: 2 }, d: 3 }, { 'a.b': [] }).should.deep.equal({ a: { c: 2 }, d: 3 });
+    });
+    it('should remove sub-fields from every document of an array, leaving the other values', function () {
+      removeFields({ a: [{ b: 1, c: 2 }, { b: 3 }, 4, [{ b: 5 }]] }, { 'a.b': [] }).should.deep.equal({ a: [{ c: 2 }, {}, 4, [{}]] });
+    });
+    it('should ignore missing fields and values that are not documents', function () {
+      removeFields({ a: 1, b: null }, { 'a.x': [], 'b.x': [], c: [], 'd.e': [] }).should.deep.equal({ a: 1, b: null });
     });
     it('should not take inherited properties as fields', function () {
-      applyProjection({ constructor: 1, a: 2 }, { a: 1 }).should.deep.equal({ a: 2 });
+      removeFields({ a: 2 }, { constructor: [], 'toString.x': [] }).should.deep.equal({ a: 2 });
     });
-    it('should include fields in a list of documents', function () {
-      applyProjection([{ a: 1, b: 2 }, { b: 3 }], { a: 1 }).should.deep.equal([{ a: 1 }, {}]);
+    it('should keep the given sub-fields of a field', function () {
+      removeFields({ a: { b: 1, c: { d: 2, e: 3 }, f: 4 }, g: 5 }, { a: ['b', 'c.d'] }).should.deep.equal({ a: { b: 1, c: { d: 2 } }, g: 5 });
     });
-    it('should remove the excluded fields', function () {
-      applyProjection({ a: 1, _id: 2, _metadata: { b: 3 } }, { _id: 0, _metadata: 0 }).should.deep.equal({ a: 1 });
+    it('should keep the given sub-fields of every document of an array, dropping the other values', function () {
+      removeFields({ a: [{ b: 1, c: 2 }, { c: 3 }, 4, [{ b: 5 }]] }, { a: ['b'] }).should.deep.equal({ a: [{ b: 1 }, {}, [{ b: 5 }]] });
     });
-    it('should exclude fields in a list of documents', function () {
-      applyProjection([{ a: 1, _metadata: 2 }, { b: 3 }], { _metadata: 0 }).should.deep.equal([{ a: 1 }, { b: 3 }]);
+    it('should drop the sub-fields to keep of values that are not documents', function () {
+      removeFields({ a: { b: 1, c: 'x' } }, { a: ['b.x', 'c'] }).should.deep.equal({ a: { c: 'x' } });
+    });
+    it('should remove a field with sub-fields to keep whose value is null', function () {
+      removeFields({ id: 1, a: null }, { a: ['b'] }).should.deep.equal({ id: 1 });
+    });
+    it('should remove a field with sub-fields to keep whose value is not a document', function () {
+      removeFields([{ id: 1, a: 5 }, { id: 2, a: 'x' }], { a: ['b'] }).should.deep.equal([{ id: 1 }, { id: 2 }]);
+    });
+    it('should not take inherited properties as sub-fields to keep', function () {
+      removeFields({ a: { constructor: 1, b: 2 } }, { a: ['b'] }).should.deep.equal({ a: { b: 2 } });
     });
   });
 
@@ -259,6 +276,14 @@ describe('util', function () {
       q.should.deep.equal({ x: 1, y: 1 });
       q = toMongoQuery(ability, 'Test', 'action3');
       q.should.deep.equal({ $or: [{ b: 2 }, { a: 1 }] });
+    });
+    it('should not fail with an inverted rule with conditions and a rule without conditions', function () {
+      const ability = defineAbility((can, cannot) => {
+        can('read', 'Test');
+        cannot('read', 'Test', { secret: true });
+      }) as Ability;
+      const q = toMongoQuery(ability, 'Test', 'read');
+      q.should.deep.equal({ $and: [{ $nor: [{ secret: true }] }] });
     });
   });
 });

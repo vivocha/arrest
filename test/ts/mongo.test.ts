@@ -9,7 +9,7 @@ import { DokiConfiguration, Mongodoki } from 'mongodoki';
 import { OpenAPIV3 } from 'openapi-police';
 import supertest from 'supertest';
 import { API } from '../../dist/api.js';
-import { CreateMongoOperation, MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation } from '../../dist/mongo/index.js';
+import { CreateMongoOperation, MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation, ReadMongoOperation } from '../../dist/mongo/index.js';
 import { APIRequest, APIResponse, Method } from '../../dist/types.js';
 
 const should = chai.should();
@@ -1159,7 +1159,7 @@ describe('mongo', function () {
       { id: 'c2', name: 'Luigi', owner: 'u1', campaign: 'B', notes: 'note 2', score: 0, meta: { secret: 'y', notes: 'meta 2' }, _metadata: { team: 't2' } },
       { id: 'c3', name: 'Anna', owner: 'u2', campaign: 'A', notes: 'note 3', score: 5, meta: { secret: 'x', notes: 'meta 3' }, _metadata: { team: 't1' } },
     ];
-    const ownActions = ['read', 'query', 'create', 'createAssigned', 'update', 'patch'];
+    const ownActions = ['read', 'query', 'create', 'createAssigned', 'update', 'patch', 'stats', 'readWithCampaign', 'readWithOwner'];
     const scenarios: Record<string, Parameters<typeof defineAbility>[0]> = {
       owner: (can) => {
         can(ownActions, 'Contact', { owner: 'u1' });
@@ -1180,6 +1180,9 @@ describe('mongo', function () {
         can(['read', 'query'], 'Contact', ['id']);
         can(['read', 'query'], 'Contact', ['meta.notes'], { 'meta.secret': 'x' });
       },
+      metaRecord: (can) => {
+        can(['read', 'query'], 'Contact', { meta: { $exists: true } });
+      },
       metaExists: (can) => {
         can(['read', 'query'], 'Contact', ['id', 'meta.notes'], { meta: { $exists: true } });
       },
@@ -1196,6 +1199,13 @@ describe('mongo', function () {
       metadataAndId: (can) => {
         can(['read', 'query'], 'Contact', ['id', 'name']);
         can(['read', 'query'], 'Contact', ['notes'], { '_metadata.team': 't1', _id: { $exists: true } });
+      },
+      statsFields: (can) => {
+        can('stats', 'Contact', ['campaign', 'n'], { owner: 'u1' });
+      },
+      metadataAndIdNoScore: (can) => {
+        can('queryNoScore', 'Contact', ['id', 'name']);
+        can('queryNoScore', 'Contact', ['notes'], { '_metadata.team': 't1', _id: { $exists: true } });
       },
       unmatchable: (can) => {
         can(['read', 'query'], 'Contact', ['id']);
@@ -1224,6 +1234,55 @@ describe('mongo', function () {
       }
     }
 
+    // Statistics computed by an aggregation: the results do not contain the condition fields
+    class StatsOp extends QueryMongoOperation {
+      constructor(resource: MongoResource, path: string, method: Method) {
+        super(resource, path, method, 'stats');
+      }
+      async prepareQuery(job: MongoJob): Promise<MongoJob> {
+        job = await super.prepareQuery(job);
+        job.query = [{ $match: job.query }, { $group: { _id: '$campaign', n: { $sum: 1 } } }, { $project: { _id: 0, campaign: '$_id', n: 1 } }, { $sort: { campaign: 1 } }];
+        return job;
+      }
+    }
+
+    // A field always returned, besides the requested ones
+    class ReadWithCampaignOp extends ReadMongoOperation {
+      constructor(resource: MongoResource, path: string, method: Method) {
+        super(resource, path, method, 'readWithCampaign');
+      }
+      async prepareOpts(job: MongoJob): Promise<MongoJob> {
+        job = await super.prepareOpts(job);
+        job.opts.projection.campaign = 1;
+        return job;
+      }
+    }
+
+    // A condition field always returned
+    class ReadWithOwnerOp extends ReadMongoOperation {
+      constructor(resource: MongoResource, path: string, method: Method) {
+        super(resource, path, method, 'readWithOwner');
+      }
+      async prepareOpts(job: MongoJob): Promise<MongoJob> {
+        job = await super.prepareOpts(job);
+        job.opts.projection.owner = 1;
+        delete job.extraFields?.owner;
+        return job;
+      }
+    }
+
+    // A field never returned
+    class QueryNoScoreOp extends QueryMongoOperation {
+      constructor(resource: MongoResource, path: string, method: Method) {
+        super(resource, path, method, 'queryNoScore');
+      }
+      async prepareOpts(job: MongoJob): Promise<MongoJob> {
+        job = await super.prepareOpts(job);
+        job.opts.projection.score = 0;
+        return job;
+      }
+    }
+
     let db, coll, server;
 
     before(async function () {
@@ -1232,7 +1291,16 @@ describe('mongo', function () {
       const r1 = new MongoResource(
         db,
         { name: 'Contact', collection: collectionName, id: 'id', idIsObjectId: false },
-        Object.assign({ '/assigned': { post: AssignOwnerOp } }, MongoResource.defaultRoutes())
+        Object.assign(
+          {
+            '/assigned': { post: AssignOwnerOp },
+            '/stats': { get: StatsOp },
+            '/noscore': { get: QueryNoScoreOp },
+            '/withcampaign/:id': { get: ReadWithCampaignOp },
+            '/withowner/:id': { get: ReadWithOwnerOp },
+          },
+          MongoResource.defaultRoutes()
+        )
       );
       api.addResource(r1);
 
@@ -1444,6 +1512,29 @@ describe('mongo', function () {
           ]);
         });
     });
+    it('should project a sub-field of a condition field that is null', async function () {
+      // Every field is permitted, so the null is still there when the condition fields are removed
+      await coll.insertOne({ id: 'c4', name: 'Paolo', meta: null });
+      await request
+        .get('/contacts/c4?fields=id,meta.notes')
+        .set('x-scenario', 'metaRecord')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ id: 'c4' });
+        });
+      await request
+        .get('/contacts?fields=id,meta.notes')
+        .set('x-scenario', 'metaRecord')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([
+            { id: 'c1', meta: { notes: 'meta 1' } },
+            { id: 'c2', meta: { notes: 'meta 2' } },
+            { id: 'c3', meta: { notes: 'meta 3' } },
+            { id: 'c4' },
+          ]);
+        });
+    });
     it('should not return the fields of records allowed by conditions CASL does not support', async function () {
       // The database applies the $expr, but CASL never matches it: every field is removed
       await request
@@ -1469,6 +1560,67 @@ describe('mongo', function () {
         .expect(200)
         .then(({ body: data }) => {
           data.should.deep.equal([]);
+        });
+    });
+    it('should return the results of an aggregation that do not contain the condition fields', async function () {
+      // The database already applies the conditions in the $match
+      await request
+        .get('/contacts/stats')
+        .set('x-scenario', 'owner')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([
+            { campaign: 'A', n: 1 },
+            { campaign: 'B', n: 1 },
+          ]);
+        });
+    });
+    it('should match the conditions against the results of an aggregation when a rule restricts the fields', async function () {
+      // The query cannot tell which fields of each result are permitted: the results without the condition fields
+      // have none
+      await request
+        .get('/contacts/stats')
+        .set('x-scenario', 'statsFields')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([]);
+        });
+    });
+    it('should remove a condition field next to a requested one', async function () {
+      await request
+        .get('/contacts?fields=id,meta.notes')
+        .set('x-scenario', 'nested')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([{ id: 'c1', meta: { notes: 'meta 1' } }, { id: 'c2' }, { id: 'c3', meta: { notes: 'meta 3' } }]);
+        });
+    });
+    it('should keep the fields added to the projection by a subclass', async function () {
+      await request
+        .get('/contacts/withcampaign/c1?fields=name')
+        .set('x-scenario', 'owner')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ name: 'Mario', campaign: 'A' });
+        });
+    });
+    it('should return a condition field a subclass removes from the extra fields', async function () {
+      await request
+        .get('/contacts/withowner/c1?fields=name')
+        .set('x-scenario', 'owner')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ name: 'Mario', owner: 'u1' });
+        });
+    });
+    it('should let a subclass change the projection when the condition fields replace all the default ones', async function () {
+      // The conditions on _metadata and _id remove both the default exclusions from the projection
+      await request
+        .get('/contacts/noscore')
+        .set('x-scenario', 'metadataAndIdNoScore')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal([{ id: 'c1', name: 'Mario', notes: 'note 1' }, { id: 'c2', name: 'Luigi' }, { id: 'c3', name: 'Anna', notes: 'note 3' }]);
         });
     });
   });

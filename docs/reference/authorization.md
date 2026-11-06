@@ -250,7 +250,21 @@ GET /contacts?fields=id,notes
 
 The fields the conditions depend on are projected even when the client did not ask for them — `campaign`
 above, and even `_metadata` or `_id`, which [`parseFields`](mongo-operations.md#parsefields) otherwise never
-returns — and removed again before the response.
+returns — and removed again before the response. Only them: the fields a subclass adds to the projection in
+`prepareOpts` are returned.
+
+### Aggregations
+
+When a subclass of `QueryMongoOperation` turns `job.query` into an aggregation pipeline, the results might not
+contain the condition fields — those of a `$group`, for instance. What happens then depends on the rules:
+
+- **no rule restricts the fields** (`can('read', 'Contact', { owner: 'u1' })`): the conditions only decide which
+  records are reachable, and the `$match` of `job.query` already applied them. The results are not matched
+  again, and are returned whole;
+- **some rule restricts the fields** (`can('read', 'Contact', ['campaign'], { owner: 'u1' })`): the conditions
+  are matched against each result, since nothing else can decide its fields. A result without the condition
+  fields matches none, so it has no permitted field and is dropped. Keep the condition fields in the results
+  (in the `_id` of a `$group`, for instance), or remove them in `redactResult` after `super.redactResult`.
 
 ### Supported operators
 
@@ -337,10 +351,17 @@ records the way MongoDB does, then the in-memory check decides differently:
 | `{ deletedAt: null }` | matches `null` **and** a missing field | matches `null` only | store the field (as `null`), or use `{ deletedAt: { $exists: false } }` for the missing case |
 | `{ name: /^A/ }` | a regular expression | an equality with the `RegExp` object: never matches | `{ name: { $regex: /^A/ } }` |
 | `{ name: { $in: [/^A/] } }` | a regular expression | an equality: never matches | `{ name: { $regex: /^A/ } }`, or more rules |
+| `{ tags: ['a', 'b'] }`, also with `$eq` or `$in` | matches the array `['a', 'b']` (in that order) | compares arrays by reference: never matches | `{ tags: { $all: ['a', 'b'], $size: 2 } }`, which also matches `['b', 'a']` |
+| `{ tags: { $ne: ['a', 'b'] } }`, also with `$nin` | does not match the array `['a', 'b']` | compares arrays by reference: always matches | no equivalent: do not compare whole arrays |
+| `{ meta: { secret: 'x' } }`, and the other comparisons of a whole embedded document | matches the document `{ secret: 'x' }` | compares objects by reference, as arrays | `{ 'meta.secret': 'x' }`, which also matches documents with more fields |
 
 Where such a condition does not match, the [consequences above](#supported-operators) apply: missing data
 for a `can` rule, a leak for a `cannot` restricted to some fields — `cannot('read', 'Contact', ['salary'],
 { approvedAt: null })` does not forbid `salary` on records that have no `approvedAt` field.
+
+A condition that matches in memory but not in MongoDB, like `$ne` on a whole array, leaks the other way: with
+`can('read', 'Contact', ['id'])` and `can('read', 'Contact', ['notes'], { tags: { $ne: ['a', 'b'] } })`, the
+records tagged `['a', 'b']` are read for the first rule, and `notes` is returned for the second one.
 
 ## Record-level constraints
 

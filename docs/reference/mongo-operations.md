@@ -30,14 +30,15 @@ Abstract. Adds the collection, id handling, projection rules and ability constra
 ```ts
 interface MongoJob extends Job {
   coll: Collection;
-  projection?: Record<string, number>;
+  extraFields?: Record<string, string[]>;
 }
 ```
 
 [`Job`](pipeline.md#job) plus the collection, resolved in `createJob` so every later step has it, and the
-projection the caller asked for, when [`getProjection`](#getprojection) had to extend it. In these
-operations `job.query` is a MongoDB filter — **or an aggregation pipeline array**, when RQL produced one — and
-`job.opts` holds driver options.
+fields [`getProjection`](#getprojection) added to the projection for the conditions, removed by `redactResult`:
+each one with its requested sub-fields, which are kept (`{ owner: [] }`, `{ meta: ['notes'] }`). In these
+operations `job.query` is a MongoDB filter — **or an aggregation pipeline array**, when a subclass builds one
+(RQL never does) — and `job.opts` holds driver options.
 
 ### Properties
 
@@ -86,9 +87,35 @@ protected getProjection(job: MongoJob, fields?: string[]): any
 `parseFields(fields)`, plus the fields the ability's conditions refer to
 ([`getConditionFields`](utilities.md#getconditionfields)) when the projection would not return them — even
 `_metadata` and `_id`. The conditions are [matched against the records](authorization.md#conditions-in-memory),
-so they need those fields; when any is added, the requested projection is kept in `job.projection` and
-`redactResult` applies it after the redaction. Returns `undefined` rather than an empty projection, which a
-`$project` stage rejects.
+so they need those fields; the ones added are recorded in `job.extraFields`, and `redactResult` removes them
+after the redaction. Only them: a field a subclass adds to the projection after `super.prepareOpts` is
+returned. Always returns an object, which a subclass can change: empty when the conditions replace all the
+default exclusions, and then not sent as a `$project` stage, which rejects it.
+
+A field the conditions depend on is removed even if the subclass adds it to the projection: the projection
+does not tell who added it. To return it, remove it from `job.extraFields` as well:
+
+```ts
+async prepareOpts(job: MongoJob): Promise<MongoJob> {
+  job = await super.prepareOpts(job);
+  job.opts.projection.owner = 1;
+  delete job.extraFields?.owner;   // returned even if a condition depends on it
+  return job;
+}
+```
+
+The field is still [redacted](authorization.md#conditions-in-memory) like the others: it is returned only where
+the ability permits it.
+
+### `restrictsFields`
+
+```ts
+restrictsFields(ability: AnyMongoAbility): boolean
+```
+
+Whether a rule relevant to this operation's scopes lists fields. When none does, the conditions only decide
+which records are reachable, which the query already enforces: `QueryMongoOperation` does not match them again
+against the results of an aggregation pipeline. See [aggregations](authorization.md#aggregations).
 
 ### `getAbilityConstraints`
 
@@ -113,8 +140,8 @@ async redactResult(job): Promise<MongoJob>
 - `prepareQuery` merges `getAbilityConstraints(req.ability)` into `job.query` when the request carries an
   ability. **Always call `super.prepareQuery` first in an override**, or those constraints are lost.
 - `redactResult` unescapes document keys when [`escapeProperties`](mongo-resource.md#mongoresourcedefinition)
-  is set, defers to [`PipelineOperation.redactResult`](pipeline.md#redactresult), then applies
-  `job.projection` when set.
+  is set, defers to [`PipelineOperation.redactResult`](pipeline.md#redactresult), then removes
+  `job.extraFields` when set.
 
 ## `QueryMongoOperation`
 

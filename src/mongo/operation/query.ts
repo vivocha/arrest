@@ -135,7 +135,8 @@ export class QueryMongoOperation extends MongoOperation {
     let matching: number | undefined;
     if (Array.isArray(job.query)) {
       if (job.opts.sort) job.query.push({ $sort: job.opts.sort });
-      if (job.opts.projection) job.query.push({ $project: job.opts.projection });
+      // An empty projection returns everything, but MongoDB rejects it in a $project stage
+      if (!_.isEmpty(job.opts.projection)) job.query.push({ $project: job.opts.projection });
       const innerQuery: any[] = [{ $match: {} }];
       if (job.opts.skip) innerQuery.push({ $skip: job.opts.skip });
       if (job.opts.limit) innerQuery.push({ $limit: job.opts.limit });
@@ -186,6 +187,12 @@ export class QueryMongoOperation extends MongoOperation {
     return job;
   }
   async redactResult(job: MongoJob): Promise<MongoJob> {
+    // The results of an aggregation pipeline (built by a subclass) might not contain the fields the conditions depend
+    // on, like those of a $group. The query already selected the records the conditions permit: unless a rule also
+    // restricts the fields, that is all the conditions decide, and they are not matched again
+    if (Array.isArray(job.query) && job.req.ability && !this.restrictsFields(job.req.ability)) {
+      job.feat!.filter!.conditions = false;
+    }
     job = await super.redactResult(job);
     job.data = (job.data as any[]).filter((i: any) => Object.keys(i).length > 0);
     return job;

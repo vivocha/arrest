@@ -173,17 +173,35 @@ function pickFields(data: any, fields: string[]): any {
   return out;
 }
 
-/**
- * Applies a projection built by MongoOperation.parseFields (that sets _id explicitly when including fields, and only
- * excludes top level fields) to a document or list of documents.
- */
-export function applyProjection(data: any, projection: Record<string, number>): any {
-  const included = Object.keys(projection).filter((k) => projection[k]);
-  if (included.length) {
-    return pickFields(data, included);
+function removeField(data: any, path: string[], kept: string[]): any {
+  if (Array.isArray(data)) {
+    return data.map((i) => removeField(i, path, kept));
   }
-  const omit = (doc: any) => _.pickBy(doc, (_value, key) => !Object.hasOwn(projection, key));
-  return Array.isArray(data) ? data.map(omit) : omit(data);
+  const [key, ...rest] = path;
+  if (!_.isPlainObject(data) || !Object.hasOwn(data, key)) {
+    return data;
+  }
+  const out = { ...data };
+  if (rest.length) {
+    out[key] = removeField(data[key], rest, kept);
+  } else if (kept.length && (Array.isArray(data[key]) || _.isPlainObject(data[key]))) {
+    out[key] = pickFields(data[key], kept);
+  } else {
+    // A value that is not a document has no sub-fields to keep: MongoDB would not return it
+    delete out[key];
+  }
+  return out;
+}
+
+/**
+ * Removes the given (dotted) fields from a document or list of documents, through the elements of arrays as a
+ * MongoDB projection would. Each field comes with its own sub-fields to keep instead (none to remove it all).
+ */
+export function removeFields(data: any, fields: Record<string, string[]>): any {
+  if (Array.isArray(data)) {
+    return data.map((i) => removeFields(i, fields));
+  }
+  return Object.entries(fields).reduce((out, [field, kept]) => removeField(out, field.split('.'), kept), data);
 }
 
 // The following two functions come from @casl/mongoose and were

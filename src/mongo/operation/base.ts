@@ -6,12 +6,13 @@ import { Job, PipelineOperation } from '../../pipeline.js';
 import { APIRequest, APIResponse, Method } from '../../types.js';
 import { MongoResource } from '../resource.js';
 import { getConditionFields } from '../../util.js';
-import { addConstraint, applyProjection, toMongoQuery, unescapeMongoObject } from '../util.js';
+import { addConstraint, removeFields, toMongoQuery, unescapeMongoObject } from '../util.js';
 
 export interface MongoJob extends Job {
   coll: Collection;
-  // The projection requested by the caller, when the one sent to MongoDB had to include more fields
-  projection?: Record<string, number>;
+  // The fields MongoDB returns only because the conditions of the ability are matched against them, removed by
+  // redactResult: each one with its sub-fields that were requested, which are kept
+  extraFields?: Record<string, string[]>;
 }
 
 export abstract class MongoOperation extends PipelineOperation {
@@ -66,26 +67,59 @@ export abstract class MongoOperation extends PipelineOperation {
   }
   /**
    * The projection of the requested fields. The conditions of the ability are evaluated on the returned documents,
-   * so the fields they depend on are projected as well (even _metadata and _id), and removed by redactResult.
+   * so the fields they depend on are projected as well (even _metadata and _id): job.extraFields records them, and
+   * redactResult removes them. Only them, so whatever a subclass adds to the projection is returned, unless it is
+   * one of them: a subclass that wants a condition field returned removes it from job.extraFields too. The projection
+   * is always an object, even if empty, so that a subclass can change it.
    */
   protected getProjection(job: MongoJob, fields?: string[]) {
     const out = this.parseFields(fields!);
-    const requested = { ...out };
-    const inclusion = Object.values(out).includes(1);
+    const requested = Object.keys(out).filter((k) => out[k]);
+    const inclusion = requested.length > 0;
     const covers = (field: string, other: string) => field === other || field.startsWith(other + '.');
+    const extra: Record<string, string[]> = {};
     for (const field of job.req.ability ? this.getAbilityConditionFields(job.req.ability) : []) {
       const keys = Object.keys(out);
       if (inclusion ? !keys.some((k) => out[k] && covers(field, k)) : keys.some((k) => covers(field, k))) {
         // MongoDB rejects a projection with both a field and one of its sub-fields
-        keys.filter((k) => covers(k, field) || covers(field, k)).forEach((k) => delete out[k]);
+        const overlapping = keys.filter((k) => covers(k, field) || covers(field, k));
+        overlapping.forEach((k) => delete out[k]);
         if (inclusion) {
           out[field] = 1;
+          // What is removed is the outermost field containing no requested field but the ones inside the added one,
+          // which are kept
+          const path = field.split('.');
+          const outside = requested.filter((r) => !covers(r, field));
+          let i = 1;
+          while (outside.some((r) => covers(r, path.slice(0, i).join('.')))) {
+            i++;
+          }
+          extra[path.slice(0, i).join('.')] = requested.filter((r) => covers(r, field) && r !== field).map((r) => r.slice(field.length + 1));
+        } else {
+          overlapping.forEach((k) => (extra[k] = []));
         }
-        job.projection = requested;
       }
     }
-    // An empty projection returns everything, but MongoDB rejects it in a $project stage
-    return _.isEmpty(out) ? undefined : out;
+    if (!_.isEmpty(extra)) {
+      job.extraFields = extra;
+    }
+    return out;
+  }
+  /**
+   * Whether a rule relevant to this operation's scopes permits or forbids only some fields: when none does, the
+   * conditions do not decide which fields of a record are returned, only which records, and the query does that
+   */
+  restrictsFields(ability: AnyMongoAbility): boolean {
+    if (this.scopes) {
+      for (let resource in this.scopes) {
+        for (let action in this.scopes[resource]) {
+          if (ability.possibleRulesFor(action, resource).some((r) => r.fields)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
   getAbilityConditionFields(ability: AnyMongoAbility): string[] {
     const out: string[] = [];
@@ -133,8 +167,8 @@ export abstract class MongoOperation extends PipelineOperation {
       }
     }
     job = (await super.redactResult(job)) as MongoJob;
-    if (job.projection && job.data) {
-      job.data = applyProjection(job.data, job.projection);
+    if (job.extraFields && job.data) {
+      job.data = removeFields(job.data, job.extraFields);
     }
     return job;
   }
