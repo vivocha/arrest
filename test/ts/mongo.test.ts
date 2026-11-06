@@ -10,6 +10,7 @@ import { OpenAPIV3 } from 'openapi-police';
 import supertest from 'supertest';
 import { API } from '../../dist/api.js';
 import { CreateMongoOperation, MongoJob, MongoOperation, MongoResource, PatchMongoOperation, QueryMongoOperation, ReadMongoOperation } from '../../dist/mongo/index.js';
+import { removeFields } from '../../dist/mongo/util.js';
 import { APIRequest, APIResponse, Method } from '../../dist/types.js';
 
 const should = chai.should();
@@ -1180,6 +1181,9 @@ describe('mongo', function () {
         can(['read', 'query'], 'Contact', ['id']);
         can(['read', 'query'], 'Contact', ['meta.notes'], { 'meta.secret': 'x' });
       },
+      metaSecretRecord: (can) => {
+        can(['read', 'query'], 'Contact', { 'meta.secret': { $exists: true } });
+      },
       metaRecord: (can) => {
         can(['read', 'query'], 'Contact', { meta: { $exists: true } });
       },
@@ -1510,6 +1514,45 @@ describe('mongo', function () {
             { id: 'c2', meta: { notes: 'meta 2' } },
             { id: 'c3', meta: { notes: 'meta 3' } },
           ]);
+        });
+    });
+    it('should keep the requested sub-fields relative to the extra field removed', async function () {
+      const r = new MongoResource(db, { name: 'Contact', collection: collectionName, id: 'id', idIsObjectId: false });
+      const testApi = new API();
+      testApi.addResource(r);
+      await testApi.router();
+      const op = r.getOperations().find((o) => o instanceof ReadMongoOperation) as any;
+      const ability = defineAbility(scenarios.metaSecretRecord) as Ability;
+      const doc = { meta: { secret: { z: 5, w: 6 }, notes: 'meta 4' } };
+
+      // The condition field is inside the removed one: the sub-field kept is meta.secret.z, not meta.z
+      let job = { req: { ability } } as any;
+      op.getProjection(job, ['meta.secret.z']).should.deep.equal({ _id: 0, 'meta.secret': 1 });
+      job.extraFields.should.deep.equal({ meta: ['secret.z'] });
+      removeFields(doc, job.extraFields).should.deep.equal({ meta: { secret: { z: 5 } } });
+
+      // A requested sibling keeps meta: the removed field is the condition field itself
+      job = { req: { ability } } as any;
+      op.getProjection(job, ['meta.secret.z', 'meta.notes']).should.deep.equal({ _id: 0, 'meta.notes': 1, 'meta.secret': 1 });
+      job.extraFields.should.deep.equal({ 'meta.secret': ['z'] });
+      removeFields(doc, job.extraFields).should.deep.equal({ meta: { secret: { z: 5 }, notes: 'meta 4' } });
+    });
+    it('should project a sub-field of a nested condition field', async function () {
+      // The condition field is removed from meta, so the requested sub-fields are kept relative to it
+      await coll.insertOne({ id: 'c4', name: 'Paolo', meta: { secret: { z: 5, w: 6 }, notes: 'meta 4' } });
+      await request
+        .get('/contacts/c4?fields=meta.secret.z')
+        .set('x-scenario', 'metaSecretRecord')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ meta: { secret: { z: 5 } } });
+        });
+      await request
+        .get('/contacts/c4?fields=meta.secret.z,meta.notes')
+        .set('x-scenario', 'metaSecretRecord')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal({ meta: { secret: { z: 5 }, notes: 'meta 4' } });
         });
     });
     it('should project a sub-field of a condition field that is null', async function () {

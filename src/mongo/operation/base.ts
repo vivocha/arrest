@@ -87,14 +87,15 @@ export abstract class MongoOperation extends PipelineOperation {
         if (inclusion) {
           out[field] = 1;
           // What is removed is the outermost field containing no requested field but the ones inside the added one,
-          // which are kept
+          // which are kept (relative to the removed field, which might contain the added one)
           const path = field.split('.');
           const outside = requested.filter((r) => !covers(r, field));
           let i = 1;
           while (outside.some((r) => covers(r, path.slice(0, i).join('.')))) {
             i++;
           }
-          extra[path.slice(0, i).join('.')] = requested.filter((r) => covers(r, field) && r !== field).map((r) => r.slice(field.length + 1));
+          const key = path.slice(0, i).join('.');
+          extra[key] = requested.filter((r) => covers(r, field) && r !== field).map((r) => r.slice(key.length + 1));
         } else {
           overlapping.forEach((k) => (extra[k] = []));
         }
