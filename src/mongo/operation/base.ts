@@ -108,7 +108,8 @@ export abstract class MongoOperation extends PipelineOperation {
   }
   /**
    * Whether a rule relevant to this operation's scopes permits or forbids only some fields: when none does, the
-   * conditions do not decide which fields of a record are returned, only which records, and the query does that
+   * conditions do not decide which fields of a record are returned, only which records, and the query does that.
+   * redactResult then does not match them against the records.
    */
   restrictsFields(ability: AnyMongoAbility): boolean {
     if (this.scopes) {
@@ -166,6 +167,12 @@ export abstract class MongoOperation extends PipelineOperation {
       if (this.resource.info.escapeProperties) {
         job.data = unescapeMongoObject(job.data);
       }
+    }
+    // The query already selected the records the conditions permit: unless a rule also restricts the fields, that is
+    // all the conditions decide, and they are not matched again. CASL would not always agree with MongoDB (see
+    // docs/reference/authorization.md), and the results of an aggregation might not even contain the condition fields
+    if (job.req.ability && !this.restrictsFields(job.req.ability)) {
+      job.feat!.filter!.conditions = false;
     }
     job = (await super.redactResult(job)) as MongoJob;
     if (job.extraFields && job.data) {

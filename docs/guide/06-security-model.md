@@ -143,7 +143,7 @@ That single declaration produces three different enforcement mechanisms:
 |---|---|
 | action + subject | whether the operation runs at all |
 | **fields** — `['name', 'surname', 'email']` | which properties survive in responses and are accepted in bodies |
-| **conditions** — `{ owner: user.id }` | a MongoDB filter merged into every query, and the per-record check of which fields are permitted — with [only the operators CASL supports](../reference/authorization.md#conditions-in-memory) |
+| **conditions** — `{ owner: user.id }` | a MongoDB filter merged into every query, and, when some rule lists fields, the per-record check of which ones are permitted — with [only the operators CASL supports](../reference/authorization.md#conditions-in-memory) |
 
 When both `req.ability` and `req.scopes` are set, **the ability wins** — `getAuthorizationError` checks the
 ability and never looks at the scopes. Set one or the other, not both, unless you have a reason.

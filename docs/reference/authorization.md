@@ -253,18 +253,32 @@ above, and even `_metadata` or `_id`, which [`parseFields`](mongo-operations.md#
 returns — and removed again before the response. Only them: the fields a subclass adds to the projection in
 `prepareOpts` are returned.
 
+### Only when a rule restricts the fields
+
+The in-memory check is needed only when some rule relevant to the operation lists fields, like `['notes']`
+above: then the fields permitted depend on the record. When no rule does, a record is either readable whole or
+not at all, and which records are readable is what [the query](#record-level-constraints) already decided:
+
+```ts
+can('read', 'Contact', { owner: userId });   // no fields: the conditions are not matched again
+```
+
+The Mongo operations then do not match the conditions in memory
+([`restrictsFields`](mongo-operations.md#restrictsfields)), and return the records MongoDB selects whole. So
+the [unsupported operators](#supported-operators) and the [differences from MongoDB](#differences-from-mongodb)
+below only matter for abilities with field rules — but then for every conditional rule of the operation, not
+just the ones with fields: with `can('read', 'Contact', { owner: userId })` and `can('read', 'Contact', ['name'])`,
+the first rule decides whether a record is returned whole, so it is matched in memory too.
+
 ### Aggregations
 
 When a subclass of `QueryMongoOperation` turns `job.query` into an aggregation pipeline, the results might not
-contain the condition fields — those of a `$group`, for instance. What happens then depends on the rules:
-
-- **no rule restricts the fields** (`can('read', 'Contact', { owner: 'u1' })`): the conditions only decide which
-  records are reachable, and the `$match` of `job.query` already applied them. The results are not matched
-  again, and are returned whole;
-- **some rule restricts the fields** (`can('read', 'Contact', ['campaign'], { owner: 'u1' })`): the conditions
-  are matched against each result, since nothing else can decide its fields. A result without the condition
-  fields matches none, so it has no permitted field and is dropped. Keep the condition fields in the results
-  (in the `_id` of a `$group`, for instance), or remove them in `redactResult` after `super.redactResult`.
+contain the condition fields — those of a `$group`, for instance. Without field rules this does not matter: the
+`$match` of `job.query` applied the conditions, and the results are returned whole. With field rules
+(`can('read', 'Contact', ['campaign'], { owner: 'u1' })`) the conditions are matched against each result, since
+nothing else can decide its fields: a result without the condition fields matches none, so it has no permitted
+field and is dropped. Keep the condition fields in the results (in the `_id` of a `$group`, for instance), or
+remove them in `redactResult` after `super.redactResult`.
 
 ### Supported operators
 
@@ -280,17 +294,18 @@ subject are ORed, and `cannot` rules negate.
 A condition using anything else (`$or`, `$expr`, `$mod`, `$type`, `$geoWithin`, …) **never matches in
 memory**. CASL returns `false` without an error, and where its parser throws instead (e.g. on
 `$expr: { $gt: […] }`), arrest treats that as `false` too. MongoDB has no such limit, so the query still selects
-the records, but every field those rules would permit is removed:
+the records, and without field rules that is all that counts: `can('read', 'Contact', { $expr: { $eq: ['$owner',
+userId] } })` alone returns the owner's records. With field rules, every field the rule would permit is removed:
 
 ```ts
-can(['read', 'query'], 'Contact', { $expr: { $eq: ['$owner', userId] } });
+can(['read', 'query'], 'Contact', ['id', 'name']);
+can(['read', 'query'], 'Contact', ['notes'], { $expr: { $eq: ['$owner', userId] } });
 ```
 
 | Request | Response |
 |---|---|
-| `GET /contacts` | `200 []` — the owner's records are found, then emptied and dropped |
-| `GET /contacts/<own id>` | `200 {}` |
-| `GET /contacts/<someone else's id>` | `404` — the query still applies the condition |
+| `GET /contacts` | `[{ "id": …, "name": … }, …]` — `notes` is removed from the owner's records too |
+| `GET /contacts/<own id>` | `{ "id": …, "name": … }` |
 
 arrest deliberately does not fall back to checking the type alone when a condition is unsupported: that would
 grant every field the condition was meant to restrict (and ignore the conditions of `cannot` rules), and
@@ -344,7 +359,8 @@ arrest uses the ability as it is: whatever the matcher supports works in memory 
 ### Differences from MongoDB
 
 Even with the supported operators, CASL's matcher does not always agree with MongoDB. The query selects the
-records the way MongoDB does, then the in-memory check decides differently:
+records the way MongoDB does, then, [when a rule restricts the fields](#only-when-a-rule-restricts-the-fields),
+the in-memory check decides differently:
 
 | Condition | MongoDB | In memory | Write instead |
 |---|---|---|---|

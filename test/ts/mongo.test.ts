@@ -1217,6 +1217,25 @@ describe('mongo', function () {
         can(['read', 'query'], 'Contact', ['name'], { $or: [{ owner: 'u1' }] });
       },
     };
+    // Conditions CASL evaluates differently from MongoDB, in rules that do not restrict the fields, with the ids of the
+    // records MongoDB selects
+    const wholeRecordConditions: Record<string, [any, string[]]> = {
+      $or: [{ $or: [{ owner: 'u1' }] }, ['c1', 'c2']],
+      $and: [{ $and: [{ owner: 'u1' }] }, ['c1', 'c2']],
+      $nor: [{ $nor: [{ owner: 'u2' }] }, ['c1', 'c2']],
+      $not: [{ owner: { $not: { $eq: 'u2' } } }, ['c1', 'c2']],
+      $type: [{ name: { $type: 'string' } }, ['c1', 'c2', 'c3']],
+      'RegExp value': [{ name: /^[ML]/ }, ['c1', 'c2']],
+      'null value': [{ deletedAt: null }, ['c1', 'c2', 'c3']],
+      'whole document': [{ meta: { secret: 'x', notes: 'meta 1' } }, ['c1']],
+    };
+    const wholeRecordIds: Record<string, string[]> = {};
+    for (const [name, [conditions, ids]] of Object.entries(wholeRecordConditions)) {
+      scenarios['whole ' + name] = (can) => {
+        can(['read', 'query'], 'Contact', conditions);
+      };
+      wholeRecordIds[name] = ids;
+    }
 
     class TestAPI extends API {
       initSecurity(req: APIRequest, res: APIResponse, next: express.NextFunction) {
@@ -1578,21 +1597,21 @@ describe('mongo', function () {
           ]);
         });
     });
-    it('should not return the fields of records allowed by conditions CASL does not support', async function () {
-      // The database applies the $expr, but CASL never matches it: every field is removed
+    it('should return the records allowed by conditions CASL does not support when no rule restricts the fields', async function () {
+      // The database applies the $expr, which CASL never matches: the query already selected the records
       await request
         .get('/contacts')
         .set('x-scenario', 'exprEq')
         .expect(200)
         .then(({ body: data }) => {
-          data.should.deep.equal([]);
+          data.should.deep.equal([_.omit(contacts[0], '_metadata'), _.omit(contacts[1], '_metadata')]);
         });
       await request
         .get('/contacts/c1')
         .set('x-scenario', 'exprEq')
         .expect(200)
         .then(({ body: data }) => {
-          data.should.deep.equal({});
+          data.should.deep.equal(_.omit(contacts[0], '_metadata'));
         });
       await request.get('/contacts/c3').set('x-scenario', 'exprEq').expect(404);
     });
@@ -1602,9 +1621,31 @@ describe('mongo', function () {
         .set('x-scenario', 'exprGt')
         .expect(200)
         .then(({ body: data }) => {
-          data.should.deep.equal([]);
+          data.should.deep.equal([_.omit(contacts[0], '_metadata'), _.omit(contacts[2], '_metadata')]);
         });
     });
+    // Rules that do not restrict the fields, with conditions CASL evaluates differently from MongoDB: the query
+    // selects the records, and they are returned whole
+    for (const [name, ids] of Object.entries(wholeRecordIds)) {
+      it(`should return the records selected by the query with a ${name} condition when no rule restricts the fields`, async function () {
+        const expected = contacts.filter((c) => ids.includes(c.id)).map((c) => _.omit(c, '_metadata'));
+        await request
+          .get('/contacts')
+          .set('x-scenario', 'whole ' + name)
+          .expect(200)
+          .expect('Results-Matching', '' + ids.length)
+          .then(({ body: data }) => {
+            data.should.deep.equal(expected);
+          });
+        await request
+          .get('/contacts/' + ids[0])
+          .set('x-scenario', 'whole ' + name)
+          .expect(200)
+          .then(({ body: data }) => {
+            data.should.deep.equal(expected[0]);
+          });
+      });
+    }
     it('should return the results of an aggregation that do not contain the condition fields', async function () {
       // The database already applies the conditions in the $match
       await request

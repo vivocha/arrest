@@ -114,8 +114,9 @@ restrictsFields(ability: AnyMongoAbility): boolean
 ```
 
 Whether a rule relevant to this operation's scopes lists fields. When none does, the conditions only decide
-which records are reachable, which the query already enforces: `QueryMongoOperation` does not match them again
-against the results of an aggregation pipeline. See [aggregations](authorization.md#aggregations).
+which records are reachable, which the query already enforces: `redactResult` does not match them again against
+the records, and checks the subject type only. See
+[only when a rule restricts the fields](authorization.md#only-when-a-rule-restricts-the-fields).
 
 ### `getAbilityConstraints`
 
@@ -141,7 +142,10 @@ async redactResult(job): Promise<MongoJob>
   ability. **Always call `super.prepareQuery` first in an override**, or those constraints are lost.
 - `redactResult` unescapes document keys when [`escapeProperties`](mongo-resource.md#mongoresourcedefinition)
   is set, defers to [`PipelineOperation.redactResult`](pipeline.md#redactresult), then removes
-  `job.extraFields` when set.
+  `job.extraFields` when set. Before that, it sets `feat.filter.conditions = false` when no rule
+  [`restrictsFields`](#restrictsfields): the conditions are then not matched against the records, which the
+  query selected. **This relies on `job.query` carrying the ability's constraints**: a `prepareQuery` override
+  that does not call `super.prepareQuery` returns the records it reads whole.
 
 ## `QueryMongoOperation`
 

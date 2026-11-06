@@ -187,12 +187,6 @@ export class QueryMongoOperation extends MongoOperation {
     return job;
   }
   async redactResult(job: MongoJob): Promise<MongoJob> {
-    // The results of an aggregation pipeline (built by a subclass) might not contain the fields the conditions depend
-    // on, like those of a $group. The query already selected the records the conditions permit: unless a rule also
-    // restricts the fields, that is all the conditions decide, and they are not matched again
-    if (Array.isArray(job.query) && job.req.ability && !this.restrictsFields(job.req.ability)) {
-      job.feat!.filter!.conditions = false;
-    }
     job = await super.redactResult(job);
     job.data = (job.data as any[]).filter((i: any) => Object.keys(i).length > 0);
     return job;
