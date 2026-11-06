@@ -1160,7 +1160,7 @@ describe('mongo', function () {
       { id: 'c2', name: 'Luigi', owner: 'u1', campaign: 'B', notes: 'note 2', score: 0, meta: { secret: 'y', notes: 'meta 2' }, _metadata: { team: 't2' } },
       { id: 'c3', name: 'Anna', owner: 'u2', campaign: 'A', notes: 'note 3', score: 5, meta: { secret: 'x', notes: 'meta 3' }, _metadata: { team: 't1' } },
     ];
-    const ownActions = ['read', 'query', 'create', 'createAssigned', 'update', 'patch', 'stats', 'readWithCampaign', 'readWithOwner'];
+    const ownActions = ['read', 'query', 'create', 'createAssigned', 'update', 'patch', 'stats', 'readWithCampaign', 'readWithOwner', 'readNoFilter'];
     const scenarios: Record<string, Parameters<typeof defineAbility>[0]> = {
       owner: (can) => {
         can(ownActions, 'Contact', { owner: 'u1' });
@@ -1294,6 +1294,18 @@ describe('mongo', function () {
       }
     }
 
+    // A read that does its own redaction, without the filter of the pipeline
+    class ReadNoFilterOp extends ReadMongoOperation {
+      constructor(resource: MongoResource, path: string, method: Method) {
+        super(resource, path, method, 'readNoFilter');
+      }
+      async prepareOpts(job: MongoJob): Promise<MongoJob> {
+        job = await super.prepareOpts(job);
+        delete job.feat!.filter;
+        return job;
+      }
+    }
+
     // A field never returned
     class QueryNoScoreOp extends QueryMongoOperation {
       constructor(resource: MongoResource, path: string, method: Method) {
@@ -1321,6 +1333,7 @@ describe('mongo', function () {
             '/noscore': { get: QueryNoScoreOp },
             '/withcampaign/:id': { get: ReadWithCampaignOp },
             '/withowner/:id': { get: ReadWithOwnerOp },
+            '/nofilter/:id': { get: ReadNoFilterOp },
           },
           MongoResource.defaultRoutes()
         )
@@ -1695,6 +1708,15 @@ describe('mongo', function () {
         .expect(200)
         .then(({ body: data }) => {
           data.should.deep.equal({ name: 'Mario', owner: 'u1' });
+        });
+    });
+    it('should not fail when a subclass removes the filter of the pipeline', async function () {
+      await request
+        .get('/contacts/nofilter/c1')
+        .set('x-scenario', 'owner')
+        .expect(200)
+        .then(({ body: data }) => {
+          data.should.deep.equal(_.omit(contacts[0], '_metadata'));
         });
     });
     it('should let a subclass change the projection when the condition fields replace all the default ones', async function () {

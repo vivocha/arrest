@@ -171,8 +171,9 @@ export abstract class MongoOperation extends PipelineOperation {
     // The query already selected the records the conditions permit: unless a rule also restricts the fields, that is
     // all the conditions decide, and they are not matched again. CASL would not always agree with MongoDB (see
     // docs/reference/authorization.md), and the results of an aggregation might not even contain the condition fields
-    if (job.req.ability && !this.restrictsFields(job.req.ability)) {
-      job.feat!.filter!.conditions = false;
+    // Like the rest of the pipeline, feat.filter is optional: a subclass might remove it to do its own redaction
+    if (job.req.ability && job.feat?.filter && !this.restrictsFields(job.req.ability)) {
+      job.feat.filter.conditions = false;
     }
     job = (await super.redactResult(job)) as MongoJob;
     if (job.extraFields && job.data) {
